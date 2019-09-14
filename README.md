@@ -1,4 +1,4 @@
-<h1 align="center">Marlin: A Preprocessing zkSNARK with Universal and Updatabale Reference String</h1>
+<h1 align="center">Marlin</h1>
 
 <p align="center">
     <a href="https://travis-ci.org/scipr-lab/marlin"><img src="https://travis-ci.org/scipr-lab/marlin.svg?branch=master"></a>
@@ -8,10 +8,29 @@
 </p>
 
 
-`marlin` is a Rust library that implements a *zkSNARK* with **universal** and **updatabale** structured reference strings. `marlin` uses polynomial commitment schemes implemented in [`poly-commit`][https://github.com/scipr-lab/poly-commit] to apply the transformation described in the [Marlin paper][marlin] to a novel *algebraic holographic proof*. The resulting zkSNARK achieves state-of-the-art proving time, verification time, proof and SRS size. See [the Marlin paper][marlin] for details. The `marlin` library is released under the MIT License and the Apache v2 License (see [License](#license)).
+`marlin` is a Rust library that implements a
+<p style="text-align: center;">
+<b>preprocessing zkSNARK for R1CS</b><br>
+with<br>
+<b>universal and updatable SRS</b>
+</p>
+
+This library was initially developed as part of the [Marlin paper][marlin], and is released under the MIT License and the Apache v2 License (see [License](#license)).
 
 **WARNING:** This is an academic prototype, and in particular has not received careful code review. This implementation is NOT ready for production use.
 
+## Overview
+
+A zkSNARK with **preprocessing** achieves succinct verification for arbitrary computations, as opposed to only for structured computations. Informally, in an offline phase, one can preprocess the desired computation to produce a short summary of it; subsequently, in an online phase, this summary can be used to check any number of arguments relative to this computation.
+
+The preprocessing zkSNARKs in this library rely on a structured reference string (SRS), which contains system parameters required by the argument system to produce/validate arguments. The SRS in this library is **universal**, which means that it supports (deterministically) preprocessing any computation up to a given size bound. The SRS is also **updatable**, which means that anyone can contribute a fresh share of randomness to it, which facilitates deployments in the real world.
+
+The construction in this library follows the methodology introduced in the [Marlin paper][marlin], which obtains preprocessing zkSNARKs with universal and updatable SRS by combining two ingredients:
+
+* an **algebraic holographic proof**
+* a **polynomial commitment scheme**
+
+The first ingredient is provided as part of this library, and is an efficient algebraic holographic proof for R1CS (a generalization of arithmetic circuit satisfiability supported by many argument systems). The second ingredient is imported from [`poly-commit`](https://github.com/scipr-lab/poly-commit). See [the Marlin paper][marlin] for evaluation details.
 
 ## Build guide
 
@@ -32,7 +51,7 @@ This library comes with some unit and integration tests. Run these tests with:
 cargo test
 ```
 
-Lastly, this library is instrumented with profiling infrastructure that prints detailed traces of execution time. To enables this, compile with `cargo build --features timer`.
+Lastly, this library is instrumented with profiling infrastructure that prints detailed traces of execution time. To enable this, compile with `cargo build --features timer`.
 
 ## License
 
