@@ -9,7 +9,7 @@
 
 
 `marlin` is a Rust library that implements a
-<p style="text-align: center;">
+<p align="center">
 <b>preprocessing zkSNARK for R1CS</b><br>
 with<br>
 <b>universal and updatable SRS</b>
