@@ -1,0 +1,51 @@
+[package]
+name = "marlin"
+version = "0.1.0"
+authors = [
+  "Alessandro Chiesa <alexch@berkeley.edu>",
+  "Mary Maller <mary.maller.15@ucl.ac.uk>",
+  "Yuncong Hu <huyuncongh@gmail.com>",
+  "Pratyush Mishra <pratyush@berkeley.edu>",
+  "Noah Vesely <noah.vesely.18@ucl.ac.uk>",
+  "Nicholas Ward <npward@berkeley.edu>",
+]
+description = "A library for the Marlin preprocessing zkSNARK"
+repository = "https://github.com/scipr/marlin"
+documentation = "https://docs.rs/marlin/"
+keywords = ["cryptography", "polynomial commitments", "zkSNARK"]
+categories = ["cryptography"]
+include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+license = "MIT/Apache-2.0"
+edition = "2018"
+
+[dev-dependencies]
+blake2 = "0.8.1"
+
+[dependencies]
+algebra = { git = "https://github.com/scipr-lab/zexe/", features = [ "parallel" ] }
+ff-fft = { git = "https://github.com/scipr-lab/zexe/" }
+bench-utils = { git = "https://github.com/scipr-lab/zexe/" }
+r1cs-core = { git = "https://github.com/scipr-lab/zexe/" }
+
+poly-commit = { git = "https://github.com/scipr-lab/poly-commit" }
+
+rand = { version = "0.4" }
+rayon = { version = "1" }
+digest = { version = "0.8" }
+generic-array = { version = "0.12" }
+derivative = { version = "1" }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+incremental = true
+debug = true
+
+[profile.test]
+opt-level = 3
+debug-assertions = true
+incremental = true
+debug = true
+
+[features]
+print-trace = [ "bench-utils/print-trace" ]
