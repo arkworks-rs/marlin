@@ -256,7 +256,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
         end_timer!(eval_time);
 
         fs_rng.absorb(&evaluations.values().cloned().collect::<Vec<_>>());
-        let opening_challenge = F::rand(&mut fs_rng);
+        let opening_challenge: F = u128::rand(&mut fs_rng).into();
 
         let pc_proof = PC::open_labeled(
             &universal_pk,
@@ -362,7 +362,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
         let (query_set, verifier_state) = AHPForR1CS::verifier_query_set(verifier_state, &mut fs_rng);
 
         fs_rng.absorb(&proof.evaluations);
-        let opening_challenge = F::rand(&mut fs_rng);
+        let opening_challenge: F = u128::rand(&mut fs_rng).into();
 
         let evaluations: Evaluations<_> = query_set.iter().cloned().zip(proof.evaluations.iter().cloned()).collect();
 
