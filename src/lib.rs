@@ -18,7 +18,7 @@
 #[macro_use]
 extern crate bench_utils;
 
-use rand::{SeedableRng, Rng};
+use rand::Rng;
 use digest::Digest;
 use algebra::to_bytes;
 use algebra::ToBytes;

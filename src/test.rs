@@ -39,7 +39,8 @@ mod marlin {
     use crate::Marlin;
 
     use algebra::{curves::bls12_377::Bls12_377, fields::bls12_377::Fr};
-    use rand::{thread_rng, Rand};
+    use rand::thread_rng;
+    use algebra::UniformRand;
     use std::ops::MulAssign;
     use poly_commit::{multi_pc::mpc_from_spc::*, single_pc::kzg10::KZG10};
     use blake2::Blake2s;

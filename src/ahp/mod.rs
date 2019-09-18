@@ -117,7 +117,7 @@ impl<F: PrimeField> UnnormalizedBivariateLagrangePoly<F> for EvaluationDomain<F>
 mod tests {
     use super::*;
     use algebra::fields::bls12_381::fr::Fr;
-    use rand::Rand;
+    use algebra::UniformRand;
 
     #[test]
     fn domain_unnormalized_bivariate_lagrange_poly() {
