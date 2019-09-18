@@ -1,15 +1,15 @@
 #![allow(non_snake_case)]
 
-use r1cs_core::ConstraintSynthesizer;
-use rand::Rng;
-use crate::ahp::*;
+use crate::ahp::constraint_systems::ProverConstraintSystem;
 use crate::ahp::indexer::IndexInfo;
 use crate::ahp::prover::*;
-use crate::ahp::constraint_systems::ProverConstraintSystem;
+use crate::ahp::*;
+use r1cs_core::ConstraintSynthesizer;
+use rand::Rng;
 
 use algebra::PrimeField;
 use ff_fft::EvaluationDomain;
-use poly_commit::multi_pc::{QuerySet, Evaluations};
+use poly_commit::multi_pc::{Evaluations, QuerySet};
 
 /// State of the AHP verifier
 pub struct VerifierState<F: PrimeField, C> {
@@ -37,7 +37,6 @@ pub struct VerifierFirstMsg<F> {
     pub eta_c: F,
 }
 
-
 /// Second verifier message.
 #[derive(Copy, Clone)]
 pub struct VerifierSecondMsg<F> {
@@ -52,21 +51,21 @@ pub struct VerifierThirdMsg<F> {
     pub beta_2: F,
 }
 
-
 impl<F: PrimeField> AHPForR1CS<F> {
     /// Output the first message and next round state.
     pub fn verifier_first_round<R: Rng, C: ConstraintSynthesizer<F>>(
         index_info: IndexInfo<F, C>,
-        rng: &mut R
+        rng: &mut R,
     ) -> Result<(VerifierFirstMsg<F>, VerifierState<F, C>), Error> {
-
         if index_info.num_constraints != index_info.num_input_variables + index_info.num_witness_variables {
             return Err(Error::NonSquareMatrix);
         }
 
-        let domain_h = EvaluationDomain::new(index_info.num_constraints).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain_h =
+            EvaluationDomain::new(index_info.num_constraints).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
-        let domain_k = EvaluationDomain::new(index_info.num_non_zero).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain_k =
+            EvaluationDomain::new(index_info.num_non_zero).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
         let alpha = F::rand(rng);
         let eta_a = F::rand(rng);
@@ -98,7 +97,6 @@ impl<F: PrimeField> AHPForR1CS<F> {
         state: VerifierState<F, C>,
         rng: &mut R,
     ) -> (VerifierSecondMsg<F>, VerifierState<F, C>) {
-
         let VerifierState {
             index_info,
             domain_h,
@@ -109,9 +107,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let beta_1 = domain_h.sample_element_outside_domain(rng);
 
-        let msg = VerifierSecondMsg {
-            beta_1
-        };
+        let msg = VerifierSecondMsg { beta_1 };
 
         let new_state = VerifierState {
             index_info,
@@ -129,9 +125,8 @@ impl<F: PrimeField> AHPForR1CS<F> {
     /// Output the third message and next round state.
     pub fn verifier_third_round<R: Rng, C: ConstraintSynthesizer<F>>(
         state: VerifierState<F, C>,
-        rng: &mut R
+        rng: &mut R,
     ) -> (VerifierThirdMsg<F>, VerifierState<F, C>) {
-
         let VerifierState {
             index_info,
             domain_h,
@@ -143,9 +138,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let beta_2 = domain_h.sample_element_outside_domain(rng);
 
-        let msg = VerifierThirdMsg {
-            beta_2
-        };
+        let msg = VerifierThirdMsg { beta_2 };
 
         let new_state = VerifierState {
             index_info,
@@ -163,7 +156,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     /// Output the fourth message and next round state.
     pub fn verifier_fourth_round<R: Rng, C: ConstraintSynthesizer<F>>(
         state: VerifierState<F, C>,
-        rng: &mut R
+        rng: &mut R,
     ) -> VerifierState<F, C> {
         let VerifierState {
             index_info,
@@ -193,7 +186,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     /// Output the query state and next round state.
     pub fn verifier_query_set<R: Rng, C: ConstraintSynthesizer<F>>(
         state: VerifierState<F, C>,
-        _: &mut R
+        _: &mut R,
     ) -> (QuerySet<F>, VerifierState<F, C>) {
         let VerifierState {
             index_info,
@@ -206,9 +199,12 @@ impl<F: PrimeField> AHPForR1CS<F> {
             ..
         } = state;
 
-        let first_round_msg = first_round_msg.expect("VerifierState should include first_round_msg when verifier_query_set is called");
-        let second_round_msg = second_round_msg.expect("VerifierState should include second_round_msg when verifier_query_set is called");
-        let third_round_msg = third_round_msg.expect("VerifierState should include third_round_msg when verifier_query_set is called");
+        let first_round_msg =
+            first_round_msg.expect("VerifierState should include first_round_msg when verifier_query_set is called");
+        let second_round_msg =
+            second_round_msg.expect("VerifierState should include second_round_msg when verifier_query_set is called");
+        let third_round_msg =
+            third_round_msg.expect("VerifierState should include third_round_msg when verifier_query_set is called");
 
         let beta_1 = second_round_msg.beta_1;
         let beta_2 = third_round_msg.beta_2;
@@ -252,7 +248,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Decide whether or not to accept given the queries and their evaluations.
-    /// Assumes that `public input` only contains the actual public input, and 
+    /// Assumes that `public input` only contains the actual public input, and
     /// is hence one less than a power of two.
     pub fn verifier_decision<C: ConstraintSynthesizer<F>>(
         public_input: &[F],
@@ -277,9 +273,12 @@ impl<F: PrimeField> AHPForR1CS<F> {
             ..
         } = state;
 
-        let first_round_msg = first_round_msg.expect("VerifierState should include first_round_msg when verifier_decision is called");
-        let second_round_msg = second_round_msg.expect("VerifierState should include second_round_msg when verifier_decision is called");
-        let third_round_msg = third_round_msg.expect("VerifierState should include third_round_msg when verifier_decision is called");
+        let first_round_msg =
+            first_round_msg.expect("VerifierState should include first_round_msg when verifier_decision is called");
+        let second_round_msg =
+            second_round_msg.expect("VerifierState should include second_round_msg when verifier_decision is called");
+        let third_round_msg =
+            third_round_msg.expect("VerifierState should include third_round_msg when verifier_decision is called");
 
         let VerifierFirstMsg {
             alpha,
@@ -369,7 +368,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let z_c_at_beta_1 = z_a_at_beta_1 * &z_b_at_beta_1;
         let sum_of_z_m = eta_a * &z_a_at_beta_1 + &(eta_b * &z_b_at_beta_1) + &(eta_c * &z_c_at_beta_1);
 
-        let x_domain = EvaluationDomain::new(public_input.len()).ok_or(SynthesisError::PolynomialDegreeTooLarge).unwrap();
+        let x_domain = EvaluationDomain::new(public_input.len())
+            .ok_or(SynthesisError::PolynomialDegreeTooLarge)
+            .unwrap();
         let x_poly_at_beta_1 = x_domain
             .evaluate_all_lagrange_coefficients(beta_1)
             .into_iter()

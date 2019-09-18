@@ -8,10 +8,7 @@ struct MySillyCircuit<F: Field> {
 }
 
 impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<ConstraintF> {
-    fn generate_constraints<CS: ConstraintSystem<ConstraintF>>(
-        self,
-        cs: &mut CS,
-    ) -> Result<(), SynthesisError> {
+    fn generate_constraints<CS: ConstraintSystem<ConstraintF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
         let a = cs.alloc(|| "a", || self.a.ok_or(SynthesisError::AssignmentMissing))?;
         let b = cs.alloc(|| "b", || self.b.ok_or(SynthesisError::AssignmentMissing))?;
         let c = cs.alloc_input(
@@ -23,13 +20,13 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<C
                 a.mul_assign(&b);
                 Ok(a)
             },
-            )?;
+        )?;
 
         cs.enforce(|| "one", |lc| lc + CS::one(), |lc| lc + CS::one(), |lc| lc + CS::one());
         cs.enforce(|| "first", |lc| lc + a, |lc| lc + b, |lc| lc + c);
         cs.enforce(|| "second", |lc| lc + a, |lc| lc + b, |lc| lc + c);
         cs.enforce(|| "third", |lc| lc + a, |lc| lc + b, |lc| lc + c);
-        
+
         Ok(())
     }
 }
@@ -38,12 +35,12 @@ mod marlin {
     use super::*;
     use crate::Marlin;
 
-    use algebra::{curves::bls12_377::Bls12_377, fields::bls12_377::Fr};
-    use rand::thread_rng;
     use algebra::UniformRand;
-    use std::ops::MulAssign;
-    use poly_commit::{multi_pc::mpc_from_spc::*, single_pc::kzg10::KZG10};
+    use algebra::{curves::bls12_377::Bls12_377, fields::bls12_377::Fr};
     use blake2::Blake2s;
+    use poly_commit::{multi_pc::mpc_from_spc::*, single_pc::kzg10::KZG10};
+    use rand::thread_rng;
+    use std::ops::MulAssign;
 
     type MultiPC = MultiPCFromSinglePC<Fr, KZG10<Bls12_377>>;
 
@@ -60,11 +57,8 @@ mod marlin {
             let b = Fr::rand(rng);
             let mut c = a;
             c.mul_assign(&b);
-            
-            let circ = MySillyCircuit {
-                a: Some(a),
-                b: Some(b),
-            };
+
+            let circ = MySillyCircuit { a: Some(a), b: Some(b) };
 
             let (index_pk, index_vk) = MarlinInst::index(&universal_pk, circ.clone()).unwrap();
 

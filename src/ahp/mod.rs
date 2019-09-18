@@ -1,16 +1,15 @@
-use algebra::{PrimeField, Field};
+use algebra::{Field, PrimeField};
 use ff_fft::EvaluationDomain;
-use std::marker::PhantomData;
 use r1cs_core::SynthesisError;
+use std::marker::PhantomData;
 
-
+pub(crate) mod constraint_systems;
 /// Describes data structures and the algorithms used by the AHP indexer.
 pub mod indexer;
 /// Describes data structures and the algorithms used by the AHP prover.
 pub mod prover;
 /// Describes data structures and the algorithms used by the AHP verifier.
 pub mod verifier;
-pub(crate) mod constraint_systems;
 
 /// The holographic IOP defined in [CHMMVW19](TODO: insert link here).
 pub struct AHPForR1CS<F: Field> {
@@ -31,26 +30,26 @@ impl<F: PrimeField> AHPForR1CS<F> {
     /// The maximum degree of polynomials produced by the indexer and prover
     /// of this protocol. Currently, `marlin` only supports inputs of size one
     /// less than a power of 2 (i.e., of the form 2^n - 1).
-    pub fn max_degree(
-        num_constraints: usize,
-        num_variables: usize,
-        num_non_zero: usize
-    ) -> Result<usize, Error> {
+    pub fn max_degree(num_constraints: usize, num_variables: usize, num_non_zero: usize) -> Result<usize, Error> {
         if num_constraints != num_variables {
             Err(Error::NonSquareMatrix)
         } else {
             let zk_bound = 1;
-            let domain_h_size = EvaluationDomain::<F>::compute_size_of_domain(num_constraints).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-            let domain_k_size = EvaluationDomain::<F>::compute_size_of_domain(num_non_zero).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+            let domain_h_size = EvaluationDomain::<F>::compute_size_of_domain(num_constraints)
+                .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+            let domain_k_size = EvaluationDomain::<F>::compute_size_of_domain(num_non_zero)
+                .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
             Ok(*[
-               2 * domain_h_size + zk_bound - 2,
-               domain_h_size,
-               domain_h_size,
-               6 * domain_k_size - 6
-            ].iter().max().unwrap())
+                2 * domain_h_size + zk_bound - 2,
+                domain_h_size,
+                domain_h_size,
+                6 * domain_k_size - 6,
+            ]
+            .iter()
+            .max()
+            .unwrap())
         }
     }
-
 }
 
 /// Describes the failure modes of the AHP scheme.
@@ -65,7 +64,7 @@ pub enum Error {
     /// Currently we only support square constraint matrices.
     NonSquareMatrix,
     /// An error occurred during constraint generation.
-    ConstraintSystemError(SynthesisError)
+    ConstraintSystemError(SynthesisError),
 }
 
 impl From<SynthesisError> for Error {
@@ -100,9 +99,9 @@ impl<F: PrimeField> UnnormalizedBivariateLagrangePoly<F> for EvaluationDomain<F>
         let mut inverses: Vec<F> = self.elements().map(|y| x - &y).collect();
         algebra::fields::batch_inversion(&mut inverses);
 
-        inverses.iter_mut().for_each(|denominator| {
-            *denominator = vanish_x * denominator
-        });
+        inverses
+            .iter_mut()
+            .for_each(|denominator| *denominator = vanish_x * denominator);
         inverses
     }
 
@@ -123,7 +122,10 @@ mod tests {
     fn domain_unnormalized_bivariate_lagrange_poly() {
         for domain_size in 1..10 {
             let domain = EvaluationDomain::<Fr>::new(1 << domain_size).unwrap();
-            let manual: Vec<_> = domain.elements().map(|elem| domain.eval_unnormalized_bivariate_lagrange_poly(elem, elem)).collect();
+            let manual: Vec<_> = domain
+                .elements()
+                .map(|elem| domain.eval_unnormalized_bivariate_lagrange_poly(elem, elem))
+                .collect();
             let fast = domain.batch_eval_unnormalized_bivariate_lagrange_poly_with_same_inputs();
             assert_eq!(fast, manual);
         }
@@ -135,7 +137,10 @@ mod tests {
         for domain_size in 1..10 {
             let domain = EvaluationDomain::<Fr>::new(1 << domain_size).unwrap();
             let x = Fr::rand(rng);
-            let manual: Vec<_> = domain.elements().map(|y| domain.eval_unnormalized_bivariate_lagrange_poly(x, y)).collect();
+            let manual: Vec<_> = domain
+                .elements()
+                .map(|y| domain.eval_unnormalized_bivariate_lagrange_poly(x, y))
+                .collect();
             let fast = domain.batch_eval_unnormalized_bivariate_lagrange_poly_with_diff_inputs(x);
             assert_eq!(fast, manual);
         }

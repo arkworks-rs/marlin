@@ -1,18 +1,16 @@
-use algebra::{ToBytes, FromBytes};
-use generic_array::GenericArray;
+use algebra::{FromBytes, ToBytes};
 use digest::Digest;
-use rand::{SeedableRng, RngCore};
+use generic_array::GenericArray;
+use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaChaRng;
 use std::marker::PhantomData;
-
-
 
 /// A `SeedableRng` that refreshes its seed by hashing together the previous seed
 /// and the new seed material.
 // TODO: later: re-evaluate decision about ChaChaRng
 pub struct FiatShamirRng<D: Digest> {
     r: ChaChaRng,
-    seed:  GenericArray<u8, D::OutputSize>,
+    seed: GenericArray<u8, D::OutputSize>,
     #[doc(hidden)]
     digest: PhantomData<D>,
 }
@@ -56,7 +54,7 @@ impl<D: Digest> FiatShamirRng<D> {
         }
     }
 
-    /// Refresh `self.seed` with new material. Achieved by setting 
+    /// Refresh `self.seed` with new material. Achieved by setting
     /// `self.seed = H(self.seed || new_seed)`.
     #[inline]
     pub fn absorb<'a, T: 'a + ToBytes>(&mut self, seed: &'a T) {

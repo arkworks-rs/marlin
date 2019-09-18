@@ -1,11 +1,11 @@
 #![allow(non_snake_case)]
 
-use derivative::Derivative;
-use crate::ahp::{AHPForR1CS, constraint_systems::IndexerConstraintSystem, constraint_systems::matrix_to_polys, Error};
+use crate::ahp::{constraint_systems::matrix_to_polys, constraint_systems::IndexerConstraintSystem, AHPForR1CS, Error};
 use algebra::PrimeField;
-use poly_commit::LabeledPolynomial;
+use derivative::Derivative;
 use ff_fft::{EvaluationDomain, Evaluations as EvaluationsOnDomain};
-use r1cs_core::{SynthesisError, ConstraintSynthesizer};
+use poly_commit::LabeledPolynomial;
+use r1cs_core::{ConstraintSynthesizer, SynthesisError};
 
 use std::marker::PhantomData;
 
@@ -14,19 +14,16 @@ use std::marker::PhantomData;
 /// constraints, and the maximum number of non-zero entries in any of the
 /// constraint matrices.
 #[derive(Derivative)]
-#[derivative(
-    Clone(bound = ""),
-    Copy(bound = ""),
-)]
+#[derivative(Clone(bound = ""), Copy(bound = ""))]
 pub struct IndexInfo<F, C> {
     /// The number of public input variables.
-    pub num_input_variables:         usize,
+    pub num_input_variables: usize,
     /// The number of secret witness variables.
-    pub num_witness_variables:         usize,
+    pub num_witness_variables: usize,
     /// The number of constraints.
-    pub num_constraints:  usize,
+    pub num_constraints: usize,
     /// The maximum number of non-zero entries in any constraint matrix.
-    pub num_non_zero:     usize,
+    pub num_non_zero: usize,
 
     #[doc(hidden)]
     f: PhantomData<F>,
@@ -47,7 +44,15 @@ impl<F, C> IndexInfo<F, C> {
     /// The maximum degree of polynomial required to represent this index in the
     /// the AHP.
     pub fn max_degree(&self) -> usize {
-        *[self.num_input_variables, self.num_witness_variables, self.num_constraints, self.num_non_zero].iter().max().unwrap()
+        *[
+            self.num_input_variables,
+            self.num_witness_variables,
+            self.num_constraints,
+            self.num_non_zero,
+        ]
+        .iter()
+        .max()
+        .unwrap()
     }
 }
 
@@ -85,7 +90,7 @@ pub struct Index<'a, F: PrimeField, C: ConstraintSynthesizer<F>> {
     pub c_col_poly: LabeledPolynomial<'a, F>,
     /// LDE of the ralues of the non-zero entries of C.
     pub c_val_poly: LabeledPolynomial<'a, F>,
-    
+
     /// Row-indices of the non-zero entries of A.
     pub a_row_evals_on_K: EvaluationsOnDomain<F>,
     /// Col-indices of the non-zero entries of A.
@@ -138,10 +143,17 @@ impl<'a, F: PrimeField, C: ConstraintSynthesizer<F>> Index<'a, F, C> {
     /// Iterate over the indexed evaluations.
     pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<'a, F>> {
         vec![
-            &self.a_row_poly, &self.a_col_poly, &self.a_val_poly,
-            &self.b_row_poly, &self.b_col_poly, &self.b_val_poly,
-            &self.c_row_poly, &self.c_col_poly, &self.c_val_poly,
-        ].into_iter()
+            &self.a_row_poly,
+            &self.a_col_poly,
+            &self.a_val_poly,
+            &self.b_row_poly,
+            &self.b_col_poly,
+            &self.b_val_poly,
+            &self.c_row_poly,
+            &self.c_col_poly,
+            &self.c_val_poly,
+        ]
+        .into_iter()
     }
 }
 
@@ -161,7 +173,10 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let num_non_zero = ics.num_non_zero();
 
         if num_constraints != num_formatted_input_variables + num_witness_variables {
-            eprintln!("number of (formatted) input_variables: {}", num_formatted_input_variables);
+            eprintln!(
+                "number of (formatted) input_variables: {}",
+                num_formatted_input_variables
+            );
             eprintln!("number of witness_variables: {}", num_witness_variables);
             eprintln!("number of num_constraints: {}", num_constraints);
             eprintln!("number of num_non_zero: {}", ics.num_non_zero());
@@ -184,29 +199,37 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let domain_h = EvaluationDomain::new(num_constraints).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_k = EvaluationDomain::new(num_non_zero).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let x_domain = EvaluationDomain::<F>::new(num_formatted_input_variables).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let b_domain = EvaluationDomain::<F>::new(6 * domain_k.size() - 6).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let x_domain = EvaluationDomain::<F>::new(num_formatted_input_variables)
+            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let b_domain =
+            EvaluationDomain::<F>::new(6 * domain_k.size() - 6).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
         let a_matrix = ics.a_matrix();
         let b_matrix = ics.b_matrix();
         let c_matrix = ics.c_matrix();
 
         let a_poly_time = start_timer!(|| "Generating A polynomials");
-        let ((a_row_evals_on_K, a_col_evals_on_K, a_val_evals_on_K),
-             (a_row_evals_on_B, a_col_evals_on_B, a_val_evals_on_B),
-             (a_row_poly, a_col_poly, a_val_poly)) = matrix_to_polys(a_matrix.clone(), domain_k, domain_h, x_domain, b_domain);
+        let (
+            (a_row_evals_on_K, a_col_evals_on_K, a_val_evals_on_K),
+            (a_row_evals_on_B, a_col_evals_on_B, a_val_evals_on_B),
+            (a_row_poly, a_col_poly, a_val_poly),
+        ) = matrix_to_polys(a_matrix.clone(), domain_k, domain_h, x_domain, b_domain);
         end_timer!(a_poly_time);
 
         let b_poly_time = start_timer!(|| "Generating B polynomials");
-        let ((b_row_evals_on_K, b_col_evals_on_K, b_val_evals_on_K),
-             (b_row_evals_on_B, b_col_evals_on_B, b_val_evals_on_B),
-             (b_row_poly, b_col_poly, b_val_poly)) = matrix_to_polys(b_matrix.clone(), domain_k, domain_h, x_domain, b_domain);
+        let (
+            (b_row_evals_on_K, b_col_evals_on_K, b_val_evals_on_K),
+            (b_row_evals_on_B, b_col_evals_on_B, b_val_evals_on_B),
+            (b_row_poly, b_col_poly, b_val_poly),
+        ) = matrix_to_polys(b_matrix.clone(), domain_k, domain_h, x_domain, b_domain);
         end_timer!(b_poly_time);
 
         let c_poly_time = start_timer!(|| "Generating C polynomials");
-        let ((c_row_evals_on_K, c_col_evals_on_K, c_val_evals_on_K),
-             (c_row_evals_on_B, c_col_evals_on_B, c_val_evals_on_B),
-             (c_row_poly, c_col_poly, c_val_poly)) = matrix_to_polys(c_matrix.clone(), domain_k, domain_h, x_domain, b_domain);
+        let (
+            (c_row_evals_on_K, c_col_evals_on_K, c_val_evals_on_K),
+            (c_row_evals_on_B, c_col_evals_on_B, c_val_evals_on_B),
+            (c_row_poly, c_col_poly, c_val_poly),
+        ) = matrix_to_polys(c_matrix.clone(), domain_k, domain_h, x_domain, b_domain);
         end_timer!(c_poly_time);
 
         end_timer!(index_time);

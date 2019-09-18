@@ -1,12 +1,12 @@
 #![allow(non_snake_case)]
 
 use crate::ahp::*;
-use algebra::{PrimeField, Field};
+use algebra::{Field, PrimeField};
 use ff_fft::{EvaluationDomain, Evaluations as EvaluationsOnDomain};
 use poly_commit::Polynomial;
-use r1cs_core::{SynthesisError, ConstraintSystem, Variable, LinearCombination, Index as VarIndex};
-use std::collections::HashMap;
+use r1cs_core::{ConstraintSystem, Index as VarIndex, LinearCombination, SynthesisError, Variable};
 use rayon::prelude::*;
+use std::collections::HashMap;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -14,19 +14,16 @@ use rayon::prelude::*;
 
 /// Stores constraints during index generation.
 pub(crate) struct IndexerConstraintSystem<F: Field> {
-    pub(crate) num_input_variables:   usize,
+    pub(crate) num_input_variables: usize,
     pub(crate) num_witness_variables: usize,
-    pub(crate) num_constraints:  usize,
-    pub(crate) num_non_zero:     Option<usize>,
-    pub(crate) a:                Vec<Vec<(F, VarIndex)>>,
-    pub(crate) b:                Vec<Vec<(F, VarIndex)>>,
-    pub(crate) c:                Vec<Vec<(F, VarIndex)>>,
+    pub(crate) num_constraints: usize,
+    pub(crate) num_non_zero: Option<usize>,
+    pub(crate) a: Vec<Vec<(F, VarIndex)>>,
+    pub(crate) b: Vec<Vec<(F, VarIndex)>>,
+    pub(crate) c: Vec<Vec<(F, VarIndex)>>,
 }
 
-fn to_matrix_helper<F: Field>(
-    matrix: &[Vec<(F, VarIndex)>],
-    num_input_variables: usize,
-) -> Vec<Vec<(F, usize)>> {
+fn to_matrix_helper<F: Field>(matrix: &[Vec<(F, VarIndex)>], num_input_variables: usize) -> Vec<Vec<(F, usize)>> {
     let mut new_matrix = Vec::with_capacity(matrix.len());
     for row in matrix {
         let mut new_row = Vec::with_capacity(row.len());
@@ -43,21 +40,23 @@ fn to_matrix_helper<F: Field>(
 }
 
 impl<F: Field> IndexerConstraintSystem<F> {
-
     #[inline]
     fn make_row(l: &LinearCombination<F>) -> Vec<(F, VarIndex)> {
-        l.as_ref().iter().map(|(var, coeff)| (*coeff, var.get_unchecked())).collect()
+        l.as_ref()
+            .iter()
+            .map(|(var, coeff)| (*coeff, var.get_unchecked()))
+            .collect()
     }
 
     pub(crate) fn new() -> Self {
         Self {
-            num_input_variables:   1,
+            num_input_variables: 1,
             num_witness_variables: 0,
-            num_constraints:  0,
-            num_non_zero:     None,
-            a:                Vec::new(),
-            b:                Vec::new(),
-            c:                Vec::new(),
+            num_constraints: 0,
+            num_non_zero: None,
+            a: Vec::new(),
+            b: Vec::new(),
+            c: Vec::new(),
         }
     }
 
@@ -81,7 +80,10 @@ impl<F: Field> IndexerConstraintSystem<F> {
             let b_density = self.b.iter().map(|row| row.len()).sum();
             let c_density = self.c.iter().map(|row| row.len()).sum();
 
-            let max = *[a_density, b_density, c_density].iter().max().expect("iterator is not empty");
+            let max = *[a_density, b_density, c_density]
+                .iter()
+                .max()
+                .expect("iterator is not empty");
             self.num_non_zero = Some(max);
             max
         }
@@ -165,7 +167,7 @@ pub(crate) fn matrix_to_polys<F: PrimeField>(
     interpolation_domain: EvaluationDomain<F>,
     output_domain: EvaluationDomain<F>,
     input_domain: EvaluationDomain<F>,
-    expanded_domain: EvaluationDomain<F>
+    expanded_domain: EvaluationDomain<F>,
 ) -> (
     (EvaluationsOnDomain<F>, EvaluationsOnDomain<F>, EvaluationsOnDomain<F>),
     (EvaluationsOnDomain<F>, EvaluationsOnDomain<F>, EvaluationsOnDomain<F>),
@@ -181,9 +183,9 @@ pub(crate) fn matrix_to_polys<F: PrimeField>(
 
     let eq_poly_vals_time = start_timer!(|| "Precomputing eq_poly_vals");
     let eq_poly_vals: HashMap<F, F> = output_domain
-            .elements()
-            .zip(output_domain.batch_eval_unnormalized_bivariate_lagrange_poly_with_same_inputs())
-            .collect();
+        .elements()
+        .zip(output_domain.batch_eval_unnormalized_bivariate_lagrange_poly_with_same_inputs())
+        .collect();
     end_timer!(eq_poly_vals_time);
 
     let lde_evals_time = start_timer!(|| "Computing row, col and val evals");
@@ -233,10 +235,11 @@ pub(crate) fn matrix_to_polys<F: PrimeField>(
     end_timer!(interpolate_time);
 
     end_timer!(matrix_time);
-    ((row_evals_on_K, col_evals_on_K, val_evals_on_K),
-     (row_evals_on_B, col_evals_on_B, val_evals_on_B),
-     (row_poly, col_poly, val_poly))
-
+    (
+        (row_evals_on_K, col_evals_on_K, val_evals_on_K),
+        (row_evals_on_B, col_evals_on_B, val_evals_on_B),
+        (row_poly, col_poly, val_poly),
+    )
 }
 
 fn is_in_ascending_order<T: Ord>(x_s: &[T], is_less_than: impl Fn(&T, &T) -> bool) -> bool {
@@ -259,22 +262,21 @@ fn is_in_ascending_order<T: Ord>(x_s: &[T], is_less_than: impl Fn(&T, &T) -> boo
 
 pub(crate) struct ProverConstraintSystem<F: Field> {
     // Assignments of variables
-    pub(crate) input_assignment:   Vec<F>,
+    pub(crate) input_assignment: Vec<F>,
     pub(crate) witness_assignment: Vec<F>,
-    pub(crate) num_input_variables:     usize,
-    pub(crate) num_witness_variables:   usize,
-    pub(crate) num_constraints:    usize,
+    pub(crate) num_input_variables: usize,
+    pub(crate) num_witness_variables: usize,
+    pub(crate) num_constraints: usize,
 }
 
 impl<F: Field> ProverConstraintSystem<F> {
     pub(crate) fn new() -> Self {
         Self {
-            input_assignment:   vec![F::one()],
+            input_assignment: vec![F::one()],
             witness_assignment: Vec::new(),
-            num_input_variables:     1usize,
-            num_witness_variables:   0usize,
-            num_constraints:    0usize,
-
+            num_input_variables: 1usize,
+            num_witness_variables: 0usize,
+            num_constraints: 0usize,
         }
     }
 
@@ -286,14 +288,12 @@ impl<F: Field> ProverConstraintSystem<F> {
         input
     }
 
-
     /// Takes in a previously formatted public input and removes the formatting
     /// imposed by the constraint system.
     pub(crate) fn unformat_public_input(input: &[F]) -> Vec<F> {
         input[1..].to_vec()
     }
 }
-
 
 impl<ConstraintF: Field> ConstraintSystem<ConstraintF> for ProverConstraintSystem<ConstraintF> {
     type Root = Self;

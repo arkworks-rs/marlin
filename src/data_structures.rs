@@ -1,9 +1,9 @@
-use std::marker::PhantomData;
-use algebra::PrimeField;
 use crate::ahp::indexer::*;
 use crate::ahp::prover::ProverMsg;
-use r1cs_core::ConstraintSynthesizer;
+use algebra::PrimeField;
 use poly_commit::MultiPolynomialCommitment as MultiPC;
+use r1cs_core::ConstraintSynthesizer;
+use std::marker::PhantomData;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -13,7 +13,6 @@ use poly_commit::MultiPolynomialCommitment as MultiPC;
 pub type UniversalProverKey<F, PC> = <PC as MultiPC<F>>::CommitterKey;
 /// The universal verifier key for the argument system.
 pub type UniversalVerifierKey<F, PC> = <PC as MultiPC<F>>::VerifierKey;
-
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -59,7 +58,7 @@ impl<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> IndexVerifierKe
 pub struct IndexProverKey<'a, F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> {
     /// The index verifier key.
     pub index_vk: IndexVerifierKey<F, PC, C>,
-    /// The randomness for the index polynomial commitments. 
+    /// The randomness for the index polynomial commitments.
     pub index_comm_rands: Vec<PC::Randomness>,
     /// The index itself.
     pub index: Index<'a, F, C>,
@@ -96,7 +95,7 @@ pub struct Proof<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> {
     constraint_system: PhantomData<C>,
 }
 
-impl<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> Proof<F, PC, C>  {
+impl<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> Proof<F, PC, C> {
     /// Construct a new proof.
     pub fn new(
         commitments: Vec<Vec<PC::Commitment>>,
@@ -136,31 +135,27 @@ impl<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> Proof<F, PC, C>
         let evals_size_in_bytes = num_evals * size_of_fe_in_bytes;
         let num_prover_messages: usize = self.prover_messages.iter().map(|v| v.field_elements.len()).sum();
         let prover_msg_size_in_bytes = num_prover_messages * size_of_fe_in_bytes;
-        let arg_size = 
-            size_bytes_comms_with_degree_bounds + 
-            size_bytes_comms_without_degree_bounds + 
-            prover_msg_size_in_bytes + 
-            evals_size_in_bytes;
+        let arg_size = size_bytes_comms_with_degree_bounds
+            + size_bytes_comms_without_degree_bounds
+            + prover_msg_size_in_bytes
+            + evals_size_in_bytes;
         let stats = format!(
             "Argument size in bytes: {}\n\n\
-            Number of commitments without degree bounds: {}\n\
-            Size (in bytes) of commitments without degree bounds: {}\n\
-            Number of commitments with degree bounds: {}\n\
-            Size (in bytes) of commitments with degree bounds: {}\n\n\
-            Number of evaluations: {}\n\
-            Size (in bytes) of evaluations: {}\n\n\
-            Number of field elements in prover messages: {}\n\
-            Size (in bytes) of prover message: {}\n",
+             Number of commitments without degree bounds: {}\n\
+             Size (in bytes) of commitments without degree bounds: {}\n\
+             Number of commitments with degree bounds: {}\n\
+             Size (in bytes) of commitments with degree bounds: {}\n\n\
+             Number of evaluations: {}\n\
+             Size (in bytes) of evaluations: {}\n\n\
+             Number of field elements in prover messages: {}\n\
+             Size (in bytes) of prover message: {}\n",
             arg_size,
-
             num_comms_without_degree_bounds,
             size_bytes_comms_without_degree_bounds,
             num_comms_with_degree_bounds,
             size_bytes_comms_with_degree_bounds,
-
             num_evals,
             evals_size_in_bytes,
-
             num_prover_messages,
             prover_msg_size_in_bytes,
         );
