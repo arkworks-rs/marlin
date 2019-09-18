@@ -20,6 +20,7 @@ extern crate bench_utils;
 use algebra::to_bytes;
 use algebra::PrimeField;
 use algebra::ToBytes;
+use algebra::UniformRand;
 use digest::Digest;
 use poly_commit::multi_pc::Evaluations;
 use poly_commit::{MultiPolynomialCommitment as MultiPC, PCCommitterKey};
