@@ -23,7 +23,7 @@ use algebra::ToBytes;
 use algebra::UniformRand;
 use digest::Digest;
 use poly_commit::multi_pc::Evaluations;
-use poly_commit::{MultiPolynomialCommitment as MultiPC, PCCommitterKey};
+use poly_commit::{LabeledCommitment, MultiPolynomialCommitment as MultiPC, PCCommitterKey};
 use r1cs_core::ConstraintSynthesizer;
 use rand::Rng;
 use std::marker::PhantomData;
@@ -91,10 +91,11 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
         }
 
         let commit_time = start_timer!(|| "Commit to index polynomials");
-        let (index_comms, index_comm_rands): (Vec<PC::Commitment>, _) =
-            PC::commit_labeled(universal_pk, index.iter(), None).map_err(Error::from_pc_err)?;
+        let (index_comms, index_comm_rands): (_, _) =
+            PC::commit(universal_pk, index.iter(), None).map_err(Error::from_pc_err)?;
         end_timer!(commit_time);
 
+        let index_comms = index_comms.into_iter().map(|c| c.commitment().clone()).collect();
         let index_vk = IndexVerifierKey {
             index_info: index.index_info,
             index_comms,
@@ -137,7 +138,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
 
         let first_round_comm_time = start_timer!(|| "Committing to first round polys");
         let (first_comms, first_comm_rands) =
-            PC::commit_labeled(&universal_pk, prover_first_oracles.iter(), Some(zk_rng)).map_err(Error::from_pc_err)?;
+            PC::commit(&universal_pk, prover_first_oracles.iter(), Some(zk_rng)).map_err(Error::from_pc_err)?;
         end_timer!(first_round_comm_time);
 
         fs_rng.absorb(&to_bytes![first_comms, prover_first_msg].unwrap());
@@ -154,7 +155,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
 
         let second_round_comm_time = start_timer!(|| "Committing to second round polys");
         let (second_comms, second_comm_rands) =
-            PC::commit_labeled(&universal_pk, prover_second_oracles.iter(), Some(zk_rng))
+            PC::commit(&universal_pk, prover_second_oracles.iter(), Some(zk_rng))
                 .map_err(Error::from_pc_err)?;
         end_timer!(second_round_comm_time);
 
@@ -170,7 +171,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
 
         let third_round_comm_time = start_timer!(|| "Committing to third round polys");
         let (third_comms, third_comm_rands) =
-            PC::commit_labeled(&universal_pk, prover_third_oracles.iter(), Some(zk_rng)).map_err(Error::from_pc_err)?;
+            PC::commit(&universal_pk, prover_third_oracles.iter(), Some(zk_rng)).map_err(Error::from_pc_err)?;
         end_timer!(third_round_comm_time);
 
         fs_rng.absorb(&to_bytes![third_comms, prover_third_msg].unwrap());
@@ -185,7 +186,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
 
         let fourth_round_comm_time = start_timer!(|| "Committing to fourth round polys");
         let (fourth_comms, fourth_comm_rands) =
-            PC::commit_labeled(&universal_pk, prover_fourth_oracles.iter(), Some(zk_rng))
+            PC::commit(&universal_pk, prover_fourth_oracles.iter(), Some(zk_rng))
                 .map_err(Error::from_pc_err)?;
         end_timer!(fourth_round_comm_time);
 
@@ -205,7 +206,12 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
             .collect();
 
         // Gather commitments in one vector.
-        let commitments: Vec<_> = vec![first_comms, second_comms, third_comms, fourth_comms];
+        let commitments: Vec<_> = vec![
+            first_comms.into_iter().map(|p| p.commitment().clone()).collect(),
+            second_comms.into_iter().map(|p| p.commitment().clone()).collect(),
+            third_comms.into_iter().map(|p| p.commitment().clone()).collect(),
+            fourth_comms.into_iter().map(|p| p.commitment().clone()).collect(),
+        ];
 
         // Gather commitment randomness together.
         let comm_rands: Vec<PC::Randomness> = index_pk
@@ -222,18 +228,19 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
         let (query_set, _) = AHPForR1CS::verifier_query_set(verifier_state, &mut fs_rng);
 
         let eval_time = start_timer!(|| "Evaluating polynomials over query set");
-        let mut evaluations = Evaluations::new();
-        for (index, point) in &query_set {
-            evaluations.insert((*index, *point), polynomials[*index].evaluate(*point));
+        let mut evaluations = Vec::new();
+        for (label, point) in &query_set {
+            let polynomial = polynomials.iter().find(|p| &p.label() == label).unwrap();
+            evaluations.push(polynomial.evaluate(*point));
         }
         end_timer!(eval_time);
 
-        fs_rng.absorb(&evaluations.values().cloned().collect::<Vec<_>>());
+        fs_rng.absorb(&evaluations);
         let opening_challenge: F = u128::rand(&mut fs_rng).into();
 
-        let pc_proof = PC::open_labeled(
+        let pc_proof = PC::open(
             &universal_pk,
-            polynomials.into_iter(),
+            polynomials,
             &query_set,
             opening_challenge,
             &comm_rands,
@@ -242,7 +249,6 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
 
         // Gather prover messages together.
         let prover_messages = vec![prover_first_msg, prover_second_msg, prover_third_msg, prover_fourth_msg];
-        let evaluations = evaluations.values().cloned().collect::<Vec<_>>();
 
         end_timer!(prover_time);
         Ok(Proof::new(commitments, evaluations, prover_messages, pc_proof))
@@ -295,16 +301,6 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
         let verifier_state = AHPForR1CS::verifier_fourth_round(verifier_state, &mut fs_rng);
         // --------------------------------------------------------------------
 
-        // Gather commitments in one vector.
-        let commitments: Vec<_> = index_vk
-            .iter()
-            .chain(first_comms)
-            .chain(second_comms)
-            .chain(third_comms)
-            .chain(fourth_comms)
-            .cloned()
-            .collect();
-
         // Collect degree bounds for commitments. Indexed polynomials have *no*
         // degree bounds because we know the committed index polynomial has the
         // correct degree.
@@ -315,6 +311,19 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
             .chain(AHPForR1CS::prover_third_round_degree_bounds(&index_vk.index_info))
             .chain(AHPForR1CS::prover_fourth_round_degree_bounds(&index_vk.index_info))
             .collect::<Vec<_>>();
+
+        // Gather commitments in one vector.
+        let commitments: Vec<_> = index_vk
+            .iter()
+            .chain(first_comms)
+            .chain(second_comms)
+            .chain(third_comms)
+            .chain(fourth_comms)
+            .cloned()
+            .zip(&AHPForR1CS::<F>::ALL_POLYNOMIALS)
+            .zip(degree_bounds)
+            .map(|((comm, label), degree_bound)| LabeledCommitment::new(label.to_string(), comm, degree_bound))
+            .collect();
 
         let (query_set, verifier_state) = AHPForR1CS::verifier_query_set(verifier_state, &mut fs_rng);
 
@@ -330,7 +339,6 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
         let evaluations_are_correct = PC::check(
             &universal_vk,
             &commitments,
-            &degree_bounds,
             &query_set,
             &evaluations,
             &proof.pc_proof,

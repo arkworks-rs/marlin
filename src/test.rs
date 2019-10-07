@@ -65,6 +65,7 @@ mod marlin {
             let proof = MarlinInst::prove(&universal_pk, &index_pk, circ, rng).unwrap();
 
             assert!(MarlinInst::verify(&universal_vk, &index_vk, &[c], &proof, rng).unwrap());
+            println!("\nShould not verify (i.e. verifier messages should print below):");
             assert!(!MarlinInst::verify(&universal_vk, &index_vk, &[a], &proof, rng).unwrap());
         }
     }
