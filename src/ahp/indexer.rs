@@ -10,16 +10,13 @@ use r1cs_core::{ConstraintSynthesizer, SynthesisError};
 use std::marker::PhantomData;
 
 /// Information about the index, including the field of definition, the number of
-/// public input variables, the number of secret witness variables, the number of
-/// constraints, and the maximum number of non-zero entries in any of the
-/// constraint matrices.
+/// variables, the number of constraints, and the maximum number of non-zero 
+/// entries in any of the constraint matrices.
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Copy(bound = ""))]
 pub struct IndexInfo<F, C> {
-    /// The number of public input variables.
-    pub num_input_variables: usize,
-    /// The number of secret witness variables.
-    pub num_witness_variables: usize,
+    /// The total number of variables in the constraint system.
+    pub num_variables: usize,
     /// The number of constraints.
     pub num_constraints: usize,
     /// The maximum number of non-zero entries in any constraint matrix.
@@ -33,8 +30,7 @@ pub struct IndexInfo<F, C> {
 
 impl<F: PrimeField, C: ConstraintSynthesizer<F>> algebra::ToBytes for IndexInfo<F, C> {
     fn write<W: std::io::Write>(&self, mut w: W) -> std::io::Result<()> {
-        (self.num_input_variables as u64).write(&mut w)?;
-        (self.num_witness_variables as u64).write(&mut w)?;
+        (self.num_variables as u64).write(&mut w)?;
         (self.num_constraints as u64).write(&mut w)?;
         (self.num_non_zero as u64).write(&mut w)
     }
@@ -43,10 +39,10 @@ impl<F: PrimeField, C: ConstraintSynthesizer<F>> algebra::ToBytes for IndexInfo<
 impl<F, C> IndexInfo<F, C> {
     /// The maximum degree of polynomial required to represent this index in the
     /// the AHP.
+    // TODO: fix: this is not the right size.
     pub fn max_degree(&self) -> usize {
         *[
-            self.num_input_variables,
-            self.num_witness_variables,
+            self.num_variables,
             self.num_constraints,
             self.num_non_zero,
         ]
@@ -171,6 +167,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let num_witness_variables = ics.num_witness_variables;
         let num_constraints = ics.num_constraints;
         let num_non_zero = ics.num_non_zero();
+        let num_variables = num_formatted_input_variables + num_witness_variables;
 
         if num_constraints != num_formatted_input_variables + num_witness_variables {
             eprintln!(
@@ -188,8 +185,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         }
 
         let index_info = IndexInfo {
-            num_input_variables: num_formatted_input_variables,
-            num_witness_variables,
+            num_variables,
             num_constraints,
             num_non_zero,
 
@@ -240,17 +236,17 @@ impl<F: PrimeField> AHPForR1CS<F> {
             b_matrix,
             c_matrix,
 
-            a_row_poly: LabeledPolynomial::new_owned(a_row_poly, None, None),
-            a_col_poly: LabeledPolynomial::new_owned(a_col_poly, None, None),
-            a_val_poly: LabeledPolynomial::new_owned(a_val_poly, None, None),
+            a_row_poly: LabeledPolynomial::new_owned("a_row".to_string(), a_row_poly, None, None),
+            a_col_poly: LabeledPolynomial::new_owned("a_col".to_string(), a_col_poly, None, None),
+            a_val_poly: LabeledPolynomial::new_owned("a_val".to_string(), a_val_poly, None, None),
 
-            b_row_poly: LabeledPolynomial::new_owned(b_row_poly, None, None),
-            b_col_poly: LabeledPolynomial::new_owned(b_col_poly, None, None),
-            b_val_poly: LabeledPolynomial::new_owned(b_val_poly, None, None),
+            b_row_poly: LabeledPolynomial::new_owned("b_row".to_string(), b_row_poly, None, None),
+            b_col_poly: LabeledPolynomial::new_owned("b_col".to_string(), b_col_poly, None, None),
+            b_val_poly: LabeledPolynomial::new_owned("b_val".to_string(), b_val_poly, None, None),
 
-            c_row_poly: LabeledPolynomial::new_owned(c_row_poly, None, None),
-            c_col_poly: LabeledPolynomial::new_owned(c_col_poly, None, None),
-            c_val_poly: LabeledPolynomial::new_owned(c_val_poly, None, None),
+            c_row_poly: LabeledPolynomial::new_owned("c_row".to_string(), c_row_poly, None, None),
+            c_col_poly: LabeledPolynomial::new_owned("c_col".to_string(), c_col_poly, None, None),
+            c_val_poly: LabeledPolynomial::new_owned("c_val".to_string(), c_val_poly, None, None),
 
             a_row_evals_on_K,
             a_col_evals_on_K,

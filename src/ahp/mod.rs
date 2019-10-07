@@ -11,12 +11,21 @@ pub mod prover;
 /// Describes data structures and the algorithms used by the AHP verifier.
 pub mod verifier;
 
-/// The holographic IOP defined in [CHMMVW19](TODO: insert link here).
+/// The algebraic holographic proof defined in [CHMMVW19](https://eprint.iacr.org/2019/1047).
 pub struct AHPForR1CS<F: Field> {
     field: PhantomData<F>,
 }
 
 impl<F: PrimeField> AHPForR1CS<F> {
+
+    /// The labels for the polynomials output by the AHP indexer and prover.
+    pub const ALL_POLYNOMIALS: [&'static str; 19] = [
+        "a_row", "a_col", "a_val", "b_row", "b_col", "b_val", "c_row", "c_col", "c_val",
+        "w", "z_a", "z_b", "mask_poly", "g_1", "h_1",
+        "g_2", "h_2",
+        "g_3", "h_3",
+    ];
+
     /// Check that the (formatted) public input is of the form 2^n for some integer n.
     pub fn num_formatted_public_inputs_is_admissible(num_inputs: usize) -> bool {
         num_inputs.count_ones() == 1
@@ -56,7 +65,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 #[derive(Debug)]
 pub enum Error {
     /// During verification, a required evaluation is missing
-    MissingEval(usize),
+    MissingEval(&'static str),
     /// The number of public inputs is incorrect.
     InvalidPublicInputLength,
     /// The instance generated during proving does not match that in the index.
