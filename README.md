@@ -56,19 +56,19 @@ Lastly, this library is instrumented with profiling infrastructure that prints d
 
 ## Benchmarks
 
-We first compare the running time of Marlin's indexer, prover, and verifier algorithms with that of the equivalent algorithms for the zkSNARK of [Groth](https://eprint.iacr.org/2016/260) as implemented in [`bellman`](https://github.com/matter-labs/bellman/). Both implementations are running with a single thread.
+The graphs below compare the running time, in single-thread execution, of Marlin's indexer, prover, and verifier algorithms with the corresponding algorithms of [Groth16](https://eprint.iacr.org/2016/260) (the state of the art in preprocessing zkSNARKs for R1CS with circuit-specific SRS) as implemented in bellman.
 
 <p align="center">
-<img src="https://user-images.githubusercontent.com/3220730/66720341-2f979100-edb0-11e9-8908-7bb432506c62.png" width="40%">
-<img src="https://user-images.githubusercontent.com/3220730/66720342-2f979100-edb0-11e9-9ed4-633ebefeccbd.png" width="40%">
+<img hspace="20" src="https://user-images.githubusercontent.com/3220730/66720341-2f979100-edb0-11e9-8908-7bb432506c62.png" width="45%">
+<img hspace="20" src="https://user-images.githubusercontent.com/3220730/66720342-2f979100-edb0-11e9-9ed4-633ebefeccbd.png" width="45%">
 </p>
 <p align="center"><img src="https://user-images.githubusercontent.com/3220730/66720340-2efefa80-edb0-11e9-9c12-2d67d84ea647.png" width="40%"></p>
 
-Below we benchmark the running time of Marlin's indexer and prover on an increasing number of constraints and with an increasing number of threads.
+The next two graphs compare the running time of Marlin's indexer and prover across executions with a different number of threads.
 
 <p align="center">
-<img src="https://user-images.githubusercontent.com/3220730/66720338-2efefa80-edb0-11e9-9801-b21f97ac944c.png" width="40%">
-<img src="https://user-images.githubusercontent.com/3220730/66720339-2efefa80-edb0-11e9-9549-e81ff9e434ab.png" width="40%">
+<img hspace="20" src="https://user-images.githubusercontent.com/3220730/66720338-2efefa80-edb0-11e9-9801-b21f97ac944c.png" width="45%">
+<img hspace="20" src="https://user-images.githubusercontent.com/3220730/66720339-2efefa80-edb0-11e9-9549-e81ff9e434ab.png" width="45%">
 </p>
 
 ## License
