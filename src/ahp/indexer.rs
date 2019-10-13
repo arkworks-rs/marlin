@@ -36,19 +36,11 @@ impl<F: PrimeField, C: ConstraintSynthesizer<F>> algebra::ToBytes for IndexInfo<
     }
 }
 
-impl<F, C> IndexInfo<F, C> {
+impl<F: PrimeField, C> IndexInfo<F, C> {
     /// The maximum degree of polynomial required to represent this index in the
     /// the AHP.
-    // TODO: fix: this is not the right size.
     pub fn max_degree(&self) -> usize {
-        *[
-            self.num_variables,
-            self.num_constraints,
-            self.num_non_zero,
-        ]
-        .iter()
-        .max()
-        .unwrap()
+        AHPForR1CS::<F>::max_degree(self.num_constraints, self.num_variables, self.num_non_zero).unwrap()
     }
 }
 
@@ -162,6 +154,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let mut ics = IndexerConstraintSystem::new();
         c.generate_constraints(&mut ics)?;
         end_timer!(constraint_time);
+        let padding_time = start_timer!(|| "Padding matrices to make them square");
+        ics.make_matrices_square();
+        end_timer!(padding_time);
 
         let num_formatted_input_variables = ics.num_input_variables;
         let num_witness_variables = ics.num_witness_variables;

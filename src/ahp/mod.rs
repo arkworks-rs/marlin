@@ -12,6 +12,8 @@ pub mod prover;
 pub mod verifier;
 
 /// The algebraic holographic proof defined in [CHMMVW19](https://eprint.iacr.org/2019/1047).
+/// Currently, this AHP only supports inputs of size one
+/// less than a power of 2 (i.e., of the form 2^n - 1).
 pub struct AHPForR1CS<F: Field> {
     field: PhantomData<F>,
 }
@@ -37,27 +39,25 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// The maximum degree of polynomials produced by the indexer and prover
-    /// of this protocol. Currently, `marlin` only supports inputs of size one
-    /// less than a power of 2 (i.e., of the form 2^n - 1).
+    /// of this protocol.
+    /// The number of the variables must include the "one" variable. That is, it
+    /// must be with respect to the number of formatted public inputs.
     pub fn max_degree(num_constraints: usize, num_variables: usize, num_non_zero: usize) -> Result<usize, Error> {
-        if num_constraints != num_variables {
-            Err(Error::NonSquareMatrix)
-        } else {
-            let zk_bound = 1;
-            let domain_h_size = EvaluationDomain::<F>::compute_size_of_domain(num_constraints)
-                .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-            let domain_k_size = EvaluationDomain::<F>::compute_size_of_domain(num_non_zero)
-                .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-            Ok(*[
-                2 * domain_h_size + zk_bound - 2,
-                domain_h_size,
-                domain_h_size,
-                6 * domain_k_size - 6,
-            ]
-            .iter()
-            .max()
-            .unwrap())
-        }
+        let padded_matrix_dim = constraint_systems::padded_matrix_dim(num_variables, num_constraints);
+        let zk_bound = 1;
+        let domain_h_size = EvaluationDomain::<F>::compute_size_of_domain(padded_matrix_dim)
+            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain_k_size = EvaluationDomain::<F>::compute_size_of_domain(num_non_zero)
+            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        Ok(*[
+           2 * domain_h_size + zk_bound - 2,
+           domain_h_size,
+           domain_h_size,
+           6 * domain_k_size - 6,
+        ]
+        .iter()
+        .max()
+        .unwrap())
     }
 }
 

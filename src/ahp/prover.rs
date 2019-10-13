@@ -167,6 +167,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let mut pcs = ProverConstraintSystem::new();
         c.generate_constraints(&mut pcs)?;
         end_timer!(constraint_time);
+        let padding_time = start_timer!(|| "Padding matrices to make them square");
+        pcs.make_matrices_square();
+        end_timer!(padding_time);
 
         let num_non_zero = index.index_info.num_non_zero;
 

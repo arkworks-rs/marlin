@@ -361,7 +361,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         //   s(beta_1) + r(alpha, beta_1) (sum_M eta_M z_M(beta_1)) - sigma_2 z(beta_1)
         // = h_1(beta_1) v_H(beta_1) + beta_1 g_1(beta_1)
         let mask_poly_at_beta_1 = *evals.get(&("mask_poly", beta_1)).ok_or(Error::MissingEval("mask_poly"))?;
-        let r_alpha_at_beta_1 = domain_h.eval_unnormalized_bivariate_lagrange_poly(alpha, beta_1);;
+        let r_alpha_at_beta_1 = domain_h.eval_unnormalized_bivariate_lagrange_poly(alpha, beta_1);
 
         let z_a_at_beta_1 = *evals.get(&("z_a", beta_1)).ok_or(Error::MissingEval("z_a"))?;
         let z_b_at_beta_1 = *evals.get(&("z_b", beta_1)).ok_or(Error::MissingEval("z_b"))?;
