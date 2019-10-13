@@ -56,12 +56,14 @@ Lastly, this library is instrumented with profiling infrastructure that prints d
 
 ## Benchmarks
 
-The graphs below compare the running time, in single-thread execution, of Marlin's indexer, prover, and verifier algorithms with the corresponding algorithms of [Groth16](https://eprint.iacr.org/2016/260) (the state of the art in preprocessing zkSNARKs for R1CS with circuit-specific SRS) as implemented in [bellman](https://github.com/matter-labs/bellman/).
+The graphs below compare the running time, in single-thread execution, of Marlin's indexer, prover, and verifier algorithms with the corresponding algorithms of [Groth16](https://eprint.iacr.org/2016/260) (the state of the art in preprocessing zkSNARKs for R1CS with circuit-specific SRS) as implemented in [`bellman`](https://github.com/zkcrypto/bellman/).
 
 <p align="center">
-<img src="https://user-images.githubusercontent.com/3220730/66720341-2f979100-edb0-11e9-8908-7bb432506c62.png" width="32%">
-<img src="https://user-images.githubusercontent.com/3220730/66720342-2f979100-edb0-11e9-9ed4-633ebefeccbd.png" width="32%">
-<img src="https://user-images.githubusercontent.com/3220730/66720340-2efefa80-edb0-11e9-9c12-2d67d84ea647.png" width="32%">
+<img hspace="20" src="https://user-images.githubusercontent.com/3220730/66720341-2f979100-edb0-11e9-8908-7bb432506c62.png" width="45%">
+<img hspace="20" src="https://user-images.githubusercontent.com/3220730/66720342-2f979100-edb0-11e9-9ed4-633ebefeccbd.png" width="45%">
+</p>
+<p align="center">
+<img src="https://user-images.githubusercontent.com/3220730/66720340-2efefa80-edb0-11e9-9c12-2d67d84ea647.png" width="45%">
 </p>
 
 The next two graphs compare the running time of Marlin's indexer and prover across executions with a different number of threads.
