@@ -59,18 +59,18 @@ Lastly, this library is instrumented with profiling infrastructure that prints d
 The graphs below compare the running time, in single-thread execution, of Marlin's indexer, prover, and verifier algorithms with the corresponding algorithms of [Groth16](https://eprint.iacr.org/2016/260) (the state of the art in preprocessing zkSNARKs for R1CS with circuit-specific SRS) as implemented in [`bellman`](https://github.com/zkcrypto/bellman/).
 
 <p align="center">
-<img hspace="20" src="https://user-images.githubusercontent.com/3220730/66720341-2f979100-edb0-11e9-8908-7bb432506c62.png" width="45%">
-<img hspace="20" src="https://user-images.githubusercontent.com/3220730/66720342-2f979100-edb0-11e9-9ed4-633ebefeccbd.png" width="45%">
+<img hspace="20" src="https://user-images.githubusercontent.com/3220730/66731956-cbf08080-ee0e-11e9-8341-69bfd20775c1.png" width="45%" alt = "Indexer">
+<img hspace="20" src="https://user-images.githubusercontent.com/3220730/66731958-cbf08080-ee0e-11e9-9ecf-08e6b4b795f3.png" width="45%" alt = "Prover">
 </p>
 <p align="center">
-<img src="https://user-images.githubusercontent.com/3220730/66720340-2efefa80-edb0-11e9-9c12-2d67d84ea647.png" width="45%">
+<img src="https://user-images.githubusercontent.com/3220730/66731955-cbf08080-ee0e-11e9-9ec0-b2b5735e7bd1.png" width="45%" alt = "Verifier">
 </p>
 
 The next two graphs compare the running time of Marlin's indexer and prover across executions with a different number of threads.
 
 <p align="center">
-<img hspace="20" src="https://user-images.githubusercontent.com/3220730/66720338-2efefa80-edb0-11e9-9801-b21f97ac944c.png" width="45%">
-<img hspace="20" src="https://user-images.githubusercontent.com/3220730/66720339-2efefa80-edb0-11e9-9549-e81ff9e434ab.png" width="45%">
+<img hspace="20" src="https://user-images.githubusercontent.com/3220730/66731953-cb57ea00-ee0e-11e9-95a4-d05e854ad1b4.png" width="45%" alt = "Indexer">
+<img hspace="20" src="https://user-images.githubusercontent.com/3220730/66731954-cbf08080-ee0e-11e9-9d6c-e17594a07428.png" width="45%" alt = "Prover">
 </p>
 
 ## License
