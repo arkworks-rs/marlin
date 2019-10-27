@@ -9,7 +9,7 @@ use algebra::{Field, PrimeField};
 use ff_fft::{EvaluationDomain, Evaluations as EvaluationsOnDomain};
 use poly_commit::{LabeledPolynomial, Polynomial};
 use r1cs_core::{ConstraintSynthesizer, SynthesisError};
-use rand::Rng;
+use rand_core::RngCore;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -268,7 +268,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the first round message and the next state.
-    pub fn prover_first_round<'a, 'b, R: Rng, C: ConstraintSynthesizer<F>>(
+    pub fn prover_first_round<'a, 'b, R: RngCore, C: ConstraintSynthesizer<F>>(
         s: ProverState<'a, 'b, F, C>,
         rng: &mut R,
     ) -> Result<(ProverMsg<F>, ProverFirstOracles<'b, F>, ProverState<'a, 'b, F, C>), Error> {
@@ -393,7 +393,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the second round message and the next state.
-    pub fn prover_second_round<'a, 'b, R: Rng, C: ConstraintSynthesizer<F>>(
+    pub fn prover_second_round<'a, 'b, R: RngCore, C: ConstraintSynthesizer<F>>(
         ver_message: &VerifierFirstMsg<F>,
         prover_state: ProverState<'a, 'b, F, C>,
         _r: &mut R,
@@ -608,7 +608,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the third round message and the next state.
-    pub fn prover_third_round<'a, 'b, R: Rng, C: ConstraintSynthesizer<F>>(
+    pub fn prover_third_round<'a, 'b, R: RngCore, C: ConstraintSynthesizer<F>>(
         ver_message: &VerifierSecondMsg<F>,
         prover_state: ProverState<'a, 'b, F, C>,
         _r: &mut R,
@@ -745,7 +745,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the fourth round message and the next state.
-    pub fn prover_fourth_round<'a, 'b, R: Rng, C: ConstraintSynthesizer<F>>(
+    pub fn prover_fourth_round<'a, 'b, R: RngCore, C: ConstraintSynthesizer<F>>(
         ver_message: &VerifierThirdMsg<F>,
         prover_state: ProverState<'a, 'b, F, C>,
         _r: &mut R,

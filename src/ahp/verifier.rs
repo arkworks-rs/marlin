@@ -5,7 +5,7 @@ use crate::ahp::indexer::IndexInfo;
 use crate::ahp::prover::*;
 use crate::ahp::*;
 use r1cs_core::ConstraintSynthesizer;
-use rand::Rng;
+use rand_core::RngCore;
 
 use algebra::PrimeField;
 use ff_fft::EvaluationDomain;
@@ -53,7 +53,7 @@ pub struct VerifierThirdMsg<F> {
 
 impl<F: PrimeField> AHPForR1CS<F> {
     /// Output the first message and next round state.
-    pub fn verifier_first_round<R: Rng, C: ConstraintSynthesizer<F>>(
+    pub fn verifier_first_round<R: RngCore, C: ConstraintSynthesizer<F>>(
         index_info: IndexInfo<F, C>,
         rng: &mut R,
     ) -> Result<(VerifierFirstMsg<F>, VerifierState<F, C>), Error> {
@@ -93,7 +93,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the second message and next round state.
-    pub fn verifier_second_round<R: Rng, C: ConstraintSynthesizer<F>>(
+    pub fn verifier_second_round<R: RngCore, C: ConstraintSynthesizer<F>>(
         state: VerifierState<F, C>,
         rng: &mut R,
     ) -> (VerifierSecondMsg<F>, VerifierState<F, C>) {
@@ -123,7 +123,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the third message and next round state.
-    pub fn verifier_third_round<R: Rng, C: ConstraintSynthesizer<F>>(
+    pub fn verifier_third_round<R: RngCore, C: ConstraintSynthesizer<F>>(
         state: VerifierState<F, C>,
         rng: &mut R,
     ) -> (VerifierThirdMsg<F>, VerifierState<F, C>) {
@@ -154,7 +154,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the fourth message and next round state.
-    pub fn verifier_fourth_round<R: Rng, C: ConstraintSynthesizer<F>>(
+    pub fn verifier_fourth_round<R: RngCore, C: ConstraintSynthesizer<F>>(
         state: VerifierState<F, C>,
         rng: &mut R,
     ) -> VerifierState<F, C> {
@@ -184,7 +184,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the query state and next round state.
-    pub fn verifier_query_set<'a, 'b, R: Rng, C: ConstraintSynthesizer<F>>(
+    pub fn verifier_query_set<'a, 'b, R: RngCore, C: ConstraintSynthesizer<F>>(
         state: VerifierState<F, C>,
         _: &'a mut R,
     ) -> (QuerySet<'b, F>, VerifierState<F, C>) {

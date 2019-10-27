@@ -1,7 +1,7 @@
 use algebra::{FromBytes, ToBytes};
 use digest::Digest;
 use generic_array::GenericArray;
-use rand::{RngCore, SeedableRng};
+use rand_core::{RngCore, SeedableRng};
 use rand_chacha::ChaChaRng;
 use std::marker::PhantomData;
 
@@ -32,7 +32,7 @@ impl<D: Digest> RngCore for FiatShamirRng<D> {
     }
 
     #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
         Ok(self.r.fill_bytes(dest))
     }
 }
