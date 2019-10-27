@@ -43,7 +43,6 @@ mod marlin {
     use algebra::{curves::bls12_377::Bls12_377, fields::bls12_377::Fr};
     use blake2::Blake2s;
     use poly_commit::{multi_pc::mpc_from_spc::*, single_pc::kzg10::KZG10};
-    use rand::thread_rng;
     use std::ops::MulAssign;
 
     type MultiPC = MultiPCFromSinglePC<Fr, KZG10<Bls12_377>>;
@@ -51,7 +50,7 @@ mod marlin {
     type MarlinInst = Marlin<Fr, MultiPC, Blake2s>;
 
     fn test_circuit(num_constraints: usize, num_variables: usize) {
-        let rng = &mut thread_rng();
+        let rng = &mut rand_core::OsRng;
 
         let (universal_pk, universal_vk) = MarlinInst::universal_setup(100, 25, 100, rng).unwrap();
 

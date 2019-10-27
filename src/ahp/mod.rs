@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn domain_unnormalized_bivariate_lagrange_poly_diff_inputs() {
-        let rng = &mut rand::thread_rng();
+        let rng = &mut rand_core::OsRng;
         for domain_size in 1..10 {
             let domain = EvaluationDomain::<Fr>::new(1 << domain_size).unwrap();
             let x = Fr::rand(rng);
