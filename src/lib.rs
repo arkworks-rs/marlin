@@ -25,7 +25,7 @@ use digest::Digest;
 use poly_commit::multi_pc::Evaluations;
 use poly_commit::{LabeledCommitment, MultiPolynomialCommitment as MultiPC, PCCommitterKey};
 use r1cs_core::ConstraintSynthesizer;
-use rand::Rng;
+use rand_core::RngCore;
 use std::marker::PhantomData;
 
 /// Implements a Fiat-Shamir based Rng that allows one to incrementally update
@@ -60,7 +60,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
 
     /// Generate the universal prover and verifier keys for the
     /// argument system.
-    pub fn universal_setup<R: Rng>(
+    pub fn universal_setup<R: RngCore>(
         num_constraints: usize,
         num_variables: usize,
         num_non_zero: usize,
@@ -113,7 +113,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
     }
 
     /// Create a zkSNARK assserting that the constraint system is satisfied.
-    pub fn prove<C: ConstraintSynthesizer<F>, R: Rng>(
+    pub fn prove<C: ConstraintSynthesizer<F>, R: RngCore>(
         universal_pk: &UniversalProverKey<F, PC>,
         index_pk: &IndexProverKey<F, PC, C>,
         c: C,
@@ -256,7 +256,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
 
     /// Verify that a proof for the constrain system defined by `C` asserts that
     /// all constraints are satisfied.
-    pub fn verify<C: ConstraintSynthesizer<F>, R: Rng>(
+    pub fn verify<C: ConstraintSynthesizer<F>, R: RngCore>(
         universal_vk: &UniversalVerifierKey<F, PC>,
         index_vk: &IndexVerifierKey<F, PC, C>,
         public_input: &[F],
