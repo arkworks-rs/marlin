@@ -9,10 +9,8 @@ use std::marker::PhantomData;
 /* ************************************************************************* */
 /* ************************************************************************* */
 
-/// The universal prover key for the argument system.
-pub type UniversalProverKey<F, PC> = <PC as MultiPC<F>>::CommitterKey;
-/// The universal verifier key for the argument system.
-pub type UniversalVerifierKey<F, PC> = <PC as MultiPC<F>>::VerifierKey;
+/// The universal public parameters for the argument system.
+pub type UniversalParams<F, PC> = <PC as MultiPC<F>>::UniversalParams;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -25,6 +23,7 @@ pub struct IndexVerifierKey<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesi
     pub index_info: IndexInfo<F, C>,
     /// Commitments to the indexed polynomials.
     pub index_comms: Vec<PC::Commitment>,
+    // TODO: add pc_vk here PC::VerifierKey.
 }
 
 impl<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> algebra::ToBytes for IndexVerifierKey<F, PC, C> {
@@ -62,6 +61,7 @@ pub struct IndexProverKey<'a, F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthe
     pub index_comm_rands: Vec<PC::Randomness>,
     /// The index itself.
     pub index: Index<'a, F, C>,
+    // TODO: add pc_ck here PC::CommitterKey.
 }
 
 impl<'a, F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> Clone for IndexProverKey<'a, F, PC, C>

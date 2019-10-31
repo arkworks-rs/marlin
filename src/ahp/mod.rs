@@ -59,6 +59,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
         .max()
         .unwrap())
     }
+
+
+    // TODO: add function to compute degree bounds.
 }
 
 /// Describes the failure modes of the AHP scheme.

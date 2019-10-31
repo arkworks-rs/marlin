@@ -65,7 +65,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
         num_variables: usize,
         num_non_zero: usize,
         rng: &mut R,
-    ) -> Result<(UniversalProverKey<F, PC>, UniversalVerifierKey<F, PC>), Error<PC::Error>> {
+    ) -> Result<UniversalParams<F, PC>, Error<PC::Error>> {
         let max_degree = AHPForR1CS::<F>::max_degree(num_constraints, num_variables, num_non_zero)?;
         let setup_time = start_timer!(|| format!(
             "Marlin::UniversalSetup with max_degree {}, computed for a maximum of {} constraints, {} vars, {} non_zero",
@@ -80,32 +80,41 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
     /// Generate the index-specific (i.e., circuit-specific) prover and verifier
     /// keys. This is a deterministic algorithm that anyone can rerun.
     pub fn index<C: ConstraintSynthesizer<F>>(
-        universal_pk: &UniversalProverKey<F, PC>,
+        pp: &UniversalParams<F, PC>,
         c: C,
     ) -> Result<(IndexProverKey<F, PC, C>, IndexVerifierKey<F, PC, C>), Error<PC::Error>> {
         let index_time = start_timer!(|| "Marlin::Index");
+
+        
         // TODO: Add check that c is in the correct mode.
         let index = AHPForR1CS::index(c)?;
-        if universal_pk.max_degree() < index.max_degree() {
+        if pp.max_degree() < index.max_degree() {
             Err(Error::IndexTooLarge)?;
         }
 
+        // TODO: compute degree bounds in here,
+        // maybe add it to index as a function. Then, pass to PC::trim.
+        let (pc_ck, pc_vk) = PC::trim(pp, TODO)?;
+
         let commit_time = start_timer!(|| "Commit to index polynomials");
         let (index_comms, index_comm_rands): (_, _) =
-            PC::commit(universal_pk, index.iter(), None).map_err(Error::from_pc_err)?;
+            PC::commit(ck, index.iter(), None).map_err(Error::from_pc_err)?;
         end_timer!(commit_time);
 
         let index_comms = index_comms.into_iter().map(|c| c.commitment().clone()).collect();
         let index_vk = IndexVerifierKey {
             index_info: index.index_info,
             index_comms,
+            // TODO add pc_vk in here
         };
 
         let index_pk = IndexProverKey {
             index,
             index_comm_rands,
             index_vk: index_vk.clone(),
+            // TODO add pc_ck in here
         };
+        
 
         end_timer!(index_time);
 
@@ -114,16 +123,13 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
 
     /// Create a zkSNARK assserting that the constraint system is satisfied.
     pub fn prove<C: ConstraintSynthesizer<F>, R: RngCore>(
-        universal_pk: &UniversalProverKey<F, PC>,
         index_pk: &IndexProverKey<F, PC, C>,
         c: C,
         zk_rng: &mut R,
     ) -> Result<Proof<F, PC, C>, Error<PC::Error>> {
         let prover_time = start_timer!(|| "Marlin::Prover");
         // Add check that c is in the correct mode.
-        if universal_pk.max_degree() < index_pk.index.max_degree() {
-            Err(Error::IndexTooLarge)?;
-        }
+        
 
         let prover_init_state = AHPForR1CS::prover_init(&index_pk.index, c)?;
         let public_input = prover_init_state.public_input();
@@ -138,7 +144,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
 
         let first_round_comm_time = start_timer!(|| "Committing to first round polys");
         let (first_comms, first_comm_rands) =
-            PC::commit(&universal_pk, prover_first_oracles.iter(), Some(zk_rng)).map_err(Error::from_pc_err)?;
+            PC::commit(&index_pk.ck, prover_first_oracles.iter(), Some(zk_rng)).map_err(Error::from_pc_err)?;
         end_timer!(first_round_comm_time);
 
         fs_rng.absorb(&to_bytes![first_comms, prover_first_msg].unwrap());
@@ -155,7 +161,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
 
         let second_round_comm_time = start_timer!(|| "Committing to second round polys");
         let (second_comms, second_comm_rands) =
-            PC::commit(&universal_pk, prover_second_oracles.iter(), Some(zk_rng))
+            PC::commit(&index_pk.ck, prover_second_oracles.iter(), Some(zk_rng))
                 .map_err(Error::from_pc_err)?;
         end_timer!(second_round_comm_time);
 
@@ -171,7 +177,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
 
         let third_round_comm_time = start_timer!(|| "Committing to third round polys");
         let (third_comms, third_comm_rands) =
-            PC::commit(&universal_pk, prover_third_oracles.iter(), Some(zk_rng)).map_err(Error::from_pc_err)?;
+            PC::commit(&index_pk.ck, prover_third_oracles.iter(), Some(zk_rng)).map_err(Error::from_pc_err)?;
         end_timer!(third_round_comm_time);
 
         fs_rng.absorb(&to_bytes![third_comms, prover_third_msg].unwrap());
@@ -186,7 +192,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
 
         let fourth_round_comm_time = start_timer!(|| "Committing to fourth round polys");
         let (fourth_comms, fourth_comm_rands) =
-            PC::commit(&universal_pk, prover_fourth_oracles.iter(), Some(zk_rng))
+            PC::commit(&index_pk.ck, prover_fourth_oracles.iter(), Some(zk_rng))
                 .map_err(Error::from_pc_err)?;
         end_timer!(fourth_round_comm_time);
 
@@ -239,7 +245,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
         let opening_challenge: F = u128::rand(&mut fs_rng).into();
 
         let pc_proof = PC::open(
-            &universal_pk,
+            &index_pk.ck,
             polynomials,
             &query_set,
             opening_challenge,
@@ -257,7 +263,6 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
     /// Verify that a proof for the constrain system defined by `C` asserts that
     /// all constraints are satisfied.
     pub fn verify<C: ConstraintSynthesizer<F>, R: RngCore>(
-        universal_vk: &UniversalVerifierKey<F, PC>,
         index_vk: &IndexVerifierKey<F, PC, C>,
         public_input: &[F],
         proof: &Proof<F, PC, C>,
@@ -337,7 +342,7 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
             .collect();
 
         let evaluations_are_correct = PC::check(
-            &universal_vk,
+            &index_vk.pc_vk,
             &commitments,
             &query_set,
             &evaluations,
