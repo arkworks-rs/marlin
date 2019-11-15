@@ -1,7 +1,7 @@
 use crate::ahp::indexer::*;
 use crate::ahp::prover::ProverMsg;
 use algebra::PrimeField;
-use poly_commit::MultiPolynomialCommitment as MultiPC;
+use poly_commit::PolynomialCommitment as MultiPC;
 use r1cs_core::ConstraintSynthesizer;
 use std::marker::PhantomData;
 
@@ -9,10 +9,8 @@ use std::marker::PhantomData;
 /* ************************************************************************* */
 /* ************************************************************************* */
 
-/// The universal prover key for the argument system.
-pub type UniversalProverKey<F, PC> = <PC as MultiPC<F>>::CommitterKey;
-/// The universal verifier key for the argument system.
-pub type UniversalVerifierKey<F, PC> = <PC as MultiPC<F>>::VerifierKey;
+/// The universal public parameters for the argument system.
+pub type UniversalParams<F, PC> = <PC as MultiPC<F>>::UniversalParams;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -25,6 +23,8 @@ pub struct IndexVerifierKey<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesi
     pub index_info: IndexInfo<F, C>,
     /// Commitments to the indexed polynomials.
     pub index_comms: Vec<PC::Commitment>,
+    // The verifier key for this instance, trimmed from the universal verifier key for this index.
+    pub verifier_key: PC::VerifierKey,
 }
 
 impl<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> algebra::ToBytes for IndexVerifierKey<F, PC, C> {
@@ -62,6 +62,8 @@ pub struct IndexProverKey<'a, F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthe
     pub index_comm_rands: Vec<PC::Randomness>,
     /// The index itself.
     pub index: Index<'a, F, C>,
+    // The committer key for this instance, trimmed from the universal prover key for this index.
+    pub committer_key: PC::CommitterKey,
 }
 
 impl<'a, F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> Clone for IndexProverKey<'a, F, PC, C>

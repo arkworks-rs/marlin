@@ -59,6 +59,19 @@ impl<F: PrimeField> AHPForR1CS<F> {
         .max()
         .unwrap())
     }
+
+    // Get the degree bounds needed to trim the prover and verifier keys for the index.
+    pub fn get_degree_bounds(info: &indexer::IndexInfo<F, C>) -> [usize; 3] {
+        let degree_bounds: [usize; 3];
+        let num_constraints = info.num_constraints;
+        let num_non_zero = info.num_non_zero;
+        let h_size = EvaluationDomain::<F>::compute_size_of_domain(num_constraints).unwrap();
+        let k_size = EvaluationDomain::<F>::compute_size_of_domain(num_non_zero).unwrap();
+
+        degree_bounds[0] = h_size - 2;
+        degree_bounds[1] = h_size - 2;
+        degree_bounds[2] = k_size - 2;
+        degree_bounds
 }
 
 /// Describes the failure modes of the AHP scheme.
