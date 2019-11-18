@@ -1,7 +1,7 @@
 use crate::ahp::indexer::*;
 use crate::ahp::prover::ProverMsg;
 use algebra::PrimeField;
-use poly_commit::PolynomialCommitment as MultiPC;
+use poly_commit::PolynomialCommitment;
 use r1cs_core::ConstraintSynthesizer;
 use std::marker::PhantomData;
 
@@ -10,14 +10,14 @@ use std::marker::PhantomData;
 /* ************************************************************************* */
 
 /// The universal public parameters for the argument system.
-pub type UniversalParams<F, PC> = <PC as MultiPC<F>>::UniversalParams;
+pub type UniversalParams<F, PC> = <PC as PolynomialCommitment<F>>::UniversalParams;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
 /* ************************************************************************* */
 
 /// Verification key for a specific index (i.e., R1CS matrices).
-pub struct IndexVerifierKey<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> {
+pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> {
     /// Stores information about the size of the index, as well as its field of
     /// definition.
     pub index_info: IndexInfo<F, C>,
@@ -27,14 +27,14 @@ pub struct IndexVerifierKey<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesi
     pub verifier_key: PC::VerifierKey,
 }
 
-impl<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> algebra::ToBytes for IndexVerifierKey<F, PC, C> {
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> algebra::ToBytes for IndexVerifierKey<F, PC, C> {
     fn write<W: std::io::Write>(&self, mut w: W) -> std::io::Result<()> {
         self.index_info.write(&mut w)?;
         self.index_comms.write(&mut w)
     }
 }
 
-impl<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> Clone for IndexVerifierKey<F, PC, C> {
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Clone for IndexVerifierKey<F, PC, C> {
     fn clone(&self) -> Self {
         Self {
             index_comms: self.index_comms.clone(),
@@ -43,7 +43,7 @@ impl<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> Clone for Index
     }
 }
 
-impl<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> IndexVerifierKey<F, PC, C> {
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> IndexVerifierKey<F, PC, C> {
     /// Iterate over the commitments to indexed polynomials in `self`.
     pub fn iter(&self) -> impl Iterator<Item = &PC::Commitment> {
         self.index_comms.iter()
@@ -55,7 +55,7 @@ impl<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> IndexVerifierKe
 /* ************************************************************************* */
 
 /// Proving key for a specific index (i.e., R1CS matrices).
-pub struct IndexProverKey<'a, F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> {
+pub struct IndexProverKey<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> {
     /// The index verifier key.
     pub index_vk: IndexVerifierKey<F, PC, C>,
     /// The randomness for the index polynomial commitments.
@@ -66,7 +66,7 @@ pub struct IndexProverKey<'a, F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthe
     pub committer_key: PC::CommitterKey,
 }
 
-impl<'a, F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> Clone for IndexProverKey<'a, F, PC, C>
+impl<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Clone for IndexProverKey<'a, F, PC, C>
 where
     PC::Commitment: Clone,
 {
@@ -84,7 +84,7 @@ where
 /* ************************************************************************* */
 
 /// A zkSNARK proof.
-pub struct Proof<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> {
+pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> {
     /// Commitments to the polynomials produced by the AHP prover.
     pub commitments: Vec<Vec<PC::Commitment>>,
     /// Evaluations of these polynomials.
@@ -97,7 +97,7 @@ pub struct Proof<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> {
     constraint_system: PhantomData<C>,
 }
 
-impl<F: PrimeField, PC: MultiPC<F>, C: ConstraintSynthesizer<F>> Proof<F, PC, C> {
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Proof<F, PC, C> {
     /// Construct a new proof.
     pub fn new(
         commitments: Vec<Vec<PC::Commitment>>,
