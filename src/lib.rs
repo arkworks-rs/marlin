@@ -23,7 +23,7 @@ use algebra::ToBytes;
 use algebra::UniformRand;
 use digest::Digest;
 use poly_commit::multi_pc::Evaluations;
-use poly_commit::{LabeledCommitment, PolynomialCommitment as MultiPC, PCCommitterKey};
+use poly_commit::{LabeledCommitment, PolynomialCommitment, PCCommitterKey};
 use r1cs_core::ConstraintSynthesizer;
 use rand_core::RngCore;
 use std::marker::PhantomData;
@@ -47,13 +47,13 @@ pub use ahp::AHPForR1CS;
 mod test;
 
 /// The compiled argument system.
-pub struct Marlin<F: PrimeField, PC: MultiPC<F>, D: Digest>(
+pub struct Marlin<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest>(
     #[doc(hidden)] PhantomData<F>,
     #[doc(hidden)] PhantomData<PC>,
     #[doc(hidden)] PhantomData<D>,
 );
 
-impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
+impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
     /// The personalization string for this protocol. Used to personalize the
     /// Fiat-Shamir rng.
     pub const PROTOCOL_NAME: &'static [u8] = b"MARLIN-2019";
@@ -72,15 +72,15 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
             max_degree, num_constraints, num_variables, num_non_zero,
         ));
 
-        let pp = PC::setup(max_degree, rng).map_err(Error::from_pc_err);
+        let srs = PC::setup(max_degree, rng).map_err(Error::from_pc_err);
         end_timer!(setup_time);
-        pp
+        srs
     }
 
     /// Generate the index-specific (i.e., circuit-specific) prover and verifier
     /// keys. This is a deterministic algorithm that anyone can rerun.
     pub fn index<C: ConstraintSynthesizer<F>>(
-        pp: &UniversalParams<F, PC>,
+        srs: &UniversalParams<F, PC>,
         c: C,
     ) -> Result<(IndexProverKey<F, PC, C>, IndexVerifierKey<F, PC, C>), Error<PC::Error>> {
         let index_time = start_timer!(|| "Marlin::Index");
@@ -88,12 +88,12 @@ impl<F: PrimeField, PC: MultiPC<F>, D: Digest> Marlin<F, PC, D> {
         
         // TODO: Add check that c is in the correct mode.
         let index = AHPForR1CS::index(c)?;
-        if pp.max_degree() < index.max_degree() {
+        if srs.max_degree() < index.max_degree() {
             Err(Error::IndexTooLarge)?;
         }
 
         let coeff_support = AHPForR1CS::get_degree_bounds(&index);
-        let (pc_ck, pc_vk) = PC::trim(pp, index.max_degree(), Some(&coeff_support))?;
+        let (pc_ck, pc_vk) = PC::trim(srs, index.max_degree(), Some(&coeff_support))?;
 
         let commit_time = start_timer!(|| "Commit to index polynomials");
         let (index_comms, index_comm_rands): (_, _) =
