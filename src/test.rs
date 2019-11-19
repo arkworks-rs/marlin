@@ -42,17 +42,16 @@ mod marlin {
     use algebra::UniformRand;
     use algebra::{curves::bls12_377::Bls12_377, fields::bls12_377::Fr};
     use blake2::Blake2s;
-    use poly_commit::{multi_pc::mpc_from_spc::*, single_pc::kzg10::KZG10};
+    use poly_commit::marlin_kzg10::MarlinKZG10;
     use std::ops::MulAssign;
 
-    type MultiPC = MultiPCFromSinglePC<Fr, KZG10<Bls12_377>>;
-
+    type MultiPC = MarlinKZG10<Bls12_377>;
     type MarlinInst = Marlin<Fr, MultiPC, Blake2s>;
 
     fn test_circuit(num_constraints: usize, num_variables: usize) {
         let rng = &mut rand_core::OsRng;
 
-        let (universal_pk, universal_vk) = MarlinInst::universal_setup(100, 25, 100, rng).unwrap();
+        let universal_srs = MarlinInst::universal_setup(100, 25, 100, rng).unwrap();
 
         for _ in 0..100 {
             let a = Fr::rand(rng);
@@ -62,13 +61,16 @@ mod marlin {
 
             let circ = Circuit { a: Some(a), b: Some(b), num_constraints, num_variables };
 
-            let (index_pk, index_vk) = MarlinInst::index(&universal_pk, circ.clone()).unwrap();
+            let (index_pk, index_vk) = MarlinInst::index(&universal_srs, circ.clone()).unwrap();
+            println!("Called index");
 
-            let proof = MarlinInst::prove(&universal_pk, &index_pk, circ, rng).unwrap();
+            let proof = MarlinInst::prove(&index_pk, circ, rng).unwrap();
+            println!("Called prover");
 
-            assert!(MarlinInst::verify(&universal_vk, &index_vk, &[c], &proof, rng).unwrap());
+            assert!(MarlinInst::verify(&index_vk, &[c], &proof, rng).unwrap());
+            println!("Called verifier");
             println!("\nShould not verify (i.e. verifier messages should print below):");
-            assert!(!MarlinInst::verify(&universal_vk, &index_vk, &[a], &proof, rng).unwrap());
+            assert!(!MarlinInst::verify(&index_vk, &[a], &proof, rng).unwrap());
         }
 
     }
