@@ -9,7 +9,7 @@ use rand_core::RngCore;
 
 use algebra::PrimeField;
 use ff_fft::EvaluationDomain;
-use poly_commit::multi_pc::{Evaluations, QuerySet};
+use poly_commit::{Evaluations, QuerySet};
 
 /// State of the AHP verifier
 pub struct VerifierState<F: PrimeField, C> {
