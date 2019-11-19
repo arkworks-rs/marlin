@@ -23,7 +23,7 @@ pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: Const
     pub index_info: IndexInfo<F, C>,
     /// Commitments to the indexed polynomials.
     pub index_comms: Vec<PC::Commitment>,
-    // The verifier key for this instance, trimmed from the universal verifier key for this index.
+    /// The verifier key for this index, trimmed from the universal SRS.
     pub verifier_key: PC::VerifierKey,
 }
 
@@ -39,6 +39,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Cl
         Self {
             index_comms: self.index_comms.clone(),
             index_info: self.index_info.clone(),
+            verifier_key: self.verifier_key.clone(),
         }
     }
 }
@@ -62,7 +63,7 @@ pub struct IndexProverKey<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: Con
     pub index_comm_rands: Vec<PC::Randomness>,
     /// The index itself.
     pub index: Index<'a, F, C>,
-    // The committer key for this instance, trimmed from the universal prover key for this index.
+    /// The committer key for this index, trimmed from the universal SRS.
     pub committer_key: PC::CommitterKey,
 }
 
@@ -75,6 +76,7 @@ where
             index_vk: self.index_vk.clone(),
             index_comm_rands: self.index_comm_rands.clone(),
             index: self.index.clone(),
+            committer_key: self.committer_key.clone(),
         }
     }
 }
@@ -92,7 +94,7 @@ pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthe
     /// The field elements sent by the prover.
     pub prover_messages: Vec<ProverMsg<F>>,
     /// An evaluation proof from the polynomial commitment.
-    pub pc_proof: PC::Proof,
+    pub pc_proof: PC::BatchProof,
     #[doc(hidden)]
     constraint_system: PhantomData<C>,
 }
@@ -103,7 +105,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Pr
         commitments: Vec<Vec<PC::Commitment>>,
         evaluations: Vec<F>,
         prover_messages: Vec<ProverMsg<F>>,
-        pc_proof: PC::Proof,
+        pc_proof: PC::BatchProof,
     ) -> Self {
         Self {
             commitments,
