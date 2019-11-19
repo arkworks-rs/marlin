@@ -51,6 +51,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         Ok(*[
            2 * domain_h_size + zk_bound - 2,
+           3 * domain_h_size + 2 * zk_bound - 3, //  mask_poly
            domain_h_size,
            domain_h_size,
            6 * domain_k_size - 6,
