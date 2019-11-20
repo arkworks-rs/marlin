@@ -65,7 +65,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
         num_variables: usize,
         num_non_zero: usize,
         rng: &mut R,
-    ) -> Result<UniversalParams<F, PC>, Error<PC::Error>> {
+    ) -> Result<UniversalSRS<F, PC>, Error<PC::Error>> {
         let max_degree = AHPForR1CS::<F>::max_degree(num_constraints, num_variables, num_non_zero)?;
         let setup_time = start_timer!(|| format!(
             "Marlin::UniversalSetup with max_degree {}, computed for a maximum of {} constraints, {} vars, {} non_zero",
@@ -80,7 +80,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
     /// Generate the index-specific (i.e., circuit-specific) prover and verifier
     /// keys. This is a deterministic algorithm that anyone can rerun.
     pub fn index<C: ConstraintSynthesizer<F>>(
-        srs: &UniversalParams<F, PC>,
+        srs: &UniversalSRS<F, PC>,
         c: C,
     ) -> Result<(IndexProverKey<F, PC, C>, IndexVerifierKey<F, PC, C>), Error<PC::Error>> {
         let index_time = start_timer!(|| "Marlin::Index");

@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 /* ************************************************************************* */
 
 /// The universal public parameters for the argument system.
-pub type UniversalParams<F, PC> = <PC as PolynomialCommitment<F>>::UniversalParams;
+pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F>>::UniversalParams;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
