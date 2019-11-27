@@ -120,7 +120,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
         Ok((index_pk, index_vk))
     }
 
-    /// Create a zkSNARK assserting that the constraint system is satisfied.
+    /// Create a zkSNARK asserting that the constraint system is satisfied.
     pub fn prove<C: ConstraintSynthesizer<F>, R: RngCore>(
         index_pk: &IndexProverKey<F, PC, C>,
         c: C,

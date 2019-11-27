@@ -38,7 +38,7 @@ impl<D: Digest> RngCore for FiatShamirRng<D> {
 }
 
 impl<D: Digest> FiatShamirRng<D> {
-    /// Create a new `Self` by initialzing with a fresh seed.
+    /// Create a new `Self` by initializing with a fresh seed.
     /// `self.seed = H(self.seed || new_seed)`.
     #[inline]
     pub fn from_seed<'a, T: 'a + ToBytes>(seed: &'a T) -> Self {
