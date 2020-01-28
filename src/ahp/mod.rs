@@ -125,7 +125,7 @@ impl<F: PrimeField> UnnormalizedBivariateLagrangePoly<F> for EvaluationDomain<F>
 
         inverses
             .iter_mut()
-            .for_each(|denominator| *denominator = vanish_x * denominator);
+            .for_each(|denominator| *denominator *= &vanish_x);
         inverses
     }
 
