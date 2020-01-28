@@ -202,7 +202,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
                     witness_assignment[i - num_input_variables]
                 };
 
-                acc += &(if coeff.is_one() { tmp } else { tmp * &coeff });
+                acc += &(if coeff.is_one() { tmp } else { tmp * coeff });
             }
             acc
         };
@@ -492,9 +492,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let summed_r_m_evals = domain_h
             .elements()
             .map(|h_elem| {
-                eta_a * &r_a_alpha_vals_on_H.get(&h_elem).unwrap_or(&F::zero())
-                    + &(eta_b * &r_b_alpha_vals_on_H.get(&h_elem).unwrap_or(&F::zero()))
-                    + &(eta_c * &r_c_alpha_vals_on_H.get(&h_elem).unwrap_or(&F::zero()))
+                eta_a * r_a_alpha_vals_on_H.get(&h_elem).unwrap_or(&F::zero())
+                    + &(eta_b * r_b_alpha_vals_on_H.get(&h_elem).unwrap_or(&F::zero()))
+                    + &(eta_c * r_c_alpha_vals_on_H.get(&h_elem).unwrap_or(&F::zero()))
             })
             .collect::<Vec<_>>();
         end_timer!(summed_r_m_evals_time);
