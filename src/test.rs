@@ -49,7 +49,7 @@ mod marlin {
     type MarlinInst = Marlin<Fr, MultiPC, Blake2s>;
 
     fn test_circuit(num_constraints: usize, num_variables: usize) {
-        let rng = &mut rand_core::OsRng;
+        let rng = &mut algebra::test_rng();
 
         let universal_srs = MarlinInst::universal_setup(100, 25, 100, rng).unwrap();
 
