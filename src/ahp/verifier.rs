@@ -7,7 +7,7 @@ use crate::ahp::*;
 use r1cs_core::ConstraintSynthesizer;
 use rand_core::RngCore;
 
-use algebra::PrimeField;
+use algebra_core::PrimeField;
 use ff_fft::EvaluationDomain;
 use poly_commit::{Evaluations, QuerySet};
 

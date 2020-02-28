@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 //! A crate for the Marlin preprocessing zkSNARK for R1CS.
 //!
 //! # Note
@@ -7,7 +8,7 @@
 //! matrices are square). Furthermore, Marlin only supports instances where the
 //! public inputs are of size one less than a power of 2 (i.e., 2^n - 1).
 #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
-#![deny(trivial_numeric_casts, private_in_public, variant_size_differences)]
+#![deny(trivial_numeric_casts, private_in_public)]
 #![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
 #![deny(unused_attributes, unused_imports, unused_mut, missing_docs)]
 #![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
@@ -17,16 +18,40 @@
 #[macro_use]
 extern crate bench_utils;
 
-use algebra::to_bytes;
-use algebra::PrimeField;
-use algebra::ToBytes;
-use algebra::UniformRand;
+use algebra_core::to_bytes;
+use algebra_core::PrimeField;
+use algebra_core::ToBytes;
+use algebra_core::UniformRand;
 use digest::Digest;
 use poly_commit::Evaluations;
 use poly_commit::{LabeledCommitment, PolynomialCommitment, PCUniversalParams};
 use r1cs_core::ConstraintSynthesizer;
 use rand_core::RngCore;
-use std::marker::PhantomData;
+use core::marker::PhantomData;
+
+#[cfg(not(feature = "std"))]
+#[macro_use]
+extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+use alloc::{
+    collections::BTreeMap,
+    string::{String, ToString},
+    vec::Vec,
+};
+
+#[cfg(feature = "std")]
+use std::{
+    collections::BTreeMap,
+    string::{String, ToString},
+    vec::Vec,
+};
+
+#[cfg(not(feature = "std"))]
+macro_rules! eprintln {
+    () => {};
+    ($($arg: tt)*) => {};
+}
 
 /// Implements a Fiat-Shamir based Rng that allows one to incrementally update
 /// the seed based on new messages in the proof transcript.

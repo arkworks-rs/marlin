@@ -1,13 +1,14 @@
 #![allow(non_snake_case)]
 
 use crate::ahp::{constraint_systems::matrix_to_polys, constraint_systems::IndexerConstraintSystem, AHPForR1CS, Error};
-use algebra::PrimeField;
+use algebra_core::PrimeField;
 use derivative::Derivative;
 use ff_fft::{EvaluationDomain, Evaluations as EvaluationsOnDomain};
 use poly_commit::LabeledPolynomial;
 use r1cs_core::{ConstraintSynthesizer, SynthesisError};
+use crate::{Vec, ToString};
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 /// Information about the index, including the field of definition, the number of
 /// variables, the number of constraints, and the maximum number of non-zero 
@@ -28,8 +29,8 @@ pub struct IndexInfo<F, C> {
     cs: PhantomData<C>,
 }
 
-impl<F: PrimeField, C: ConstraintSynthesizer<F>> algebra::ToBytes for IndexInfo<F, C> {
-    fn write<W: std::io::Write>(&self, mut w: W) -> std::io::Result<()> {
+impl<F: PrimeField, C: ConstraintSynthesizer<F>> algebra_core::ToBytes for IndexInfo<F, C> {
+    fn write<W: algebra_core::io::Write>(&self, mut w: W) -> algebra_core::io::Result<()> {
         (self.num_variables as u64).write(&mut w)?;
         (self.num_constraints as u64).write(&mut w)?;
         (self.num_non_zero as u64).write(&mut w)

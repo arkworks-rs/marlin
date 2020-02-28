@@ -1,7 +1,8 @@
-use algebra::{Field, PrimeField};
+use algebra_core::{Field, PrimeField};
 use ff_fft::EvaluationDomain;
 use r1cs_core::SynthesisError;
-use std::marker::PhantomData;
+use core::marker::PhantomData;
+use crate::Vec;
 
 pub(crate) mod constraint_systems;
 /// Describes data structures and the algorithms used by the AHP indexer.
@@ -121,7 +122,7 @@ impl<F: PrimeField> UnnormalizedBivariateLagrangePoly<F> for EvaluationDomain<F>
     fn batch_eval_unnormalized_bivariate_lagrange_poly_with_diff_inputs(&self, x: F) -> Vec<F> {
         let vanish_x = self.evaluate_vanishing_polynomial(x);
         let mut inverses: Vec<F> = self.elements().map(|y| x - &y).collect();
-        algebra::fields::batch_inversion(&mut inverses);
+        algebra_core::fields::batch_inversion(&mut inverses);
 
         inverses
             .iter_mut()
@@ -139,7 +140,7 @@ impl<F: PrimeField> UnnormalizedBivariateLagrangePoly<F> for EvaluationDomain<F>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use algebra::fields::bls12_381::fr::Fr;
+    use algebra::bls12_381::fr::Fr;
     use algebra::UniformRand;
 
     #[test]
