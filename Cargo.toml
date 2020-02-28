@@ -18,23 +18,25 @@ include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
 edition = "2018"
 
-[dev-dependencies]
-blake2 = "0.8.1"
-
 [dependencies]
-algebra = { git = "https://github.com/scipr-lab/zexe/", features = [ "parallel" ] }
-ff-fft = { git = "https://github.com/scipr-lab/zexe/" }
+algebra-core = { git = "https://github.com/scipr-lab/zexe/", default-features = false }
+ff-fft = { git = "https://github.com/scipr-lab/zexe/", default-features = false }
 bench-utils = { git = "https://github.com/scipr-lab/zexe/" }
-r1cs-core = { git = "https://github.com/scipr-lab/zexe/" }
+r1cs-core = { git = "https://github.com/scipr-lab/zexe/", default-features = false }
 
-poly-commit = { git = "https://github.com/scipr-lab/poly-commit" }
+poly-commit = { git = "https://github.com/scipr-lab/poly-commit", default-features = false }
 
 rand_core = { version = "0.5" }
-rand_chacha = { version = "0.2.1" }
-rayon = { version = "1" }
+rand_chacha = { version = "0.2.1", default-features = false }
+rayon = { version = "1", optional = true }
 digest = { version = "0.8" }
-generic-array = { version = "0.12" }
-derivative = { version = "1" }
+derivative = { version = "1", features = ["use_core"] }
+
+
+[dev-dependencies]
+blake2 = { version = "0.8", default-features = false }
+algebra = { git = "https://github.com/scipr-lab/zexe/", default-features = false, features = ["bls12_381"] }
+
 
 [profile.release]
 opt-level = 3
@@ -49,4 +51,7 @@ incremental = true
 debug = true
 
 [features]
+default = ["std"]
+std = [ "algebra-core/std", "ff-fft/std", "r1cs-core/std", "poly-commit/std" ]
 print-trace = [ "bench-utils/print-trace" ]
+parallel = [ "std", "algebra-core/parallel", "ff-fft/parallel", "poly-commit/parallel", "rayon" ]

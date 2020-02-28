@@ -5,14 +5,16 @@ use crate::ahp::indexer::*;
 use crate::ahp::verifier::*;
 use crate::ahp::*;
 
-use algebra::{Field, PrimeField};
-use ff_fft::{EvaluationDomain, Evaluations as EvaluationsOnDomain};
+use algebra_core::{Field, PrimeField};
+use ff_fft::{cfg_iter_mut, cfg_iter, cfg_into_iter, EvaluationDomain, Evaluations as EvaluationsOnDomain};
 use poly_commit::{LabeledPolynomial, Polynomial};
 use r1cs_core::{ConstraintSynthesizer, SynthesisError};
 use rand_core::RngCore;
+use crate::{Vec, BTreeMap, ToString};
+use core::marker::PhantomData;
+
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
-use std::collections::HashMap;
-use std::marker::PhantomData;
 
 pub(crate) struct MatrixEvals<'a, F: PrimeField> {
     a_row_evals: &'a EvaluationsOnDomain<F>,
@@ -85,8 +87,8 @@ pub struct ProverMsg<F: Field> {
     pub field_elements: Vec<F>,
 }
 
-impl<F: Field> algebra::ToBytes for ProverMsg<F> {
-    fn write<W: std::io::Write>(&self, w: W) -> std::io::Result<()> {
+impl<F: Field> algebra_core::ToBytes for ProverMsg<F> {
+    fn write<W: algebra_core::io::Write>(&self, w: W) -> algebra_core::io::Result<()> {
         self.field_elements.write(w)
     }
 }
@@ -306,8 +308,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         ]);
 
         let w_poly_time = start_timer!(|| "Computing w polynomial");
-        let w_poly_evals = (0..domain_h.size())
-            .into_par_iter()
+        let w_poly_evals = cfg_into_iter!(0..domain_h.size())
             .map(|k| {
                 if k % ratio == 0 {
                     F::zero()
@@ -433,16 +434,16 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let r_alpha_poly = Polynomial::from_coefficients_vec(domain_h.ifft(&r_alpha_x_evals));
         end_timer!(r_alpha_poly_time);
 
-        let mut r_a_alpha_vals_on_H: HashMap<F, F> = HashMap::new();
-        let mut r_b_alpha_vals_on_H: HashMap<F, F> = HashMap::new();
-        let mut r_c_alpha_vals_on_H: HashMap<F, F> = HashMap::new();
+        let mut r_a_alpha_vals_on_H: BTreeMap<F, F> = BTreeMap::new();
+        let mut r_b_alpha_vals_on_H: BTreeMap<F, F> = BTreeMap::new();
+        let mut r_c_alpha_vals_on_H: BTreeMap<F, F> = BTreeMap::new();
 
         let r_alpha_pre_comp_time = start_timer!(|| "Compute r_alpha_x precomputation");
-        let r_x_x_precomp: HashMap<_, _> = domain_h
+        let r_x_x_precomp: BTreeMap<_, _> = domain_h
             .elements()
             .zip(domain_h.batch_eval_unnormalized_bivariate_lagrange_poly_with_same_inputs())
             .collect();
-        let r_alpha_x_precomp: HashMap<_, _> = domain_h.elements().zip(r_alpha_x_evals).collect();
+        let r_alpha_x_precomp: BTreeMap<_, _> = domain_h.elements().zip(r_alpha_x_evals).collect();
         end_timer!(r_alpha_pre_comp_time);
 
         let r_M_alpha_evals_time = start_timer!(|| "Compute r_M_alpha evals on H");
@@ -478,9 +479,8 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let cz_poly = z_a_poly.polynomial() * z_b_poly.polynomial();
 
         let mut summed_z_m_coeffs = cz_poly.coeffs;
-        summed_z_m_coeffs.par_iter_mut().for_each(|c| *c *= &eta_c);
-        summed_z_m_coeffs
-            .par_iter_mut()
+        cfg_iter_mut!(summed_z_m_coeffs).for_each(|c| *c *= &eta_c);
+        cfg_iter_mut!(summed_z_m_coeffs)
             .zip(&z_a_poly.polynomial().coeffs)
             .zip(&z_b_poly.polynomial().coeffs)
             .for_each(|((c, a), b)| *c += &(eta_a * a + &(eta_b * b)));
@@ -512,9 +512,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             EvaluationsOnDomain::from_vec_and_domain(formatted_input_assignment.clone(), domain_x).interpolate();
         let w_poly = w_poly.unwrap();
         let mut z_poly = w_poly.polynomial().mul_by_vanishing_poly(domain_x);
-        z_poly
-            .coeffs
-            .par_iter_mut()
+        cfg_iter_mut!(z_poly.coeffs)
             .zip(&x_poly.coeffs)
             .for_each(|(z, x)| *z += x);
         assert!(z_poly.degree() <= domain_h.size() + zk_bound - 1);
@@ -538,9 +536,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let z_poly_evals = z_poly.evaluate_over_domain_by_ref(mul_domain);
         let summed_r_m_evals = summed_r_m.evaluate_over_domain_by_ref(mul_domain);
 
-        r_alpha_evals
-            .evals
-            .par_iter_mut()
+        cfg_iter_mut!(r_alpha_evals.evals)
             .zip(&summed_z_m_evals.evals)
             .zip(&z_poly_evals.evals)
             .zip(&summed_r_m_evals.evals)
@@ -647,12 +643,12 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let m_beta_1_evals_time = start_timer!(|| "Computing M_beta_1 evals");
 
-        let mut a_beta_1_vals_on_H : HashMap<F, F> = HashMap::new();
-        let mut b_beta_1_vals_on_H : HashMap<F, F> = HashMap::new();
-        let mut c_beta_1_vals_on_H : HashMap<F, F> = HashMap::new();
+        let mut a_beta_1_vals_on_H : BTreeMap<F, F> = BTreeMap::new();
+        let mut b_beta_1_vals_on_H : BTreeMap<F, F> = BTreeMap::new();
+        let mut c_beta_1_vals_on_H : BTreeMap<F, F> = BTreeMap::new();
 
-        let r_x_x_precomp: HashMap<_, _> = domain_h.elements().zip(domain_h.batch_eval_unnormalized_bivariate_lagrange_poly_with_same_inputs()).collect();
-        let r_beta_1_x_precomp: HashMap<_, _> = domain_h.elements().zip(domain_h.batch_eval_unnormalized_bivariate_lagrange_poly_with_diff_inputs(beta_1)).collect();
+        let r_x_x_precomp: BTreeMap<_, _> = domain_h.elements().zip(domain_h.batch_eval_unnormalized_bivariate_lagrange_poly_with_same_inputs()).collect();
+        let r_beta_1_x_precomp: BTreeMap<_, _> = domain_h.elements().zip(domain_h.batch_eval_unnormalized_bivariate_lagrange_poly_with_diff_inputs(beta_1)).collect();
 
         for k in 0..prover_state.domain_k.size() {
             // TODO: parallelize
@@ -786,9 +782,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
             inverses_b.push((beta_2 - &matrix_evals_on_K.b_row_evals[idx]) * &(beta_1 - &matrix_evals_on_K.b_col_evals[idx]));
             inverses_c.push((beta_2 - &matrix_evals_on_K.c_row_evals[idx]) * &(beta_1 - &matrix_evals_on_K.c_col_evals[idx]));
         }
-        algebra::batch_inversion(&mut inverses_a);
-        algebra::batch_inversion(&mut inverses_b);
-        algebra::batch_inversion(&mut inverses_c);
+        algebra_core::batch_inversion(&mut inverses_a);
+        algebra_core::batch_inversion(&mut inverses_b);
+        algebra_core::batch_inversion(&mut inverses_c);
 
         for idx in 0..domain_k.size() {
             let f_3_at_kappa =
@@ -812,28 +808,28 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let beta_minus_matrix_eval_time = start_timer!(|| "Computing beta_{1,2} - M_{row,col,val} evals on B");
 
-        let beta_2_minus_a_row_on_B = matrix_evals_on_B.a_row_evals.evals.par_iter().map(|a| beta_2 - a).collect();
+        let beta_2_minus_a_row_on_B = cfg_iter!(matrix_evals_on_B.a_row_evals.evals).map(|a| beta_2 - a).collect();
         let beta_2_minus_a_row_on_B = EvaluationsOnDomain::from_vec_and_domain(beta_2_minus_a_row_on_B, domain_b);
 
-        let beta_1_minus_a_col_on_B = matrix_evals_on_B.a_col_evals.evals.par_iter().map(|a| beta_1 - a).collect();
+        let beta_1_minus_a_col_on_B = cfg_iter!(matrix_evals_on_B.a_col_evals.evals).map(|a| beta_1 - a).collect();
         let beta_1_minus_a_col_on_B = EvaluationsOnDomain::from_vec_and_domain(beta_1_minus_a_col_on_B, domain_b);
 
-        let beta_2_minus_b_row_on_B = matrix_evals_on_B.b_row_evals.evals.par_iter().map(|b| beta_2 - b).collect();
+        let beta_2_minus_b_row_on_B = cfg_iter!(matrix_evals_on_B.b_row_evals.evals).map(|b| beta_2 - b).collect();
         let beta_2_minus_b_row_on_B = EvaluationsOnDomain::from_vec_and_domain(beta_2_minus_b_row_on_B, domain_b);
 
-        let beta_1_minus_b_col_on_B = matrix_evals_on_B.b_col_evals.evals.par_iter().map(|b| beta_1 - b).collect();
+        let beta_1_minus_b_col_on_B = cfg_iter!(matrix_evals_on_B.b_col_evals.evals).map(|b| beta_1 - b).collect();
         let beta_1_minus_b_col_on_B = EvaluationsOnDomain::from_vec_and_domain(beta_1_minus_b_col_on_B, domain_b);
 
-        let beta_2_minus_c_row_on_B = matrix_evals_on_B.c_row_evals.evals.par_iter().map(|c| beta_2 - c).collect();
+        let beta_2_minus_c_row_on_B = cfg_iter!(matrix_evals_on_B.c_row_evals.evals).map(|c| beta_2 - c).collect();
         let beta_2_minus_c_row_on_B = EvaluationsOnDomain::from_vec_and_domain(beta_2_minus_c_row_on_B, domain_b);
 
-        let beta_1_minus_c_col_on_B = matrix_evals_on_B.c_col_evals.evals.par_iter().map(|c| beta_1 - c).collect();
+        let beta_1_minus_c_col_on_B = cfg_iter!(matrix_evals_on_B.c_col_evals.evals).map(|c| beta_1 - c).collect();
         let beta_1_minus_c_col_on_B = EvaluationsOnDomain::from_vec_and_domain(beta_1_minus_c_col_on_B, domain_b);
 
         end_timer!(beta_minus_matrix_eval_time);
 
         let a_evals_time = start_timer!(|| "Computing a evals on B");
-        let a_poly_on_B = (0..domain_b.size()).into_par_iter().map(|idx| {
+        let a_poly_on_B = cfg_into_iter!(0..domain_b.size()).map(|idx| {
                 v_H_at_beta_2 * &v_H_at_beta_1 *
                 &( (eta_a * &matrix_evals_on_B.a_val_evals.evals[idx] * &beta_2_minus_b_row_on_B.evals[idx] * &beta_1_minus_b_col_on_B.evals[idx]
                                                   * &beta_2_minus_c_row_on_B.evals[idx] * &beta_1_minus_c_col_on_B.evals[idx])
@@ -849,7 +845,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         end_timer!(a_poly_time);
 
         let b_evals_time = start_timer!(|| "Computing b evals on B");
-        let b_poly_on_B = (0..domain_b.size()).into_par_iter().map(|idx| {
+        let b_poly_on_B = cfg_into_iter!(0..domain_b.size()).map(|idx| {
                    beta_2_minus_a_row_on_B.evals[idx] * &beta_1_minus_a_col_on_B.evals[idx]
                 * &beta_2_minus_b_row_on_B.evals[idx] * &beta_1_minus_b_col_on_B.evals[idx]
                 * &beta_2_minus_c_row_on_B.evals[idx] * &beta_1_minus_c_col_on_B.evals[idx]

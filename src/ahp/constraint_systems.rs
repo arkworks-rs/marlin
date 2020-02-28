@@ -1,12 +1,14 @@
 #![allow(non_snake_case)]
 
 use crate::ahp::*;
-use algebra::{Field, PrimeField};
-use ff_fft::{EvaluationDomain, Evaluations as EvaluationsOnDomain};
+use algebra_core::{Field, PrimeField};
+use ff_fft::{cfg_iter_mut, EvaluationDomain, Evaluations as EvaluationsOnDomain};
 use poly_commit::Polynomial;
 use r1cs_core::{ConstraintSystem, Index as VarIndex, LinearCombination, SynthesisError, Variable};
+use crate::{String, BTreeMap};
+
+#[cfg(feature = "parallel")]
 use rayon::prelude::*;
-use std::collections::HashMap;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -166,7 +168,7 @@ impl<ConstraintF: Field> ConstraintSystem<ConstraintF> for IndexerConstraintSyst
     
 /// This must *always* be in sync with `make_matrices_square`.
 pub(crate) fn padded_matrix_dim(num_formatted_variables: usize, num_constraints: usize) -> usize {
-    std::cmp::max(num_formatted_variables, num_constraints)
+    core::cmp::max(num_formatted_variables, num_constraints)
 }
 
 pub(crate) fn make_matrices_square<F: Field, CS: ConstraintSystem<F>>(
@@ -177,7 +179,7 @@ pub(crate) fn make_matrices_square<F: Field, CS: ConstraintSystem<F>>(
     let matrix_padding = ((num_formatted_variables as isize) - (num_constraints as isize)).abs();
 
     if num_formatted_variables > num_constraints {
-        use std::convert::identity as iden;
+        use core::convert::identity as iden;
         // Add dummy constraints of the form 0 * 0 == 0
         for i in 0..matrix_padding {
             cs.enforce(|| format!("pad constraint {}", i), iden, iden, iden);
@@ -211,7 +213,7 @@ pub(crate) fn matrix_to_polys<F: PrimeField>(
     let mut val_vec = Vec::new();
 
     let eq_poly_vals_time = start_timer!(|| "Precomputing eq_poly_vals");
-    let eq_poly_vals: HashMap<F, F> = output_domain
+    let eq_poly_vals: BTreeMap<F, F> = output_domain
         .elements()
         .zip(output_domain.batch_eval_unnormalized_bivariate_lagrange_poly_with_same_inputs())
         .collect();
@@ -240,9 +242,9 @@ pub(crate) fn matrix_to_polys<F: PrimeField>(
             count += 1;
         }
     }
-    algebra::fields::batch_inversion::<F>(&mut inverses);
+    algebra_core::fields::batch_inversion::<F>(&mut inverses);
 
-    val_vec.par_iter_mut().zip(inverses).for_each(|(v, inv)| *v *= &inv);
+    cfg_iter_mut!(val_vec).zip(inverses).for_each(|(v, inv)| *v *= &inv);
     end_timer!(lde_evals_time);
 
     for _ in 0..(interpolation_domain.size() - count) {
