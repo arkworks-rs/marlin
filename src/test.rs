@@ -10,7 +10,10 @@ struct Circuit<F: Field> {
 }
 
 impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for Circuit<ConstraintF> {
-    fn generate_constraints<CS: ConstraintSystem<ConstraintF>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+    fn generate_constraints<CS: ConstraintSystem<ConstraintF>>(
+        self,
+        cs: &mut CS,
+    ) -> Result<(), SynthesisError> {
         let a = cs.alloc(|| "a", || self.a.ok_or(SynthesisError::AssignmentMissing))?;
         let b = cs.alloc(|| "b", || self.b.ok_or(SynthesisError::AssignmentMissing))?;
         let c = cs.alloc_input(
@@ -25,11 +28,19 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for Circuit<Constrai
         )?;
 
         for i in 0..(self.num_variables - 3) {
-            let _ = cs.alloc(|| format!("var {}", i), || self.a.ok_or(SynthesisError::AssignmentMissing))?;
+            let _ = cs.alloc(
+                || format!("var {}", i),
+                || self.a.ok_or(SynthesisError::AssignmentMissing),
+            )?;
         }
 
         for i in 0..self.num_constraints {
-            cs.enforce(|| format!("constraint {}", i), |lc| lc + a, |lc| lc + b, |lc| lc + c);
+            cs.enforce(
+                || format!("constraint {}", i),
+                |lc| lc + a,
+                |lc| lc + b,
+                |lc| lc + c,
+            );
         }
         Ok(())
     }
@@ -40,10 +51,10 @@ mod marlin {
     use crate::Marlin;
 
     use algebra::UniformRand;
-    use algebra::{Bls12_381, bls12_381::Fr};
+    use algebra::{bls12_381::Fr, Bls12_381};
     use blake2::Blake2s;
-    use poly_commit::marlin_kzg10::MarlinKZG10;
     use core::ops::MulAssign;
+    use poly_commit::marlin_kzg10::MarlinKZG10;
 
     type MultiPC = MarlinKZG10<Bls12_381>;
     type MarlinInst = Marlin<Fr, MultiPC, Blake2s>;
@@ -59,7 +70,12 @@ mod marlin {
             let mut c = a;
             c.mul_assign(&b);
 
-            let circ = Circuit { a: Some(a), b: Some(b), num_constraints, num_variables };
+            let circ = Circuit {
+                a: Some(a),
+                b: Some(b),
+                num_constraints,
+                num_variables,
+            };
 
             let (index_pk, index_vk) = MarlinInst::index(&universal_srs, circ.clone()).unwrap();
             println!("Called index");
@@ -72,7 +88,6 @@ mod marlin {
             println!("\nShould not verify (i.e. verifier messages should print below):");
             assert!(!MarlinInst::verify(&index_vk, &[a], &proof, rng).unwrap());
         }
-
     }
 
     #[test]

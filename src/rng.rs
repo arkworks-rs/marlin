@@ -1,9 +1,9 @@
-use algebra_core::{FromBytes, ToBytes};
-use digest::{Digest, generic_array::GenericArray};
-use rand_core::{RngCore, SeedableRng};
-use rand_chacha::ChaChaRng;
-use core::marker::PhantomData;
 use crate::Vec;
+use algebra_core::{FromBytes, ToBytes};
+use core::marker::PhantomData;
+use digest::{generic_array::GenericArray, Digest};
+use rand_chacha::ChaChaRng;
+use rand_core::{RngCore, SeedableRng};
 
 /// A `SeedableRng` that refreshes its seed by hashing together the previous seed
 /// and the new seed material.

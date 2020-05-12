@@ -1,10 +1,10 @@
-use crate::Vec;
 use crate::ahp::indexer::*;
 use crate::ahp::prover::ProverMsg;
+use crate::Vec;
 use algebra_core::PrimeField;
-use poly_commit::PolynomialCommitment;
-use r1cs_core::ConstraintSynthesizer;
 use core::marker::PhantomData;
+use poly_commit::{BatchLCProof, PolynomialCommitment};
+use r1cs_core::ConstraintSynthesizer;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -18,7 +18,8 @@ pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F>>::UniversalParams;
 /* ************************************************************************* */
 
 /// Verification key for a specific index (i.e., R1CS matrices).
-pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> {
+pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>>
+{
     /// Stores information about the size of the index, as well as its field of
     /// definition.
     pub index_info: IndexInfo<F, C>,
@@ -28,14 +29,18 @@ pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: Const
     pub verifier_key: PC::VerifierKey,
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> algebra_core::ToBytes for IndexVerifierKey<F, PC, C> {
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> algebra_core::ToBytes
+    for IndexVerifierKey<F, PC, C>
+{
     fn write<W: algebra_core::io::Write>(&self, mut w: W) -> algebra_core::io::Result<()> {
         self.index_info.write(&mut w)?;
         self.index_comms.write(&mut w)
     }
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Clone for IndexVerifierKey<F, PC, C> {
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Clone
+    for IndexVerifierKey<F, PC, C>
+{
     fn clone(&self) -> Self {
         Self {
             index_comms: self.index_comms.clone(),
@@ -45,7 +50,9 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Cl
     }
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> IndexVerifierKey<F, PC, C> {
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>>
+    IndexVerifierKey<F, PC, C>
+{
     /// Iterate over the commitments to indexed polynomials in `self`.
     pub fn iter(&self) -> impl Iterator<Item = &PC::Commitment> {
         self.index_comms.iter()
@@ -57,7 +64,12 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> In
 /* ************************************************************************* */
 
 /// Proving key for a specific index (i.e., R1CS matrices).
-pub struct IndexProverKey<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> {
+pub struct IndexProverKey<
+    'a,
+    F: PrimeField,
+    PC: PolynomialCommitment<F>,
+    C: ConstraintSynthesizer<F>,
+> {
     /// The index verifier key.
     pub index_vk: IndexVerifierKey<F, PC, C>,
     /// The randomness for the index polynomial commitments.
@@ -68,7 +80,8 @@ pub struct IndexProverKey<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: Con
     pub committer_key: PC::CommitterKey,
 }
 
-impl<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Clone for IndexProverKey<'a, F, PC, C>
+impl<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Clone
+    for IndexProverKey<'a, F, PC, C>
 where
     PC::Commitment: Clone,
 {
@@ -95,7 +108,7 @@ pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthe
     /// The field elements sent by the prover.
     pub prover_messages: Vec<ProverMsg<F>>,
     /// An evaluation proof from the polynomial commitment.
-    pub pc_proof: PC::BatchProof,
+    pub pc_proof: BatchLCProof<F, PC>,
     #[doc(hidden)]
     constraint_system: PhantomData<C>,
 }
@@ -106,7 +119,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Pr
         commitments: Vec<Vec<PC::Commitment>>,
         evaluations: Vec<F>,
         prover_messages: Vec<ProverMsg<F>>,
-        pc_proof: PC::BatchProof,
+        pc_proof: BatchLCProof<F, PC>,
     ) -> Self {
         Self {
             commitments,
@@ -119,13 +132,14 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Pr
 
     /// Prints information about the size of the proof.
     pub fn print_size_info(&self) {
-        use poly_commit::PCCommitment;
+        use poly_commit::{PCCommitment, PCProof};
 
         let size_of_fe_in_bytes = F::zero().into_repr().as_ref().len() * 8;
         let mut num_comms_without_degree_bounds = 0;
         let mut num_comms_with_degree_bounds = 0;
         let mut size_bytes_comms_without_degree_bounds = 0;
         let mut size_bytes_comms_with_degree_bounds = 0;
+        let mut size_bytes_proofs = 0;
         for c in self.commitments.iter().flat_map(|c| c) {
             if !c.has_degree_bound() {
                 num_comms_without_degree_bounds += 1;
@@ -136,12 +150,23 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Pr
             }
         }
 
+        let proofs: Vec<PC::Proof> = self.pc_proof.proof.clone().into();
+        let num_proofs = proofs.len();
+        for proof in &proofs {
+            size_bytes_proofs += proof.size_in_bytes();
+        }
+
         let num_evals = self.evaluations.len();
         let evals_size_in_bytes = num_evals * size_of_fe_in_bytes;
-        let num_prover_messages: usize = self.prover_messages.iter().map(|v| v.field_elements.len()).sum();
+        let num_prover_messages: usize = self
+            .prover_messages
+            .iter()
+            .map(|v| v.field_elements.len())
+            .sum();
         let prover_msg_size_in_bytes = num_prover_messages * size_of_fe_in_bytes;
         let arg_size = size_bytes_comms_with_degree_bounds
             + size_bytes_comms_without_degree_bounds
+            + size_bytes_proofs
             + prover_msg_size_in_bytes
             + evals_size_in_bytes;
         let stats = format!(
@@ -150,6 +175,8 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Pr
              Size (in bytes) of commitments without degree bounds: {}\n\
              Number of commitments with degree bounds: {}\n\
              Size (in bytes) of commitments with degree bounds: {}\n\n\
+             Number of evaluation proofs: {}\n\
+             Size (in bytes) of evaluation proofs: {}\n\n\
              Number of evaluations: {}\n\
              Size (in bytes) of evaluations: {}\n\n\
              Number of field elements in prover messages: {}\n\
@@ -159,6 +186,8 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Pr
             size_bytes_comms_without_degree_bounds,
             num_comms_with_degree_bounds,
             size_bytes_comms_with_degree_bounds,
+            num_proofs,
+            size_bytes_proofs,
             num_evals,
             evals_size_in_bytes,
             num_prover_messages,

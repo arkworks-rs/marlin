@@ -6,14 +6,14 @@ pub enum Error<E> {
     /// The index is too large for the universal public parameters.
     IndexTooLarge,
     /// There was an error in the underlying holographic IOP.
-    HolographicIOPError(AHPError),
+    AHPError(AHPError),
     /// There was an error in the underlying polynomial commitment.
     PolynomialCommitmentError(E),
 }
 
 impl<E> From<AHPError> for Error<E> {
     fn from(err: AHPError) -> Self {
-        Error::HolographicIOPError(err)
+        Error::AHPError(err)
     }
 }
 

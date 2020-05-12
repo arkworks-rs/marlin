@@ -1,17 +1,20 @@
 #![allow(non_snake_case)]
 
-use crate::ahp::{constraint_systems::matrix_to_polys, constraint_systems::IndexerConstraintSystem, AHPForR1CS, Error};
+use crate::ahp::{
+    constraint_systems::{arithmetize_matrix, IndexerConstraintSystem, MatrixArithmetization},
+    AHPForR1CS, Error,
+};
+use crate::Vec;
 use algebra_core::PrimeField;
 use derivative::Derivative;
-use ff_fft::{EvaluationDomain, Evaluations as EvaluationsOnDomain};
+use ff_fft::{EvaluationDomain, GeneralEvaluationDomain};
 use poly_commit::LabeledPolynomial;
 use r1cs_core::{ConstraintSynthesizer, SynthesisError};
-use crate::{Vec, ToString};
 
 use core::marker::PhantomData;
 
 /// Information about the index, including the field of definition, the number of
-/// variables, the number of constraints, and the maximum number of non-zero 
+/// variables, the number of constraints, and the maximum number of non-zero
 /// entries in any of the constraint matrices.
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Copy(bound = ""))]
@@ -26,7 +29,7 @@ pub struct IndexInfo<F, C> {
     #[doc(hidden)]
     f: PhantomData<F>,
     #[doc(hidden)]
-    cs: PhantomData<C>,
+    cs: PhantomData<fn() -> C>,
 }
 
 impl<F: PrimeField, C: ConstraintSynthesizer<F>> algebra_core::ToBytes for IndexInfo<F, C> {
@@ -41,86 +44,40 @@ impl<F: PrimeField, C> IndexInfo<F, C> {
     /// The maximum degree of polynomial required to represent this index in the
     /// the AHP.
     pub fn max_degree(&self) -> usize {
-        AHPForR1CS::<F>::max_degree(self.num_constraints, self.num_variables, self.num_non_zero).unwrap()
+        AHPForR1CS::<F>::max_degree(self.num_constraints, self.num_variables, self.num_non_zero)
+            .unwrap()
     }
 }
+
+/// Represents a matrix.
+pub type Matrix<F> = Vec<Vec<(F, usize)>>;
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "F: PrimeField"))]
 /// The indexed version of the constraint system.
-pub struct Index<'a, F: PrimeField, C: ConstraintSynthesizer<F>> {
+/// This struct contains three kinds of objects:
+/// 1) `index_info` is information about the index, such as the size of the
+///     public input
+/// 2) `{a,b,c}` are the matrices defining the R1CS instance
+/// 3) `{a,b,c}_star_arith` are structs containing information about A^*, B^*, and C^*,
+/// which are matrices defined as `M^*(i, j) = M(j, i) * u_H(j, j)`.
+pub struct Index<'a, F: PrimeField, C> {
     /// Information about the index.
     pub index_info: IndexInfo<F, C>,
 
     /// The A matrix for the R1CS instance
-    pub a_matrix: Vec<Vec<(F, usize)>>,
+    pub a: Matrix<F>,
     /// The B matrix for the R1CS instance
-    pub b_matrix: Vec<Vec<(F, usize)>>,
+    pub b: Matrix<F>,
     /// The C matrix for the R1CS instance
-    pub c_matrix: Vec<Vec<(F, usize)>>,
+    pub c: Matrix<F>,
 
-    /// LDE of the row-indices of the non-zero entries of A.
-    pub a_row_poly: LabeledPolynomial<'a, F>,
-    /// LDE of the rol-indices of the non-zero entries of A.
-    pub a_col_poly: LabeledPolynomial<'a, F>,
-    /// LDE of the ralues of the non-zero entries of A.
-    pub a_val_poly: LabeledPolynomial<'a, F>,
-
-    /// LDE of the row-indices of the non-zero entries of B.
-    pub b_row_poly: LabeledPolynomial<'a, F>,
-    /// LDE of the rol-indices of the non-zero entries of B.
-    pub b_col_poly: LabeledPolynomial<'a, F>,
-    /// LDE of the ralues of the non-zero entries of B.
-    pub b_val_poly: LabeledPolynomial<'a, F>,
-
-    /// LDE of the row-indices of the non-zero entries of C.
-    pub c_row_poly: LabeledPolynomial<'a, F>,
-    /// LDE of the rol-indices of the non-zero entries of C.
-    pub c_col_poly: LabeledPolynomial<'a, F>,
-    /// LDE of the ralues of the non-zero entries of C.
-    pub c_val_poly: LabeledPolynomial<'a, F>,
-
-    /// Row-indices of the non-zero entries of A.
-    pub a_row_evals_on_K: EvaluationsOnDomain<F>,
-    /// Col-indices of the non-zero entries of A.
-    pub a_col_evals_on_K: EvaluationsOnDomain<F>,
-    /// Values of the non-zero entries of A.
-    pub a_val_evals_on_K: EvaluationsOnDomain<F>,
-
-    /// Row-indices of the non-zero entries of B.
-    pub b_row_evals_on_K: EvaluationsOnDomain<F>,
-    /// Col-indices of the non-zero entries of B.
-    pub b_col_evals_on_K: EvaluationsOnDomain<F>,
-    /// Values of the non-zero entries of B.
-    pub b_val_evals_on_K: EvaluationsOnDomain<F>,
-
-    /// Row-indices of the non-zero entries of C.
-    pub c_row_evals_on_K: EvaluationsOnDomain<F>,
-    /// Col-indices of the non-zero entries of C.
-    pub c_col_evals_on_K: EvaluationsOnDomain<F>,
-    /// Values of the non-zero entries of C.
-    pub c_val_evals_on_K: EvaluationsOnDomain<F>,
-
-    /// LDE of the row-indices of the non-zero entries of A, on larger domain.
-    pub a_row_evals_on_B: EvaluationsOnDomain<F>,
-    /// LDE of the col-indices of the non-zero entries of A, on larger domain.
-    pub a_col_evals_on_B: EvaluationsOnDomain<F>,
-    /// LDE of the values of the non-zero entries of A, on larger domain.
-    pub a_val_evals_on_B: EvaluationsOnDomain<F>,
-
-    /// LDE of the row-indices of the non-zero entries of B, on larger domain.
-    pub b_row_evals_on_B: EvaluationsOnDomain<F>,
-    /// LDE of the col-indices of the non-zero entries of B, on larger domain.
-    pub b_col_evals_on_B: EvaluationsOnDomain<F>,
-    /// LDE of the values of the non-zero entries of B, on larger domain.
-    pub b_val_evals_on_B: EvaluationsOnDomain<F>,
-
-    /// LDE of the row-indices of the non-zero entries of C, on larger domain.
-    pub c_row_evals_on_B: EvaluationsOnDomain<F>,
-    /// LDE of the col-indices of the non-zero entries of C, on larger domain.
-    pub c_col_evals_on_B: EvaluationsOnDomain<F>,
-    /// LDE of the values of the non-zero entries of C, on larger domain.
-    pub c_val_evals_on_B: EvaluationsOnDomain<F>,
+    /// Arithmetization of the A* matrix.
+    pub a_star_arith: MatrixArithmetization<'a, F>,
+    /// Arithmetization of the B* matrix.
+    pub b_star_arith: MatrixArithmetization<'a, F>,
+    /// Arithmetization of the C* matrix.
+    pub c_star_arith: MatrixArithmetization<'a, F>,
 }
 
 impl<'a, F: PrimeField, C: ConstraintSynthesizer<F>> Index<'a, F, C> {
@@ -129,18 +86,21 @@ impl<'a, F: PrimeField, C: ConstraintSynthesizer<F>> Index<'a, F, C> {
         self.index_info.max_degree()
     }
 
-    /// Iterate over the indexed evaluations.
+    /// Iterate over the indexed polynomials.
     pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<'a, F>> {
         vec![
-            &self.a_row_poly,
-            &self.a_col_poly,
-            &self.a_val_poly,
-            &self.b_row_poly,
-            &self.b_col_poly,
-            &self.b_val_poly,
-            &self.c_row_poly,
-            &self.c_col_poly,
-            &self.c_val_poly,
+            &self.a_star_arith.row,
+            &self.a_star_arith.col,
+            &self.a_star_arith.val,
+            &self.a_star_arith.row_col,
+            &self.b_star_arith.row,
+            &self.b_star_arith.col,
+            &self.b_star_arith.val,
+            &self.b_star_arith.row_col,
+            &self.c_star_arith.row,
+            &self.c_star_arith.col,
+            &self.c_star_arith.val,
+            &self.c_star_arith.row_col,
         ]
         .into_iter()
     }
@@ -189,84 +149,42 @@ impl<F: PrimeField> AHPForR1CS<F> {
             cs: PhantomData,
         };
 
-        let domain_h = EvaluationDomain::new(num_constraints).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let domain_k = EvaluationDomain::new(num_non_zero).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let x_domain = EvaluationDomain::<F>::new(num_formatted_input_variables)
+        let domain_h = GeneralEvaluationDomain::new(num_constraints)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let b_domain =
-            EvaluationDomain::<F>::new(6 * domain_k.size() - 6).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain_k = GeneralEvaluationDomain::new(num_non_zero)
+            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let x_domain = GeneralEvaluationDomain::<F>::new(num_formatted_input_variables)
+            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let b_domain = GeneralEvaluationDomain::<F>::new(3 * domain_k.size() - 3)
+            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
-        let a_matrix = ics.a_matrix();
-        let b_matrix = ics.b_matrix();
-        let c_matrix = ics.c_matrix();
+        let mut a = ics.a_matrix();
+        let mut b = ics.b_matrix();
+        let mut c = ics.c_matrix();
 
-        let a_poly_time = start_timer!(|| "Generating A polynomials");
-        let (
-            (a_row_evals_on_K, a_col_evals_on_K, a_val_evals_on_K),
-            (a_row_evals_on_B, a_col_evals_on_B, a_val_evals_on_B),
-            (a_row_poly, a_col_poly, a_val_poly),
-        ) = matrix_to_polys(a_matrix.clone(), domain_k, domain_h, x_domain, b_domain);
-        end_timer!(a_poly_time);
+        let a_arithmetization_time = start_timer!(|| "Arithmetizing A");
+        let a_star_arith = arithmetize_matrix("a", &mut a, domain_k, domain_h, x_domain, b_domain);
+        end_timer!(a_arithmetization_time);
 
-        let b_poly_time = start_timer!(|| "Generating B polynomials");
-        let (
-            (b_row_evals_on_K, b_col_evals_on_K, b_val_evals_on_K),
-            (b_row_evals_on_B, b_col_evals_on_B, b_val_evals_on_B),
-            (b_row_poly, b_col_poly, b_val_poly),
-        ) = matrix_to_polys(b_matrix.clone(), domain_k, domain_h, x_domain, b_domain);
-        end_timer!(b_poly_time);
+        let b_arithmetization_time = start_timer!(|| "Arithmetizing B");
+        let b_star_arith = arithmetize_matrix("b", &mut b, domain_k, domain_h, x_domain, b_domain);
+        end_timer!(b_arithmetization_time);
 
-        let c_poly_time = start_timer!(|| "Generating C polynomials");
-        let (
-            (c_row_evals_on_K, c_col_evals_on_K, c_val_evals_on_K),
-            (c_row_evals_on_B, c_col_evals_on_B, c_val_evals_on_B),
-            (c_row_poly, c_col_poly, c_val_poly),
-        ) = matrix_to_polys(c_matrix.clone(), domain_k, domain_h, x_domain, b_domain);
-        end_timer!(c_poly_time);
+        let c_arithmetization_time = start_timer!(|| "Arithmetizing C");
+        let c_star_arith = arithmetize_matrix("c", &mut c, domain_k, domain_h, x_domain, b_domain);
+        end_timer!(c_arithmetization_time);
 
         end_timer!(index_time);
         Ok(Index {
             index_info,
 
-            a_matrix,
-            b_matrix,
-            c_matrix,
+            a,
+            b,
+            c,
 
-            a_row_poly: LabeledPolynomial::new_owned("a_row".to_string(), a_row_poly, None, None),
-            a_col_poly: LabeledPolynomial::new_owned("a_col".to_string(), a_col_poly, None, None),
-            a_val_poly: LabeledPolynomial::new_owned("a_val".to_string(), a_val_poly, None, None),
-
-            b_row_poly: LabeledPolynomial::new_owned("b_row".to_string(), b_row_poly, None, None),
-            b_col_poly: LabeledPolynomial::new_owned("b_col".to_string(), b_col_poly, None, None),
-            b_val_poly: LabeledPolynomial::new_owned("b_val".to_string(), b_val_poly, None, None),
-
-            c_row_poly: LabeledPolynomial::new_owned("c_row".to_string(), c_row_poly, None, None),
-            c_col_poly: LabeledPolynomial::new_owned("c_col".to_string(), c_col_poly, None, None),
-            c_val_poly: LabeledPolynomial::new_owned("c_val".to_string(), c_val_poly, None, None),
-
-            a_row_evals_on_K,
-            a_col_evals_on_K,
-            a_val_evals_on_K,
-
-            b_row_evals_on_K,
-            b_col_evals_on_K,
-            b_val_evals_on_K,
-
-            c_row_evals_on_K,
-            c_col_evals_on_K,
-            c_val_evals_on_K,
-
-            a_row_evals_on_B,
-            a_col_evals_on_B,
-            a_val_evals_on_B,
-
-            b_row_evals_on_B,
-            b_col_evals_on_B,
-            b_val_evals_on_B,
-
-            c_row_evals_on_B,
-            c_col_evals_on_B,
-            c_val_evals_on_B,
+            a_star_arith,
+            b_star_arith,
+            c_star_arith,
         })
     }
 }
