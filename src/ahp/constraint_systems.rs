@@ -1,14 +1,18 @@
 #![allow(non_snake_case)]
 
+use crate::ahp::indexer::Matrix;
 use crate::ahp::*;
+use crate::{BTreeMap, Cow, String};
 use algebra_core::{Field, PrimeField};
-use ff_fft::{cfg_iter_mut, EvaluationDomain, Evaluations as EvaluationsOnDomain};
-use poly_commit::Polynomial;
+use derivative::Derivative;
+use ff_fft::{
+    cfg_iter_mut, EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain,
+};
+use poly_commit::LabeledPolynomial;
 use r1cs_core::{ConstraintSystem, Index as VarIndex, LinearCombination, SynthesisError, Variable};
-use crate::{String, BTreeMap};
 
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
+// #[cfg(feature = "parallel")]
+// use rayon::prelude::*;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -24,7 +28,12 @@ pub(crate) struct IndexerConstraintSystem<F: Field> {
     pub(crate) c: Vec<Vec<(F, VarIndex)>>,
 }
 
-fn to_matrix_helper<F: Field>(matrix: &[Vec<(F, VarIndex)>], num_input_variables: usize) -> Vec<Vec<(F, usize)>> {
+// This function converts a matrix output by Zexe's constraint infrastructure
+// to the one used in this crate.
+fn to_matrix_helper<F: Field>(
+    matrix: &[Vec<(F, VarIndex)>],
+    num_input_variables: usize,
+) -> Matrix<F> {
     let mut new_matrix = Vec::with_capacity(matrix.len());
     for row in matrix {
         let mut new_row = Vec::with_capacity(row.len());
@@ -89,9 +98,21 @@ impl<F: Field> IndexerConstraintSystem<F> {
         let num_non_zero = self.num_non_zero();
         let matrix_dim = padded_matrix_dim(num_variables, self.num_constraints);
         make_matrices_square(self, num_variables);
-        assert_eq!(self.num_input_variables + self.num_witness_variables, self.num_constraints, "padding failed!");
-        assert_eq!(self.num_input_variables + self.num_witness_variables, matrix_dim, "padding does not result in expected matrix size!");
-        assert_eq!(self.num_non_zero(), num_non_zero, "padding changed matrix density");
+        assert_eq!(
+            self.num_input_variables + self.num_witness_variables,
+            self.num_constraints,
+            "padding failed!"
+        );
+        assert_eq!(
+            self.num_input_variables + self.num_witness_variables,
+            matrix_dim,
+            "padding does not result in expected matrix size!"
+        );
+        assert_eq!(
+            self.num_non_zero(),
+            num_non_zero,
+            "padding changed matrix density"
+        );
     }
 }
 
@@ -165,7 +186,7 @@ impl<ConstraintF: Field> ConstraintSystem<ConstraintF> for IndexerConstraintSyst
         self.num_constraints
     }
 }
-    
+
 /// This must *always* be in sync with `make_matrices_square`.
 pub(crate) fn padded_matrix_dim(num_formatted_variables: usize, num_constraints: usize) -> usize {
     core::cmp::max(num_formatted_variables, num_constraints)
@@ -187,23 +208,60 @@ pub(crate) fn make_matrices_square<F: Field, CS: ConstraintSystem<F>>(
     } else {
         // Add dummy unconstrained variables
         for i in 0..matrix_padding {
-            let _ = cs.alloc(|| format!("pad var {}", i), || Ok(F::one())).expect("alloc failed");
+            let _ = cs
+                .alloc(|| format!("pad var {}", i), || Ok(F::one()))
+                .expect("alloc failed");
         }
     }
 }
 
-// TODO for debugging: add test that checks result of matrix_to_polys(M).
-pub(crate) fn matrix_to_polys<F: PrimeField>(
-    matrix: Vec<Vec<(F, usize)>>,
-    interpolation_domain: EvaluationDomain<F>,
-    output_domain: EvaluationDomain<F>,
-    input_domain: EvaluationDomain<F>,
-    expanded_domain: EvaluationDomain<F>,
-) -> (
-    (EvaluationsOnDomain<F>, EvaluationsOnDomain<F>, EvaluationsOnDomain<F>),
-    (EvaluationsOnDomain<F>, EvaluationsOnDomain<F>, EvaluationsOnDomain<F>),
-    (Polynomial<F>, Polynomial<F>, Polynomial<F>),
-) {
+#[derive(Derivative)]
+#[derivative(Clone(bound = "F: PrimeField"))]
+pub struct MatrixEvals<'a, F: PrimeField> {
+    /// Evaluations of the LDE of row.
+    pub row: Cow<'a, EvaluationsOnDomain<F>>,
+    /// Evaluations of the LDE of col.
+    pub col: Cow<'a, EvaluationsOnDomain<F>>,
+    /// Evaluations of the LDE of val.
+    pub val: Cow<'a, EvaluationsOnDomain<F>>,
+}
+
+/// Contains information about the arithmetization of the matrix M^*.
+/// Here `M^*(i, j) := M(j, i) * u_H(j, j)`. For more details, see [COS19].
+#[derive(Derivative)]
+#[derivative(Clone(bound = "F: PrimeField"))]
+pub struct MatrixArithmetization<'a, F: PrimeField> {
+    /// LDE of the row indices of M^*.
+    pub row: LabeledPolynomial<'a, F>,
+    /// LDE of the column indices of M^*.
+    pub col: LabeledPolynomial<'a, F>,
+    /// LDE of the non-zero entries of M^*.
+    pub val: LabeledPolynomial<'a, F>,
+    /// LDE of the vector containing entry-wise products of `row` and `col`,
+    /// where `row` and `col` are as above.
+    pub row_col: LabeledPolynomial<'a, F>,
+
+    /// Evaluation of `self.row`, `self.col`, and `self.val` on the domain `K`.
+    pub evals_on_K: MatrixEvals<'a, F>,
+
+    /// Evaluation of `self.row`, `self.col`, and, `self.val` on
+    /// an extended domain B (of size > `3K`).
+    // TODO: rename B everywhere.
+    pub evals_on_B: MatrixEvals<'a, F>,
+
+    /// Evaluation of `self.row_col` on an extended domain B (of size > `3K`).
+    pub row_col_evals_on_B: Cow<'a, EvaluationsOnDomain<F>>,
+}
+
+// TODO for debugging: add test that checks result of arithmetize_matrix(M).
+pub(crate) fn arithmetize_matrix<'a, F: PrimeField>(
+    matrix_name: &str,
+    matrix: &mut Matrix<F>,
+    interpolation_domain: GeneralEvaluationDomain<F>,
+    output_domain: GeneralEvaluationDomain<F>,
+    input_domain: GeneralEvaluationDomain<F>,
+    expanded_domain: GeneralEvaluationDomain<F>,
+) -> MatrixArithmetization<'a, F> {
     let matrix_time = start_timer!(|| "Computing row, col, and val LDEs");
 
     let elems: Vec<_> = output_domain.elements().collect();
@@ -223,28 +281,32 @@ pub(crate) fn matrix_to_polys<F: PrimeField>(
     let mut inverses = Vec::new();
 
     let mut count = 0;
-    for (r, mut row) in matrix.into_iter().enumerate() {
-        let sorted_row = if is_in_ascending_order(&row, |(_, a), (_, b)| a < b) {
-            row
-        } else {
+
+    // Recall that we are computing the arithmetization of M^*,
+    // where `M^*(i, j) := M(j, i) * u_H(j, j)`.
+    for (r, row) in matrix.into_iter().enumerate() {
+        if !is_in_ascending_order(&row, |(_, a), (_, b)| a < b) {
             row.sort_by(|(_, a), (_, b)| a.cmp(b));
-            row
         };
 
-        for (val, i) in sorted_row {
+        for &mut (val, i) in row {
             let row_val = elems[r];
             let col_val = elems[output_domain.reindex_by_subdomain(input_domain, i)];
 
-            row_vec.push(row_val);
-            col_vec.push(col_val);
+            // We are dealing with the transpose of M
+            row_vec.push(col_val);
+            col_vec.push(row_val);
             val_vec.push(val);
-            inverses.push(eq_poly_vals[&row_val] * &eq_poly_vals[&col_val]);
+            inverses.push(eq_poly_vals[&col_val]);
+
             count += 1;
         }
     }
     algebra_core::fields::batch_inversion::<F>(&mut inverses);
 
-    cfg_iter_mut!(val_vec).zip(inverses).for_each(|(v, inv)| *v *= &inv);
+    cfg_iter_mut!(val_vec)
+        .zip(inverses)
+        .for_each(|(v, inv)| *v *= &inv);
     end_timer!(lde_evals_time);
 
     for _ in 0..(interpolation_domain.size() - count) {
@@ -252,25 +314,56 @@ pub(crate) fn matrix_to_polys<F: PrimeField>(
         row_vec.push(elems[0]);
         val_vec.push(F::zero());
     }
+    let row_col_vec: Vec<_> = row_vec
+        .iter()
+        .zip(&col_vec)
+        .map(|(row, col)| *row * col)
+        .collect();
 
     let interpolate_time = start_timer!(|| "Interpolating on K and B");
     let row_evals_on_K = EvaluationsOnDomain::from_vec_and_domain(row_vec, interpolation_domain);
     let col_evals_on_K = EvaluationsOnDomain::from_vec_and_domain(col_vec, interpolation_domain);
     let val_evals_on_K = EvaluationsOnDomain::from_vec_and_domain(val_vec, interpolation_domain);
-    let row_poly = row_evals_on_K.clone().interpolate();
-    let col_poly = col_evals_on_K.clone().interpolate();
-    let val_poly = val_evals_on_K.clone().interpolate();
-    let row_evals_on_B = EvaluationsOnDomain::from_vec_and_domain(expanded_domain.fft(&row_poly), expanded_domain);
-    let col_evals_on_B = EvaluationsOnDomain::from_vec_and_domain(expanded_domain.fft(&col_poly), expanded_domain);
-    let val_evals_on_B = EvaluationsOnDomain::from_vec_and_domain(expanded_domain.fft(&val_poly), expanded_domain);
+    let row_col_evals_on_K =
+        EvaluationsOnDomain::from_vec_and_domain(row_col_vec, interpolation_domain);
+
+    let row = row_evals_on_K.clone().interpolate();
+    let col = col_evals_on_K.clone().interpolate();
+    let val = val_evals_on_K.clone().interpolate();
+    let row_col = row_col_evals_on_K.interpolate();
+
+    let row_evals_on_B =
+        EvaluationsOnDomain::from_vec_and_domain(expanded_domain.fft(&row), expanded_domain);
+    let col_evals_on_B =
+        EvaluationsOnDomain::from_vec_and_domain(expanded_domain.fft(&col), expanded_domain);
+    let val_evals_on_B =
+        EvaluationsOnDomain::from_vec_and_domain(expanded_domain.fft(&val), expanded_domain);
+    let row_col_evals_on_B =
+        EvaluationsOnDomain::from_vec_and_domain(expanded_domain.fft(&row_col), expanded_domain);
     end_timer!(interpolate_time);
 
     end_timer!(matrix_time);
-    (
-        (row_evals_on_K, col_evals_on_K, val_evals_on_K),
-        (row_evals_on_B, col_evals_on_B, val_evals_on_B),
-        (row_poly, col_poly, val_poly),
-    )
+    let evals_on_K = MatrixEvals {
+        row: Cow::Owned(row_evals_on_K),
+        col: Cow::Owned(col_evals_on_K),
+        val: Cow::Owned(val_evals_on_K),
+    };
+    let evals_on_B = MatrixEvals {
+        row: Cow::Owned(row_evals_on_B),
+        col: Cow::Owned(col_evals_on_B),
+        val: Cow::Owned(val_evals_on_B),
+    };
+
+    let m_name = matrix_name.to_owned();
+    MatrixArithmetization {
+        row: LabeledPolynomial::new_owned(m_name.clone() + "_row", row, None, None),
+        col: LabeledPolynomial::new_owned(m_name.clone() + "_col", col, None, None),
+        val: LabeledPolynomial::new_owned(m_name.clone() + "_val", val, None, None),
+        row_col: LabeledPolynomial::new_owned(m_name.clone() + "_row_col", row_col, None, None),
+        evals_on_K,
+        evals_on_B,
+        row_col_evals_on_B: Cow::Owned(row_col_evals_on_B),
+    }
 }
 
 fn is_in_ascending_order<T: Ord>(x_s: &[T], is_less_than: impl Fn(&T, &T) -> bool) -> bool {
@@ -328,8 +421,11 @@ impl<F: Field> ProverConstraintSystem<F> {
     pub(crate) fn make_matrices_square(&mut self) {
         let num_variables = self.num_input_variables + self.num_witness_variables;
         make_matrices_square(self, num_variables);
-        assert_eq!(self.num_input_variables + self.num_witness_variables, self.num_constraints, "padding failed!");
-        
+        assert_eq!(
+            self.num_input_variables + self.num_witness_variables,
+            self.num_constraints,
+            "padding failed!"
+        );
     }
 }
 
