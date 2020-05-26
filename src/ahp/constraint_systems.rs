@@ -2,7 +2,7 @@
 
 use crate::ahp::indexer::Matrix;
 use crate::ahp::*;
-use crate::{BTreeMap, Cow, String};
+use crate::{BTreeMap, Cow, String, ToString};
 use algebra_core::{Field, PrimeField};
 use derivative::Derivative;
 use ff_fft::{
@@ -354,7 +354,7 @@ pub(crate) fn arithmetize_matrix<'a, F: PrimeField>(
         val: Cow::Owned(val_evals_on_B),
     };
 
-    let m_name = matrix_name.to_owned();
+    let m_name = matrix_name.to_string();
     MatrixArithmetization {
         row: LabeledPolynomial::new_owned(m_name.clone() + "_row", row, None, None),
         col: LabeledPolynomial::new_owned(m_name.clone() + "_col", col, None, None),
