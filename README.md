@@ -56,7 +56,12 @@ Lastly, this library is instrumented with profiling infrastructure that prints d
 
 ## Benchmarks
 
-The graphs below compare the running time, in single-thread execution, of Marlin's indexer, prover, and verifier algorithms with the corresponding algorithms of [Groth16](https://eprint.iacr.org/2016/260) (the state of the art in preprocessing zkSNARKs for R1CS with circuit-specific SRS) as implemented in [`zexe`](https://github.com/scipr-lab/zexe). We evaluate Marlin's prover when instantiated with the PC scheme from [[CHMMVW20]][marlin] (denoted "M-AHP w/ PC of [[CHMMVW20]][marlin]"), and the PC scheme from [[MBKM19]][sonic] (denoted "M-AHP w/ PC of [[MBKM19]][sonic]").
+All benchmarks below are performed over the BLS12-381 curve implemented in the [`algebra`](https://github.com/scipr-lab/zexe/master/algebra) library, with the `asm` feature activated. Benchmarks were run on a machine with an Intel Xeon 6136 CPU running at 3.0 GHz.
+
+
+### Running time compared to Groth16 
+
+The graphs below compare the running time, in single-thread execution, of Marlin's indexer, prover, and verifier algorithms with the corresponding algorithms of [Groth16][groth16] (the state of the art in preprocessing zkSNARKs for R1CS with circuit-specific SRS) as implemented in [`groth16`](https://github.com/scipr-lab/zexe/master/groth16). We evaluate Marlin's algorithms when instantiated with the PC scheme from [[CHMMVW20]][marlin] (denoted "M-AHP w/ PC of [[CHMMVW20]][marlin]"), and the PC scheme from [[MBKM19]][sonic] (denoted "M-AHP w/ PC of [[MBKM19]][sonic]").
 
 <p align="center">
 <img hspace="20" src="https://user-images.githubusercontent.com/3220730/82859703-52546100-9ecc-11ea-8f9d-ec2fb10f042d.png" width="45%" alt = "Indexer">
@@ -66,12 +71,25 @@ The graphs below compare the running time, in single-thread execution, of Marlin
 <img src="https://user-images.githubusercontent.com/3220730/82859701-52546100-9ecc-11ea-8422-877080662073.png" width="45%" alt = "Verifier">
 </p>
 
+### Multi-threaded performance
+
 The following graphs compare the running time of Marlin's prover when instantiated with the PC scheme from [[CHMMVW20]][marlin] (left) and the PC scheme from [[MBKM19]][sonic] (right) when executed with a different number of threads.
 
 <p align="center">
 <img hspace="20" src="https://user-images.githubusercontent.com/3220730/82859700-51bbca80-9ecc-11ea-9fe1-53a611693dd1.png" width="45%" alt = "Multi-threaded scaling of Marlin AHP with the PC scheme from [CHMMVW20]">
 <img hspace="20" src="https://user-images.githubusercontent.com/3220730/82859698-51233400-9ecc-11ea-8a32-37379116e828.png" width="45%" alt = "Multi-threaded scaling of Marlin AHP with the PC scheme from [MBKM19]">
 </p>
+
+### Proof size
+
+We compare the proof size of Marlin with that of [Groth16][groth16]. We instantiate the Marlin SNARK with the PC scheme from [[CHMMVW20]][marlin], and the PC scheme from [[MBKM19]][sonic].
+
+|                   Scheme                   | Proof size in bytes |
+|:------------------------------------------:|:---------------------:|
+| Marlin AHP with PC of [[MBKM19]][sonic]    |         784         |
+| Marlin AHP with PC of [[CHMMVW20]][marlin] |         880         |
+|  [\[Groth16\]][groth16]                    |         192         |
+
 
 ## License
 
@@ -84,6 +102,7 @@ Unless you explicitly state otherwise, any contribution that you submit to this 
 
 [marlin]: https://ia.cr/2019/1047
 [sonic]: https://ia.cr/2019/099
+[groth16]: https://ia.cr/2016/260
 
 ## Reference paper
 
