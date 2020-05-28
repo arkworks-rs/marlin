@@ -56,12 +56,12 @@ Lastly, this library is instrumented with profiling infrastructure that prints d
 
 ## Benchmarks
 
-All benchmarks below are performed over the BLS12-381 curve implemented in the [`algebra`](https://github.com/scipr-lab/zexe/master/algebra) library, with the `asm` feature activated. Benchmarks were run on a machine with an Intel Xeon 6136 CPU running at 3.0 GHz.
+All benchmarks below are performed over the BLS12-381 curve implemented in the [`algebra`](https://github.com/scipr-lab/zexe/tree/master/algebra) library, with the `asm` feature activated. Benchmarks were run on a machine with an Intel Xeon 6136 CPU running at 3.0 GHz.
 
 
 ### Running time compared to Groth16 
 
-The graphs below compare the running time, in single-thread execution, of Marlin's indexer, prover, and verifier algorithms with the corresponding algorithms of [Groth16][groth16] (the state of the art in preprocessing zkSNARKs for R1CS with circuit-specific SRS) as implemented in [`groth16`](https://github.com/scipr-lab/zexe/master/groth16). We evaluate Marlin's algorithms when instantiated with the PC scheme from [[CHMMVW20]][marlin] (denoted "M-AHP w/ PC of [[CHMMVW20]][marlin]"), and the PC scheme from [[MBKM19]][sonic] (denoted "M-AHP w/ PC of [[MBKM19]][sonic]").
+The graphs below compare the running time, in single-thread execution, of Marlin's indexer, prover, and verifier algorithms with the corresponding algorithms of [Groth16][groth16] (the state of the art in preprocessing zkSNARKs for R1CS with circuit-specific SRS) as implemented in [`groth16`](https://github.com/scipr-lab/zexe/tree/master/groth16). We evaluate Marlin's algorithms when instantiated with the PC scheme from [[CHMMVW20]][marlin] (denoted "M-AHP w/ PC of [[CHMMVW20]][marlin]"), and the PC scheme from [[MBKM19]][sonic] (denoted "M-AHP w/ PC of [[MBKM19]][sonic]").
 
 <p align="center">
 <img hspace="20" src="https://user-images.githubusercontent.com/3220730/82859703-52546100-9ecc-11ea-8f9d-ec2fb10f042d.png" width="45%" alt = "Indexer">
@@ -86,8 +86,8 @@ We compare the proof size of Marlin with that of [Groth16][groth16]. We instanti
 
 |                   Scheme                   | Proof size in bytes |
 |:------------------------------------------:|:---------------------:|
-| Marlin AHP with PC of [[MBKM19]][sonic]    |         784         |
 | Marlin AHP with PC of [[CHMMVW20]][marlin] |         880         |
+| Marlin AHP with PC of [[MBKM19]][sonic]    |         784         |
 |  [\[Groth16\]][groth16]                    |         192         |
 
 
