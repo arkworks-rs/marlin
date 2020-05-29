@@ -265,7 +265,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             })
             .collect();
 
-        let w_poly = EvaluationsOnDomain::from_vec_and_domain(w_poly_evals, domain_h).interpolate()
+        let w_poly = &EvaluationsOnDomain::from_vec_and_domain(w_poly_evals, domain_h).interpolate()
             + &(&Polynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
         let (w_poly, remainder) = w_poly.divide_by_vanishing_poly(domain_x).unwrap();
         assert!(remainder.is_zero());
