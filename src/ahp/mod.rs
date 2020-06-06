@@ -1,4 +1,4 @@
-use crate::{String, Vec};
+use crate::{String, ToString, Vec};
 use algebra_core::{Field, PrimeField};
 use core::{borrow::Borrow, marker::PhantomData};
 use ff_fft::{cfg_iter_mut, EvaluationDomain, GeneralEvaluationDomain};

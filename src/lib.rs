@@ -244,7 +244,8 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
             second_comms.iter().map(|p| p.commitment().clone()).collect(),
             third_comms.iter().map(|p| p.commitment().clone()).collect(),
         ];
-        let labeled_comms: Vec<_> = index_pk.index_vk
+        let labeled_comms: Vec<_> = index_pk
+            .index_vk
             .iter()
             .cloned()
             .zip(&AHPForR1CS::<F>::INDEXER_POLYNOMIALS)
