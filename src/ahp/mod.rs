@@ -1,4 +1,4 @@
-use crate::{Vec, String};
+use crate::{String, Vec};
 use algebra_core::{Field, PrimeField};
 use core::{borrow::Borrow, marker::PhantomData};
 use ff_fft::{cfg_iter_mut, EvaluationDomain, GeneralEvaluationDomain};
@@ -40,7 +40,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     ];
 
     /// THe linear combinations that are statically known to evaluate to zero.
-    pub const LC_WITH_ZERO_EVAL: [&'static str; 2] = [ "inner_sumcheck", "outer_sumcheck" ];
+    pub const LC_WITH_ZERO_EVAL: [&'static str; 2] = ["inner_sumcheck", "outer_sumcheck"];
 
     /// Check that the (formatted) public input is of the form 2^n for some integer n.
     pub fn num_formatted_public_inputs_is_admissible(num_inputs: usize) -> bool {
@@ -271,7 +271,10 @@ impl<'a, F: Field, T: Borrow<LabeledPolynomial<'a, F>>> EvaluationsProvider<F> f
                         let p: &LabeledPolynomial<F> = (*p).borrow();
                         p.label() == label
                     })
-                    .ok_or(Error::MissingEval(format!("Missing {} for {}", label, lc.label)))?
+                    .ok_or(Error::MissingEval(format!(
+                        "Missing {} for {}",
+                        label, lc.label
+                    )))?
                     .borrow()
                     .evaluate(point)
             } else {

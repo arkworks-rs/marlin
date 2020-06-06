@@ -31,7 +31,6 @@ jobs:
 
   test:
     name: Test
-    needs: [style]
     runs-on: ubuntu-latest
     env:
       RUSTFLAGS: -Dwarnings
