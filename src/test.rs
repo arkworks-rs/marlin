@@ -54,7 +54,7 @@ mod marlin {
     use algebra::{bls12_381::Fr, Bls12_381};
     use blake2::Blake2s;
     use core::ops::MulAssign;
-    use poly_commit::marlin_kzg10::MarlinKZG10;
+    use poly_commit::marlin_pc::MarlinKZG10;
 
     type MultiPC = MarlinKZG10<Bls12_381>;
     type MarlinInst = Marlin<Fr, MultiPC, Blake2s>;
