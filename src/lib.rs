@@ -244,6 +244,15 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
             second_comms.iter().map(|p| p.commitment().clone()).collect(),
             third_comms.iter().map(|p| p.commitment().clone()).collect(),
         ];
+        let labeled_comms: Vec<_> = index_pk.index_vk
+            .iter()
+            .cloned()
+            .zip(&AHPForR1CS::<F>::INDEXER_POLYNOMIALS)
+            .map(|(c, l)| LabeledCommitment::new(l.to_string(), c, None))
+            .chain(first_comms.iter().cloned())
+            .chain(second_comms.iter().cloned())
+            .chain(third_comms.iter().cloned())
+            .collect();
 
         // Gather commitment randomness together.
         let comm_rands: Vec<PC::Randomness> = index_pk
@@ -285,9 +294,11 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
             &index_pk.committer_key,
             &lc_s,
             polynomials,
+            &labeled_comms,
             &query_set,
             opening_challenge,
             &comm_rands,
+            Some(zk_rng),
         )
         .map_err(Error::from_pc_err)?;
 
@@ -358,11 +369,9 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
             .chain(second_comms)
             .chain(third_comms)
             .cloned()
-            .zip(&AHPForR1CS::<F>::ALL_POLYNOMIALS)
+            .zip(AHPForR1CS::<F>::polynomial_labels())
             .zip(degree_bounds)
-            .map(|((comm, label), degree_bound)| {
-                LabeledCommitment::new(label.to_string(), comm, degree_bound)
-            })
+            .map(|((c, l), d)| LabeledCommitment::new(l, c, d))
             .collect();
 
         let (query_set, verifier_state) =

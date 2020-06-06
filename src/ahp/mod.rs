@@ -24,15 +24,20 @@ pub struct AHPForR1CS<F: Field> {
 }
 
 impl<F: PrimeField> AHPForR1CS<F> {
-    /// The labels for the polynomials output by the AHP indexer and prover.
+    /// The labels for the polynomials output by the AHP indexer.
     #[rustfmt::skip]
-    pub const ALL_POLYNOMIALS: [&'static str; 21] = [
+    pub const INDEXER_POLYNOMIALS: [&'static str; 12] = [
         // Polynomials for A
         "a_row", "a_col", "a_val", "a_row_col",
         // Polynomials for B
         "b_row", "b_col", "b_val", "b_row_col",
         // Polynomials for C
         "c_row", "c_col", "c_val", "c_row_col",
+    ];
+
+    /// The labels for the polynomials output by the AHP prover.
+    #[rustfmt::skip]
+    pub const PROVER_POLYNOMIALS: [&'static str; 9] = [
         // First sumcheck
         "w", "z_a", "z_b", "mask_poly", "t", "g_1", "h_1",
         // Second sumcheck
@@ -41,6 +46,13 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
     /// THe linear combinations that are statically known to evaluate to zero.
     pub const LC_WITH_ZERO_EVAL: [&'static str; 2] = ["inner_sumcheck", "outer_sumcheck"];
+
+    pub(crate) fn polynomial_labels() -> impl Iterator<Item = String> {
+        Self::INDEXER_POLYNOMIALS
+            .iter()
+            .chain(&Self::PROVER_POLYNOMIALS)
+            .map(|s| s.to_string())
+    }
 
     /// Check that the (formatted) public input is of the form 2^n for some integer n.
     pub fn num_formatted_public_inputs_is_admissible(num_inputs: usize) -> bool {
