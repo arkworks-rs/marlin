@@ -36,10 +36,7 @@ fn to_matrix_helper<F: Field>(
     new_matrix
 }
 
-fn balance_matrices<F: Field>(
-    a_matrix: &mut Matrix<F>,
-    b_matrix: &mut Matrix<F>,
-) {
+fn balance_matrices<F: Field>(a_matrix: &mut Matrix<F>, b_matrix: &mut Matrix<F>) {
     let mut a_density: usize = a_matrix.iter().map(|row| row.len()).sum();
     let mut b_density: usize = b_matrix.iter().map(|row| row.len()).sum();
     let mut max_density = std::cmp::max(a_density, b_density);
@@ -71,9 +68,8 @@ pub(crate) struct IndexerConstraintSystem<F: Field> {
     pub(crate) c_matrix: Option<Matrix<F>>,
 }
 
-
 impl<F: Field> IndexerConstraintSystem<F> {
-    pub (crate) fn process_matrices(&mut self) {
+    pub(crate) fn process_matrices(&mut self) {
         let mut a = to_matrix_helper(&self.a, self.num_input_variables);
         let mut b = to_matrix_helper(&self.b, self.num_input_variables);
         let c = to_matrix_helper(&self.c, self.num_input_variables);
@@ -82,7 +78,6 @@ impl<F: Field> IndexerConstraintSystem<F> {
         self.b_matrix = Some(b);
         self.c_matrix = Some(c);
     }
-
 
     #[inline]
     fn make_row(l: &LinearCombination<F>) -> Vec<(F, VarIndex)> {
@@ -110,7 +105,7 @@ impl<F: Field> IndexerConstraintSystem<F> {
         let (a, b, c) = (self.a_matrix, self.b_matrix, self.c_matrix);
         match (a, b, c) {
             (Some(a), Some(b), Some(c)) => Some((a, b, c)),
-            _ => None
+            _ => None,
         }
     }
 

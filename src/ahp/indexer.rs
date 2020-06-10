@@ -122,7 +122,6 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let matrix_processing_time = start_timer!(|| "Processing matrices");
         ics.process_matrices();
         end_timer!(matrix_processing_time);
-        
 
         let num_formatted_input_variables = ics.num_input_variables;
         let num_witness_variables = ics.num_witness_variables;
