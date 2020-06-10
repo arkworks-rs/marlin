@@ -29,7 +29,7 @@ poly-commit = { git = "https://github.com/scipr-lab/poly-commit", default-featur
 rand_core = { version = "0.5" }
 rand_chacha = { version = "0.2.1", default-features = false }
 rayon = { version = "1", optional = true }
-digest = { version = "0.8" }
+digest = { version = "0.9" }
 derivative = { version = "2", features = ["use_core"] }
 
 
