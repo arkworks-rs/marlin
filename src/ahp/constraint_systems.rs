@@ -39,16 +39,16 @@ fn to_matrix_helper<F: Field>(
 fn balance_matrices<F: Field>(a_matrix: &mut Matrix<F>, b_matrix: &mut Matrix<F>) {
     let mut a_density: usize = a_matrix.iter().map(|row| row.len()).sum();
     let mut b_density: usize = b_matrix.iter().map(|row| row.len()).sum();
-    let mut max_density = std::cmp::max(a_density, b_density);
+    let mut max_density = core::cmp::max(a_density, b_density);
     let mut a_is_denser = a_density == max_density;
     for (a_row, b_row) in a_matrix.iter_mut().zip(b_matrix) {
         if a_is_denser {
             let a_row_size = a_row.len();
             let b_row_size = b_row.len();
-            std::mem::swap(a_row, b_row);
+            core::mem::swap(a_row, b_row);
             a_density = a_density - a_row_size + b_row_size;
             b_density = b_density - b_row_size + a_row_size;
-            max_density = std::cmp::max(a_density, b_density);
+            max_density = core::cmp::max(a_density, b_density);
             a_is_denser = a_density == max_density;
         }
     }
