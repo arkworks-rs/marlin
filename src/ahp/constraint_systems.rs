@@ -11,22 +11,9 @@ use ff_fft::{
 use poly_commit::LabeledPolynomial;
 use r1cs_core::{ConstraintSystem, Index as VarIndex, LinearCombination, SynthesisError, Variable};
 
-// #[cfg(feature = "parallel")]
-// use rayon::prelude::*;
-
 /* ************************************************************************* */
 /* ************************************************************************* */
 /* ************************************************************************* */
-
-/// Stores constraints during index generation.
-pub(crate) struct IndexerConstraintSystem<F: Field> {
-    pub(crate) num_input_variables: usize,
-    pub(crate) num_witness_variables: usize,
-    pub(crate) num_constraints: usize,
-    pub(crate) a: Vec<Vec<(F, VarIndex)>>,
-    pub(crate) b: Vec<Vec<(F, VarIndex)>>,
-    pub(crate) c: Vec<Vec<(F, VarIndex)>>,
-}
 
 // This function converts a matrix output by Zexe's constraint infrastructure
 // to the one used in this crate.
@@ -49,7 +36,54 @@ fn to_matrix_helper<F: Field>(
     new_matrix
 }
 
+fn balance_matrices<F: Field>(
+    a_matrix: &mut Matrix<F>,
+    b_matrix: &mut Matrix<F>,
+) {
+    let mut a_density: usize = a_matrix.iter().map(|row| row.len()).sum();
+    let mut b_density: usize = b_matrix.iter().map(|row| row.len()).sum();
+    let mut max_density = std::cmp::max(a_density, b_density);
+    let mut a_is_denser = a_density == max_density;
+    for (a_row, b_row) in a_matrix.iter_mut().zip(b_matrix) {
+        if a_is_denser {
+            let a_row_size = a_row.len();
+            let b_row_size = b_row.len();
+            std::mem::swap(a_row, b_row);
+            a_density = a_density - a_row_size + b_row_size;
+            b_density = b_density - b_row_size + a_row_size;
+            max_density = std::cmp::max(a_density, b_density);
+            a_is_denser = a_density == max_density;
+        }
+    }
+}
+
+/// Stores constraints during index generation.
+pub(crate) struct IndexerConstraintSystem<F: Field> {
+    pub(crate) num_input_variables: usize,
+    pub(crate) num_witness_variables: usize,
+    pub(crate) num_constraints: usize,
+    pub(crate) a: Vec<Vec<(F, VarIndex)>>,
+    pub(crate) b: Vec<Vec<(F, VarIndex)>>,
+    pub(crate) c: Vec<Vec<(F, VarIndex)>>,
+
+    pub(crate) a_matrix: Option<Matrix<F>>,
+    pub(crate) b_matrix: Option<Matrix<F>>,
+    pub(crate) c_matrix: Option<Matrix<F>>,
+}
+
+
 impl<F: Field> IndexerConstraintSystem<F> {
+    pub (crate) fn process_matrices(&mut self) {
+        let mut a = to_matrix_helper(&self.a, self.num_input_variables);
+        let mut b = to_matrix_helper(&self.b, self.num_input_variables);
+        let c = to_matrix_helper(&self.c, self.num_input_variables);
+        balance_matrices(&mut a, &mut b);
+        self.a_matrix = Some(a);
+        self.b_matrix = Some(b);
+        self.c_matrix = Some(c);
+    }
+
+
     #[inline]
     fn make_row(l: &LinearCombination<F>) -> Vec<(F, VarIndex)> {
         l.as_ref()
@@ -66,19 +100,18 @@ impl<F: Field> IndexerConstraintSystem<F> {
             a: Vec::new(),
             b: Vec::new(),
             c: Vec::new(),
+            a_matrix: None,
+            b_matrix: None,
+            c_matrix: None,
         }
     }
 
-    pub(crate) fn a_matrix(&self) -> Vec<Vec<(F, usize)>> {
-        to_matrix_helper(&self.a, self.num_input_variables)
-    }
-
-    pub(crate) fn b_matrix(&self) -> Vec<Vec<(F, usize)>> {
-        to_matrix_helper(&self.b, self.num_input_variables)
-    }
-
-    pub(crate) fn c_matrix(&self) -> Vec<Vec<(F, usize)>> {
-        to_matrix_helper(&self.c, self.num_input_variables)
+    pub(crate) fn constraint_matrices(self) -> Option<(Matrix<F>, Matrix<F>, Matrix<F>)> {
+        let (a, b, c) = (self.a_matrix, self.b_matrix, self.c_matrix);
+        match (a, b, c) {
+            (Some(a), Some(b), Some(c)) => Some((a, b, c)),
+            _ => None
+        }
     }
 
     pub(crate) fn num_non_zero(&self) -> usize {

@@ -115,9 +115,14 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let mut ics = IndexerConstraintSystem::new();
         c.generate_constraints(&mut ics)?;
         end_timer!(constraint_time);
+
         let padding_time = start_timer!(|| "Padding matrices to make them square");
         ics.make_matrices_square();
         end_timer!(padding_time);
+        let matrix_processing_time = start_timer!(|| "Processing matrices");
+        ics.process_matrices();
+        end_timer!(matrix_processing_time);
+        
 
         let num_formatted_input_variables = ics.num_input_variables;
         let num_witness_variables = ics.num_witness_variables;
@@ -158,9 +163,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let b_domain = GeneralEvaluationDomain::<F>::new(3 * domain_k.size() - 3)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
-        let mut a = ics.a_matrix();
-        let mut b = ics.b_matrix();
-        let mut c = ics.c_matrix();
+        let (mut a, mut b, mut c) = ics.constraint_matrices().expect("should not be `None`");
 
         let a_arithmetization_time = start_timer!(|| "Arithmetizing A");
         let a_star_arith = arithmetize_matrix("a", &mut a, domain_k, domain_h, x_domain, b_domain);
