@@ -72,7 +72,7 @@ impl<F: Field> algebra_core::ToBytes for ProverMsg<F> {
     fn write<W: algebra_core::io::Write>(&self, w: W) -> algebra_core::io::Result<()> {
         match self {
             ProverMsg::EmptyMessage => Ok(()),
-            ProverMsg::FieldElements(field_elems) => field_elems.write(w)
+            ProverMsg::FieldElements(field_elems) => field_elems.write(w),
         }
     }
 }
