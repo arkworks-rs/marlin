@@ -161,7 +161,10 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Pr
         let num_prover_messages: usize = self
             .prover_messages
             .iter()
-            .map(|v| v.field_elements.len())
+            .map(|v| match v {
+                ProverMsg::EmptyMessage => 0,
+                ProverMsg::FieldElements(elems) => elems.len()
+            })
             .sum();
         let prover_msg_size_in_bytes = num_prover_messages * size_of_fe_in_bytes;
         let arg_size = size_bytes_comms_with_degree_bounds

@@ -60,15 +60,20 @@ impl<'a, 'b, F: PrimeField, C> ProverState<'a, 'b, F, C> {
 }
 
 /// Each prover message that is not a list of oracles is a list of field elements.
-#[repr(transparent)]
-pub struct ProverMsg<F: Field> {
-    /// The field elements that make up the message
-    pub field_elements: Vec<F>,
+pub enum ProverMsg<F: Field> {
+    /// Some rounds, the prover sends only oracles. (This is actually the case for all
+    /// rounds in Marlin.)
+    EmptyMessage,
+    /// Otherwise, it's one or more field elements.
+    FieldElements(Vec<F>),
 }
 
 impl<F: Field> algebra_core::ToBytes for ProverMsg<F> {
     fn write<W: algebra_core::io::Write>(&self, w: W) -> algebra_core::io::Result<()> {
-        self.field_elements.write(w)
+        match self {
+            ProverMsg::EmptyMessage => Ok(()),
+            ProverMsg::FieldElements(field_elems) => field_elems.write(w)
+        }
     }
 }
 
@@ -291,9 +296,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         mask_poly[0] -= &scaled_sigma_1;
         end_timer!(mask_poly_time);
 
-        let msg = ProverMsg {
-            field_elements: vec![],
-        };
+        let msg = ProverMsg::EmptyMessage;
 
         assert!(w_poly.degree() <= domain_h.size() - domain_x.size() + zk_bound - 1);
         assert!(z_a_poly.degree() <= domain_h.size() + zk_bound - 1);
@@ -468,9 +471,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let g_1 = Polynomial::from_coefficients_slice(&x_g_1.coeffs[1..]);
         end_timer!(sumcheck_time);
 
-        let msg = ProverMsg {
-            field_elements: Vec::new(),
-        };
+        let msg = ProverMsg::EmptyMessage;
 
         assert!(g_1.degree() <= domain_h.size() - 2);
         assert!(h_1.degree() <= 2 * domain_h.size() + 2 * zk_bound - 2);
@@ -629,9 +630,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             .0;
         end_timer!(h_2_poly_time);
 
-        let msg = ProverMsg {
-            field_elements: vec![],
-        };
+        let msg = ProverMsg::EmptyMessage;
 
         assert!(g_2.degree() <= domain_k.size() - 2);
         let oracles = ProverThirdOracles {
