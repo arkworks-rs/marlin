@@ -125,7 +125,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         //      outer_sumcheck
         //      vec![
         //          (F::one(), "mask_poly".into()),
-        //            
+        //
         //          (r_alpha_at_beta * (eta_a + eta_c * z_b_at_beta), "z_a".into()),
         //          (r_alpha_at_beta * eta_b * z_b_at_beta, LCTerm::One),
         //
