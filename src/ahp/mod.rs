@@ -139,7 +139,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let mut linear_combinations = Vec::new();
 
-        // Outer sumchecK:
+        // Outer sumcheck:
         let z_b = LinearCombination::new("z_b", vec![(F::one(), "z_b")]);
         let g_1 = LinearCombination::new("g_1", vec![(F::one(), "g_1")]);
         let t = LinearCombination::new("t", vec![(F::one(), "t")]);
@@ -183,7 +183,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         linear_combinations.push(t);
         linear_combinations.push(outer_sumcheck);
 
-        //  Inner sumchecK:
+        //  Inner sumcheck:
         let beta_alpha = beta * alpha;
         let g_2 = LinearCombination::new("g_2", vec![(F::one(), "g_2")]);
 

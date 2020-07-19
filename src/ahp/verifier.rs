@@ -117,16 +117,23 @@ impl<F: PrimeField> AHPForR1CS<F> {
         //   s(beta) + r(alpha, beta) * (sum_M eta_M z_M(beta)) - t(beta) * z(beta)
         // = h_1(beta) * v_H(beta) + beta * g_1(beta)
         //
+        // Note that z is the interpolation of x || w, so it equals x + v_X * w
+        // We also use an optimization: instead of explicitly calculating z_c, we
+        // use the "virtual oracle" z_b * z_c
+        //
         // LinearCombination::new(
         //      outer_sumcheck
         //      vec![
-        //          (F::one(), "mask_poly"),
-        //          (r_alpha_beta * (eta_a + eta_c * z_b_at_beta), z_a),
-        //          (-t_at_beta * v_X_at_beta, w),
-        //          (-v_H_at_beta, h_1),
-        //          (-beta * g_1_at_beta, LCTerm::One)
-        //          (r_alpha_beta * eta_b * z_a_at_beta, LCTerm::One),
-        //          (-t_at_beta * x_poly_at_beta, LCTerm::One),
+        //          (F::one(), "mask_poly".into()),
+        //            
+        //          (r_alpha_at_beta * (eta_a + eta_c * z_b_at_beta), "z_a".into()),
+        //          (r_alpha_at_beta * eta_b * z_b_at_beta, LCTerm::One),
+        //
+        //          (-t_at_beta * v_X_at_beta, "w".into()),
+        //          (-t_at_beta * x_at_beta, LCTerm::One),
+        //
+        //          (-v_H_at_beta, "h_1".into()),
+        //          (-beta * g_1_at_beta, LCTerm::One),
         //      ],
         //  )
         //  LinearCombination::new("z_b", vec![(F::one(), z_b)])
@@ -138,8 +145,15 @@ impl<F: PrimeField> AHPForR1CS<F> {
         query_set.insert(("outer_sumcheck".into(), beta));
 
         // For the second linear combination
-        // v_K_at_beta_3 * h_3 - a + v_3 * (beta_3 * 1/beta_3^(D - d_3) * g'_3 + sigma_3/k_size) = 0;
+        // Inner sumcheck test:
+        //   h_2(gamma) * v_K(gamma)
+        // = a(gamma) - b(gamma) * (gamma g_2(gamma) + t(beta) / |K|)
         //
+        // where
+        //   a(X) := sum_M (eta_M v_H(beta) v_H(alpha) val_M(X) prod_N (beta - row_N(X)) (alpha - col_N(X)))
+        //   b(X) := prod_M (beta - row_M(X)) (alpha - col_M(X))
+        //
+        // We define "n_denom" := prod_N (beta - row_N(X)) (alpha - col_N(X)))
         //
         // LinearCombination::new("g_2", vec![(F::one(), g_2)]);
         //
@@ -147,24 +161,24 @@ impl<F: PrimeField> AHPForR1CS<F> {
         //     "a_denom".into(),
         //     vec![
         //         (alpha * beta, LCTerm::One),
-        //         (alpha, "a_row"),
-        //         (beta, "a_col"),
+        //         (-alpha, "a_row"),
+        //         (-beta, "a_col"),
         //         (F::one(), "a_row_col"),
         // ]);
         // LinearCombination::new(
-        //     "b-denom".into(),
+        //     "b_denom".into(),
         //     vec![
         //         (alpha * beta, LCTerm::One),
-        //         (alpha, "b_row"),
-        //         (beta, "b_col"),
+        //         (-alpha, "b_row"),
+        //         (-beta, "b_col"),
         //         (F::one(), "b_row_col"),
         // ]);
         // LinearCombination::new(
         //     "c_denom".into(),
         //     vec![
         //         (alpha * beta, LCTerm::one()),
-        //         (alpha, "c_row"),
-        //         (beta, "c_col"),
+        //         (-alpha, "c_row"),
+        //         (-beta, "c_col"),
         //         (F::one(), "c_row_col"),
         // ]);
         //
