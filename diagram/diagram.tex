@@ -7,7 +7,7 @@
 \date{July 2020}
 
 \usepackage[x11names]{xcolor}
-\usepackage[b4paper,margin=1in]{geometry}
+\usepackage[b4paper,margin=1.2in]{geometry}
 \usepackage{tikz}
 \usepackage{afterpage}
 
@@ -90,7 +90,7 @@ This diagram shows the interaction of the Marlin prover and verifier. It is simi
 \end{table*}
 
 \afterpage{%
-\newgeometry{margin=0.3in}
+\newgeometry{margin=0.5in}
 
 \section{Diagram}
 
@@ -100,34 +100,34 @@ This diagram shows the interaction of the Marlin prover and verifier. It is simi
 \tikzstyle{lalign} = [minimum width=3cm,align=left,anchor=west]
 \tikzstyle{ralign} = [minimum width=3cm,align=right,anchor=east]
 
-\node[lalign] (prover) at (-2,27.8) {%
+\node[lalign] (prover) at (-3,27.3) {%
 $\Prover(\F, \DomainA, \DomainB, A, B, C, x, w)$
 };
 
-\node[ralign] (verifier) at (15.2,27.8) {%
-$\Verifier^{\hrow_{\{A^*, B^*, C^*\}}, \hcol_{\{A^*, B^*, C^*\}}, \hval_{\{A^*, B^*, C^*\}}}(\F, \DomainA, \DomainB, x)$
+\node[ralign] (verifier) at (16.2,27.3) {%
+$\Verifier^{\{\hval, \hrow, \hcol, \hrowcol\}_{\{A^*, B^*, C^*\}}}(\F, \DomainA, \DomainB, x)$
 };
 
-\draw [line width=1.0pt] (-2,27.3) -- (15,27.3);
+\draw [line width=1.0pt] (-3,27.0) -- (16,27.0);
 
-\node[lalign] (prover1) at (-2,26.1) {%
+\node[lalign] (prover1) at (-3,26.1) {%
 $z := (x, w), \za := Az, \zb := Bz$ \\
 sample $\w(X) \in \F^{<|w|+\bb}[X]$ and $\za(X), \zb(X) \in \F^{<|\DomainA|+\bb}[X]$ \\
 sample mask poly $\s(X) \in \F^{<3|\DomainA|+2\bb-2}[X]$ such that $\sum_{\kappa \in \DomainA}\s(\kappa) = 0$
 };
 
-\draw [->] (-1,24.8) -- node[midway,fill=white] {
+\draw [->] (-2,24.8) -- node[midway,fill=white] {
 commitments $\cm{\w}, \cm{\za}, \cm{\zb}, \cm{\s}$
-} (13,24.8);
+} (15,24.8);
 
-\node[ralign] (verifier1) at (15.4,24.0) {%
+\node[ralign] (verifier1) at (16,24.0) {%
 $\eta_A, \eta_B, \eta_C \gets \F$ \\
 $\alpha \gets \F \setminus \DomainA$
 };
 
-\draw [->] (13,23.3) -- node[midway,fill=white] {$\eta_A, \eta_B, \eta_C, \alpha \in \F$} (-1,23.3);
+\draw [->] (15,23.3) -- node[midway,fill=white] {$\eta_A, \eta_B, \eta_C, \alpha \in \F$} (-2,23.3);
 
-\node[lalign] (prover1_5) at (-2,22.5) {%
+\node[lalign] (prover2) at (-3,22.5) {%
 compute $t(X) := \sum_M \eta_M r_M(\alpha, X)$
 };
 
@@ -137,7 +137,7 @@ compute $t(X) := \sum_M \eta_M r_M(\alpha, X)$
 \textbf{sumcheck for} $\s(X) + r(\alpha, X) \left(\sum_M \eta_M \zm(X)\right) - t(X)\z(X)$ \textbf{ over } $\DomainA$
 };
 
-\node[lalign] (prover1) at (-2,20.7) {%
+\node[lalign] (prover3) at (-2,20.7) {%
 let $\zc(X) := \za(X) \cdot \zb(X)$ \\
 find $g_1(X)$ and $h_1(X)$ such that \\
 $s(X)+r(\alpha, X)(\sum_M \eta_M \zm(X)) - t(X)\z(X) = h_1(X)\vPoly{\DomainA}(X) + Xg_1(X)$ \hspace{0.3cm} $(*)$
@@ -168,18 +168,18 @@ $\begin{aligned}
 let ${\color{orange} a(X)} := \sum\limits_{M \in \{A, B, C\}} {\color{gray} \eta_M \vPoly{\DomainA}(\beta) \vPoly{\DomainA}(\alpha)} \hval_{M^*}(X) \prod_{N \neq M} {\color{purple} N_\denom(X)}$
 };
 
-\node[align=center] (mid2) at (6.5, 14.1) {%
+\node[align=center] (mid3) at (6.5, 14.1) {%
 let ${\color{Green4} b(X)} := \sum\limits_{M \in \{A, B, C\}} {\color{purple} M_\denom(X)}$
 };
 
-\node[lalign] (prover2) at (-0.75,13.2) {%
+\node[lalign] (prover4) at (-0.75,13.2) {%
 find $g_2(X)$ and $h_2(X)$ s.t. \\
 $h_2(X)\vPoly{\DomainB}(X) = {\color{orange} a(X)} - {\color{Green4} b(X)} (Xg_2(X)+t(\beta)/|\DomainB|)$ \hspace{0.3cm} $(**)$
 };
 
 \draw [->] (2,12.2) -- node[midway,fill=white] {commitments $\cm{g_2}, \cm{h_2}$} (10,12.2);
 
-\draw [->] (8,11.5) -- node[midway,fill=white] {$\gamma$} (4,11.5);
+\draw [->] (8,11.5) -- node[midway,fill=white] {$\gamma \in \F$} (4,11.5);
 
 \node[ralign] (verifier3) at (14.5, 11.8) {%
 $\gamma \gets \F$
@@ -187,62 +187,63 @@ $\gamma \gets \F$
 
 \draw[dashed] (1.5,11.0) rectangle (11.5,8.8);
 
-\node[align=center] (mid3) at (6.5, 9.7) {%
+\node[align=center] (mid4) at (6.5, 9.9) {%
 To verify $(**)$, $\Verifier$ will need to check the following: \\[10pt]
 $ \underbrace{{\color{orange} a({\color{black} \gamma})} - {\color{Green4} b({\color{black} \gamma})} {\color{gray} (\gamma g_2(\gamma) + t(\beta) / |\DomainB|) - \vPoly{\DomainB}(\gamma)} h_2(\gamma)}_{\sumcheckinner(\gamma)} = 0 $
 };
 
 \draw[dashed] (-1.5,8.0) rectangle (14.5,5.8);
 
-\node[align=center] (mid4) at (6.5, 6.9) {%
+\node[align=center] (mid5) at (6.5, 6.9) {%
 To verify $(*)$, $\Verifier$ will need to check the following: \\[10pt]
 $ \underbrace{s(\beta) + {\color{gray} r(\alpha, \beta)} ({\color{gray} \eta_A} \za(\beta) + {\color{gray} \eta_C\zb(\beta)} \za(\beta) + {\color{gray} \eta_B\zb(\beta)}) - {\color{gray} t(\beta) \vPoly{X}(\beta)} \w(\beta) - {\color{gray} \vPoly{\DomainA}(\beta)} h_1(\beta) - {\color{gray} \beta g_1(\beta)}}_{\sumcheckouter(\beta)} = 0 $
 };
 
-\draw [->] (-2,4.5) -- node[midway,fill=white] {
-evals $g_2(\gamma), A_\denom(\gamma), B_\denom(\gamma), C_\denom(\gamma), \sumcheckinner(\gamma), g_1(\beta), \zb(\beta), t(\beta), \sumcheckouter(\beta)$
-} (15,4.5);
-
-\node[ralign] (verifier4) at (16,3.4) {%
-use index commitments $\hrow, \hcol, \hrowcol$ to \\
-construct virtual commitments $\vcm{\{A_\denom, B_\denom, C_\denom\}}$
+\node[lalign] (prover5) at (-3,4.5) {%
+$v_{g_2} := g_2(\gamma), v_{A_\denom} := A_\denom(\gamma), v_{B_\denom} := B_\denom(\gamma), v_{C_\denom} := C_\denom(\gamma)$ \\[3pt]
+$v_{g_1} := g_1(\beta), v_{\zb} := \zb(\beta), v_{t} := t(\beta)$
 };
 
-\node[ralign] (verifier5) at (16,1.9) {%
-use index commitments $\hval$, commitments $\vcm{A_\denom}$, \\
-$\vcm{B_\denom}, \vcm{C_\denom}, \cm{h_2}$, and {\color{gray} evaluations $g_2(\gamma),t(\beta)$} \\
+\draw [->] (-2,3.5) -- node[midway,fill=white] {
+$v_{g_2}, v_{A_\denom}, v_{B_\denom}, v_{C_\denom}, v_{g_1}, v_{\zb}, v_{t}$
+} (15,3.5);
+
+\node[align=center] (mid6) at (6.5,2.5) {%
+use index commitments $\hrow, \hcol, \hrowcol$ to construct virtual commitments $\vcm{\{A_\denom, B_\denom, C_\denom\}}$
+};
+
+\node[align=center] (mid7) at (6.5,1.4) {%
+use index commitments $\hval$, commitments $\vcm{A_\denom}$, $\vcm{B_\denom}, \vcm{C_\denom}, \cm{h_2}$, and {\color{gray} evaluations $g_2(\gamma),t(\beta)$} \\
 to construct virtual commitment $\vcm{\sumcheckinner}$
 };
 
-\node[ralign] (verifier6) at (16,0.2) {%
-use commitments $\cm{\s}, \cm{\za}, \cm{\w}, \cm{h_1}$ \\
-and {\color{gray} evaluations $\zb(\beta), t(\beta), g_1(\beta)$} \\
+\node[align=center] (mid8) at (6.5,0.1) {%
+use commitments $\cm{\s}, \cm{\za}, \cm{\w}, \cm{h_1}$ and {\color{gray} evaluations $\zb(\beta), t(\beta), g_1(\beta)$} \\
 to construct virtual commitment $\vcm{\sumcheckouter}$
 };
 
-\node[ralign] (verifier7) at (16,-1.0) {%
+\node[ralign] (verifier4) at (16,-0.9) {%
 $\xi_1, \dots, \xi_5 \gets \F$
 };
 
 \draw [->] (15,-1.5) -- node[midway,fill=white] {$\xi_1, \dots, \xi_5$} (-2,-1.5);
 
-\node[lalign] (prover6) at (-3,-2.5) {%
-use $\mathsf{PC}.\mathsf{Prove}$ with randomness $\xi_1, \dots, \xi_5$ to construct \\
-batch open proof $\pi$ for the five polynomials \\
-evaluated at $\gamma$ and the four evaluated at $\beta$
+\node[lalign] (prover6) at (-3,-3) {%
+use $\mathsf{PC}.\mathsf{Prove}$ with randomness $\xi_1, \dots, \xi_5$ to \\
+construct a batch opening proof $\pi$ of the following: \\
+$(\cm{g_2}, \cm{A_\denom}, \cm{B_\denom}, \cm{C_\denom}, \vcm{\sumcheckinner)}$ at $\gamma$ evaluate to $(v_{g_2}, v_{A_\denom}, v_{B_\denom}, v_{C_\denom}, 0)$ \\
+$(\cm{g_1}, \cm{\zb}, \cm{t}, \vcm{\sumcheckinner})$ at $\beta$ evaluate to $(v_{g_1}, v_{\zb}, v_{t}, 0)$ \\
 };
 
-\draw [->] (-2,-3.5) -- node[midway,fill=white] {$\pi$} (15,-3.5);
+\draw [->] (-2,-4.1) -- node[midway,fill=white] {$\pi$} (15,-4.1);
 
-\node[ralign] (verifier8) at (16,-4.5) {%
-verify $\pi$ with $\mathsf{PC}.\mathsf{Verify}$, using randomness $\xi_1, \dots, \xi_5$ \\
-and commitments $\cm{g_2}, \vcm{A_\denom}, \vcm{B_\denom}, \vcm{C_\denom},$ \\
-$\vcm{\sumcheckinner}, \cm{g_1}, \cm{\zb}, \cm{t}, \vcm{\sumcheckouter}$
+\node[ralign] (verifier5) at (16,-5.4) {%
+verify $\pi$ with $\mathsf{PC}.\mathsf{Verify}$, using randomness $\xi_1, \dots, \xi_5$, \\
+evaluations $v_{g_2}, v_{A_\denom}, v_{B_\denom}, v_{C_\denom}, v_{g_1}, v_{\zb}, v_{t}$, and \\
+commitments $\cm{g_2}, \cm{A_\denom}, \cm{B_\denom}, \cm{C_\denom},$ \\
+$\vcm{\sumcheckinner}, \cm{g_1}, \cm{\zb}, \cm{t}, \vcm{\sumcheckinner}$
 };
 
-\node[ralign] (verifier9) at (16,-5.8) {%
-check that $\sumcheckouter(\beta) = \sumcheckinner(\gamma) = 0$
-};
 \end{tikzpicture}
 
 \clearpage
