@@ -7,8 +7,9 @@
 \date{July 2020}
 
 \usepackage[x11names]{xcolor}
-\usepackage[c4paper, margin=0.3in]{geometry}
+\usepackage[b4paper,margin=1in]{geometry}
 \usepackage{tikz}
+\usepackage{afterpage}
 
 \newenvironment{rcases}
   {\left.\begin{aligned}}
@@ -55,10 +56,45 @@ _{\mathsf{inner}}}
 \newcommand{\vPoly}[1]{\ensuremath{v_{#1}}}
 
 
-\begin{figure}[H]
-\centering
-\makebox[\textwidth][c]{
+This diagram shows the interaction of the Marlin prover and verifier. It is similar to the diagrams in the paper (Figure 5 in Section 5 and Figure 7 in Appendix E, in the latest ePrint version), but with two changes: it shows not just the AHP but also the use of the polynomial commitments (the cryptography layer); and it aims to be completely up-to-date with the recent optimizations to the codebase. This diagram, together with the diagrams in the paper, can act as a ``bridge" between the codebase and the theory that the paper describes.
+
+\section{Glossary of notation}
+\begin{table*}[htbp]
   \centering
+  \begin{tabular}{c|c}
+    $\F$ & the finite field over which the R1CS instance is defined \\
+     \hline
+    $\DomainA$ & variable domain \\
+     \hline
+    $\DomainB$ & matrix domain \\
+     \hline
+    $A, B, C$ & R1CS instance matrices \\
+     \hline
+    $x$ & public input \\
+     \hline
+    $w$ & secret witness \\
+     \hline
+    $\{\hval, \hrow, \hcol\}_{\{A,B,C\}}$ &
+    	\begin{tabular}{@{}c@{}} preprocessed polynomials from $A, B, C$ matrices containing LDEs of (respectively) \\ row positions, column positions, and values of non-zero matrix elements \end{tabular} \\
+    \hline
+    $\hrowcol_{\{A, B, C\}}$ &
+        	\begin{tabular}{@{}c@{}} the product polynomial of $\hrow$ and $\hcol$, given separately for efficiency (namely \\ to allow this product to be part of a \textit{linear} combination) \end{tabular} \\
+     \hline
+    $\Prover$ & prover \\
+     \hline
+    $\Verifier$ & verifier \\
+     \hline
+    $\Verifier^{p}$ &
+    	\begin{tabular}{@{}c@{}} $\Verifier$ with ``oracle" access to polynomial $p$ (via commitments provided \\ by the indexer, later opened as necessary by $\Prover$) \end{tabular}
+  \end{tabular}
+\end{table*}
+
+\afterpage{%
+\newgeometry{margin=0.3in}
+
+\section{Diagram}
+
+\centering
 \begin{tikzpicture}[scale=0.9, every node/.style={scale=0.9}]
 
 \tikzstyle{lalign} = [minimum width=3cm,align=left,anchor=west]
@@ -207,11 +243,11 @@ $\vcm{\sumcheckinner}, \cm{g_1}, \cm{\zb}, \cm{t}, \vcm{\sumcheckouter}$
 \node[ralign] (verifier9) at (16,-5.8) {%
 check that $\sumcheckouter(\beta) = \sumcheckinner(\gamma) = 0$
 };
-
-
 \end{tikzpicture}
+
+\clearpage
+\restoregeometry
 }
-\end{figure}
 
 
 \end{document}
