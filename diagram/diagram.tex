@@ -64,20 +64,27 @@ This diagram (on the following page) shows the interaction of the Marlin prover 
   \begin{tabular}{c|c}
     $\F$ & the finite field over which the R1CS instance is defined \\
      \hline
-    $\DomainA$ & variable domain \\
-     \hline
-    $\DomainB$ & matrix domain \\
-     \hline
-    $A, B, C$ & R1CS instance matrices \\
-     \hline
     $x$ & public input \\
      \hline
     $w$ & secret witness \\
      \hline
-    $\{\hval, \hrow, \hcol\}_{\{A,B,C\}}$ &
-    	\begin{tabular}{@{}c@{}} preprocessed polynomials from $A, B, C$ matrices containing LDEs of (respectively) \\ row positions, column positions, and values of non-zero matrix elements \end{tabular} \\
+    $\DomainA$ & variable domain \\
+     \hline
+    $\DomainB$ & matrix domain \\
+     \hline
+    $X$ & domain sized for input (not including witness) \\
+     \hline
+    $v_D(X)$ & vanishing polynomial over domain $D$ \\
+     \hline
+    $A, B, C$ & R1CS instance matrices \\
     \hline
-    $\hrowcol_{\{A, B, C\}}$ &
+    $A^*, B^*, C^*$ &
+    \begin{tabular}{@{}c@{}}shifted transpose of $A,B,C$ matries given by $M^*_{a,b} := M_{b,a} \cdot u_\DomainA(b,b) \; \forall a,b \in \DomainA$ \\ (optimization from Fractal, explained in Claim 6.7 of that paper) \end{tabular} \\
+     \hline
+    $\{\hval, \hrow, \hcol\}_{\{A^*,B^*,C^*\}}$ &
+    	\begin{tabular}{@{}c@{}} preprocessed polynomials from $A^*, B^*, C^*$ matrices containing LDEs of (respectively) \\ row positions, column positions, and values of non-zero matrix elements \end{tabular} \\
+    \hline
+    $\hrowcol_{\{A^*, B^*, C^*\}}$ &
         	\begin{tabular}{@{}c@{}} the product polynomial of $\hrow$ and $\hcol$, given separately for efficiency (namely \\ to allow this product to be part of a \textit{linear} combination) \end{tabular} \\
      \hline
     $\Prover$ & prover \\
@@ -105,7 +112,7 @@ $\Prover(\F, \DomainA, \DomainB, A, B, C, x, w)$
 };
 
 \node[ralign] (verifier) at (16.2,27.3) {%
-$\Verifier^{\{\hval, \hrow, \hcol, \hrowcol\}_{\{A, B, C\}}}(\F, \DomainA, \DomainB, x)$
+$\Verifier^{\{\hval, \hrow, \hcol, \hrowcol\}_{\{A^*, B^*, C^*\}}}(\F, \DomainA, \DomainB, x)$
 };
 
 \draw [line width=1.0pt] (-3,27.0) -- (16,27.0);
@@ -152,18 +159,18 @@ $\beta \gets \F \setminus \DomainA$
 \draw (-0.85,18.2) rectangle (13.85,8.4);
 
 \node (sc2label) at (6.5,17.6) {%
-\textbf{sumcheck for } $\sum\limits_{M \in \{A, B, C\}} \eta_M \frac{\vPoly{\DomainA}(\beta) \vPoly{\DomainA}(\alpha)\hval_{M}(X)}{\color{purple}(\beta-\hrow_{M}(X))(\alpha-\hcol_{M}(X))} $ \textbf{ over } $\DomainB$
+\textbf{sumcheck for } $\sum\limits_{M \in \{A, B, C\}} \eta_M \frac{\vPoly{\DomainA}(\beta) \vPoly{\DomainA}(\alpha)\hval_{M^*}(X)}{\color{purple}(\beta-\hrow_{M^*}(X))(\alpha-\hcol_{M^*}(X))} $ \textbf{ over } $\DomainB$
 };
 
 \node[align=center] (mid1) at (6.5, 16.3) {%
 $\begin{aligned} 
-\text{for } M \in \{A, B, C\} \text{, let } {\color{purple} M_\denom(X)} &:= (\beta - \hrow_{M}(X)) (\alpha - \hcol_{M}(X)) \\
-&= {\color{gray}\alpha\beta} - {\color{gray}\alpha}\hrow_{M}(X) - {\color{gray}\beta}\hcol_{M}(X) + \hrowcol_{M}(X)
+\text{for } M \in \{A, B, C\} \text{, let } {\color{purple} M_\denom(X)} &:= (\beta - \hrow_{M^*}(X)) (\alpha - \hcol_{M^*}(X)) \\
+&= {\color{gray}\alpha\beta} - {\color{gray}\alpha}\hrow_{M^*}(X) - {\color{gray}\beta}\hcol_{M^*}(X) + \hrowcol_{M^*}(X)
 \end{aligned}$
 };
 
 \node[align=center] (mid2) at (6.5, 15.0) {%
-let ${\color{orange} a(X)} := \sum\limits_{M \in \{A, B, C\}} {\color{gray} \eta_M \vPoly{\DomainA}(\beta) \vPoly{\DomainA}(\alpha)} \hval_{M}(X) \prod_{N \neq M} {\color{purple} N_\denom(X)}$
+let ${\color{orange} a(X)} := \sum\limits_{M \in \{A, B, C\}} {\color{gray} \eta_M \vPoly{\DomainA}(\beta) \vPoly{\DomainA}(\alpha)} \hval_{M^*}(X) \prod_{N \neq M} {\color{purple} N_\denom(X)}$
 };
 
 \node[align=center] (mid3) at (6.5, 14.1) {%
