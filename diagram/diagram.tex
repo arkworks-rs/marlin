@@ -56,7 +56,7 @@ _{\mathsf{inner}}}
 \newcommand{\vPoly}[1]{\ensuremath{v_{#1}}}
 
 
-This diagram shows the interaction of the Marlin prover and verifier. It is similar to the diagrams in the paper (Figure 5 in Section 5 and Figure 7 in Appendix E, in the latest ePrint version), but with two changes: it shows not just the AHP but also the use of the polynomial commitments (the cryptography layer); and it aims to be completely up-to-date with the recent optimizations to the codebase. This diagram, together with the diagrams in the paper, can act as a ``bridge" between the codebase and the theory that the paper describes.
+This diagram (on the following page) shows the interaction of the Marlin prover and verifier. It is similar to the diagrams in the paper (Figure 5 in Section 5 and Figure 7 in Appendix E, in the latest ePrint version), but with two changes: it shows not just the AHP but also the use of the polynomial commitments (the cryptography layer); and it aims to be fully up-to-date with the recent optimizations to the codebase. This diagram, together with the diagrams in the paper, can act as a ``bridge" between the codebase and the theory that the paper describes.
 
 \section{Glossary of notation}
 \begin{table*}[htbp]
@@ -105,7 +105,7 @@ $\Prover(\F, \DomainA, \DomainB, A, B, C, x, w)$
 };
 
 \node[ralign] (verifier) at (16.2,27.3) {%
-$\Verifier^{\{\hval, \hrow, \hcol, \hrowcol\}_{\{A^*, B^*, C^*\}}}(\F, \DomainA, \DomainB, x)$
+$\Verifier^{\{\hval, \hrow, \hcol, \hrowcol\}_{\{A, B, C\}}}(\F, \DomainA, \DomainB, x)$
 };
 
 \draw [line width=1.0pt] (-3,27.0) -- (16,27.0);
@@ -116,9 +116,7 @@ sample $\w(X) \in \F^{<|w|+\bb}[X]$ and $\za(X), \zb(X) \in \F^{<|\DomainA|+\bb}
 sample mask poly $\s(X) \in \F^{<3|\DomainA|+2\bb-2}[X]$ such that $\sum_{\kappa \in \DomainA}\s(\kappa) = 0$
 };
 
-\draw [->] (-2,24.8) -- node[midway,fill=white] {
-commitments $\cm{\w}, \cm{\za}, \cm{\zb}, \cm{\s}$
-} (15,24.8);
+\draw [->] (-2,24.8) -- node[midway,fill=white] {commitments $\cm{\w}, \cm{\za}, \cm{\zb}, \cm{\s}$} (15,24.8);
 
 \node[ralign] (verifier1) at (16,24.0) {%
 $\eta_A, \eta_B, \eta_C \gets \F$ \\
@@ -143,29 +141,29 @@ find $g_1(X)$ and $h_1(X)$ such that \\
 $s(X)+r(\alpha, X)(\sum_M \eta_M \zm(X)) - t(X)\z(X) = h_1(X)\vPoly{\DomainA}(X) + Xg_1(X)$ \hspace{0.3cm} $(*)$
 };
 
-\draw [->] (2,19.5) -- node[midway,fill=white] {commitments $\cm{t}, \cm{g_1}, \cm{h_1}$} (10,19.5);
+\draw [->] (-1,19.5) -- node[midway,fill=white] {commitments $\cm{t}, \cm{g_1}, \cm{h_1}$} (14,19.5);
 
-\node[ralign] (verifier2) at (15.4,19.3) {%
+\node[ralign] (verifier2) at (15.4,19.1) {%
 $\beta \gets \F \setminus \DomainA$
 };
 
-\draw [->] (8,18.8) -- node[midway,fill=white] {$\beta \in \F$} (4,18.8);
+\draw [->] (14,18.7) -- node[midway,fill=white] {$\beta \in \F$} (-1,18.7);
 
 \draw (-0.85,18.2) rectangle (13.85,8.4);
 
 \node (sc2label) at (6.5,17.6) {%
-\textbf{sumcheck for } $\sum\limits_{M \in \{A, B, C\}} \eta_M \frac{\vPoly{\DomainA}(\beta) \vPoly{\DomainA}(\alpha)\hval_{M^*}(X)}{\color{purple}(\beta-\hrow_{M^*}(X))(\alpha-\hcol_{M^*}(X))} $ \textbf{ over } $\DomainB$
+\textbf{sumcheck for } $\sum\limits_{M \in \{A, B, C\}} \eta_M \frac{\vPoly{\DomainA}(\beta) \vPoly{\DomainA}(\alpha)\hval_{M}(X)}{\color{purple}(\beta-\hrow_{M}(X))(\alpha-\hcol_{M}(X))} $ \textbf{ over } $\DomainB$
 };
 
 \node[align=center] (mid1) at (6.5, 16.3) {%
 $\begin{aligned} 
-\text{for } M \in \{A, B, C\} \text{, let } {\color{purple} M_\denom(X)} &:= (\beta - \hrow_{M^*}(X)) (\alpha - \hcol_{M^*}(X)) \\
-&= {\color{gray}\alpha\beta} - {\color{gray}\alpha}\hrow_{M^*}(X) - {\color{gray}\beta}\hcol_{M^*}(X) + \hrowcol_{M^*}(X)
+\text{for } M \in \{A, B, C\} \text{, let } {\color{purple} M_\denom(X)} &:= (\beta - \hrow_{M}(X)) (\alpha - \hcol_{M}(X)) \\
+&= {\color{gray}\alpha\beta} - {\color{gray}\alpha}\hrow_{M}(X) - {\color{gray}\beta}\hcol_{M}(X) + \hrowcol_{M}(X)
 \end{aligned}$
 };
 
 \node[align=center] (mid2) at (6.5, 15.0) {%
-let ${\color{orange} a(X)} := \sum\limits_{M \in \{A, B, C\}} {\color{gray} \eta_M \vPoly{\DomainA}(\beta) \vPoly{\DomainA}(\alpha)} \hval_{M^*}(X) \prod_{N \neq M} {\color{purple} N_\denom(X)}$
+let ${\color{orange} a(X)} := \sum\limits_{M \in \{A, B, C\}} {\color{gray} \eta_M \vPoly{\DomainA}(\beta) \vPoly{\DomainA}(\alpha)} \hval_{M}(X) \prod_{N \neq M} {\color{purple} N_\denom(X)}$
 };
 
 \node[align=center] (mid3) at (6.5, 14.1) {%
@@ -177,11 +175,11 @@ find $g_2(X)$ and $h_2(X)$ s.t. \\
 $h_2(X)\vPoly{\DomainB}(X) = {\color{orange} a(X)} - {\color{Green4} b(X)} (Xg_2(X)+t(\beta)/|\DomainB|)$ \hspace{0.3cm} $(**)$
 };
 
-\draw [->] (2,12.2) -- node[midway,fill=white] {commitments $\cm{g_2}, \cm{h_2}$} (10,12.2);
+\draw [->] (0,12.2) -- node[midway,fill=white] {commitments $\cm{g_2}, \cm{h_2}$} (13,12.2);
 
-\draw [->] (8,11.5) -- node[midway,fill=white] {$\gamma \in \F$} (4,11.5);
+\draw [->] (13,11.5) -- node[midway,fill=white] {$\gamma \in \F$} (0,11.5);
 
-\node[ralign] (verifier3) at (14.5, 11.8) {%
+\node[ralign] (verifier3) at (14.5, 11.9) {%
 $\gamma \gets \F$
 };
 
@@ -204,9 +202,7 @@ $v_{g_2} := g_2(\gamma), v_{A_\denom} := A_\denom(\gamma), v_{B_\denom} := B_\de
 $v_{g_1} := g_1(\beta), v_{\zb} := \zb(\beta), v_{t} := t(\beta)$
 };
 
-\draw [->] (-2,3.5) -- node[midway,fill=white] {
-$v_{g_2}, v_{A_\denom}, v_{B_\denom}, v_{C_\denom}, v_{g_1}, v_{\zb}, v_{t}$
-} (15,3.5);
+\draw [->] (-2,3.5) -- node[midway,fill=white] {$v_{g_2}, v_{A_\denom}, v_{B_\denom}, v_{C_\denom}, v_{g_1}, v_{\zb}, v_{t}$} (15,3.5);
 
 \node[align=center] (mid6) at (6.5,2.5) {%
 use index commitments $\hrow, \hcol, \hrowcol$ to construct virtual commitments $\vcm{\{A_\denom, B_\denom, C_\denom\}}$
