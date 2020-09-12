@@ -144,7 +144,7 @@ compute $t(X) := \sum_M \eta_M r_M(\alpha, X)$
 
 \node[lalign] (prover3) at (-2,20.7) {%
 let $\zc(X) := \za(X) \cdot \zb(X)$ \\
-find $g_1(X)$ and $h_1(X)$ such that \\
+find $g_1(X) \in \F^{|\DomainA|-1}[X]$ and $h_1(X)$ such that \\
 $s(X)+r(\alpha, X)(\sum_M \eta_M \zm(X)) - t(X)\z(X) = h_1(X)\vPoly{\DomainA}(X) + Xg_1(X)$ \hspace{0.3cm} $(*)$
 };
 
@@ -178,7 +178,7 @@ let ${\color{Green4} b(X)} := \sum\limits_{M \in \{A, B, C\}} {\color{purple} M_
 };
 
 \node[lalign] (prover4) at (-0.75,13.2) {%
-find $g_2(X)$ and $h_2(X)$ s.t. \\
+find $g_2(X) \in \F^{|\DomainB|-1}[X]$ and $h_2(X)$ s.t. \\
 $h_2(X)\vPoly{\DomainB}(X) = {\color{orange} a(X)} - {\color{Green4} b(X)} (Xg_2(X)+t(\beta)/|\DomainB|)$ \hspace{0.3cm} $(**)$
 };
 
