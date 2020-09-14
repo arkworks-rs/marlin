@@ -4,6 +4,7 @@ use crate::ahp::indexer::*;
 use crate::ahp::verifier::*;
 use crate::ahp::*;
 
+use crate::ahp::constraint_systems::{make_matrices_square_for_prover, unformat_public_input};
 use crate::{ToString, Vec};
 use algebra_core::{Field, PrimeField};
 use core::marker::PhantomData;
@@ -12,9 +13,8 @@ use ff_fft::{
     GeneralEvaluationDomain,
 };
 use poly_commit::{LabeledPolynomial, Polynomial};
-use r1cs_core::{ConstraintSynthesizer, SynthesisError, ConstraintSystem};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use rand_core::RngCore;
-use crate::ahp::constraint_systems::{unformat_public_input, make_matrices_square_for_prover};
 
 /// State for the AHP prover.
 pub struct ProverState<'a, 'b, F: PrimeField, C> {
@@ -138,23 +138,25 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let constraint_time = start_timer!(|| "Generating constraints and witnesses");
         let pcs = ConstraintSystem::new_ref();
-        pcs.set_mode(r1cs_core::SynthesisMode::Prove{construct_matrices: true});
+        pcs.set_mode(r1cs_core::SynthesisMode::Prove {
+            construct_matrices: true,
+        });
         c.generate_constraints(pcs.clone())?;
         end_timer!(constraint_time);
 
         let padding_time = start_timer!(|| "Padding matrices to make them square");
-        make_matrices_square_for_prover(&mut pcs.borrow_mut().unwrap());
+        make_matrices_square_for_prover(pcs.clone());
         end_timer!(padding_time);
 
         let num_non_zero = index.index_info.num_non_zero;
 
-        let (
-            formatted_input_assignment,
-            witness_assignment,
-            num_constraints,
-        ) = {
+        let (formatted_input_assignment, witness_assignment, num_constraints) = {
             let pcs = pcs.borrow().unwrap();
-            (pcs.instance_assignment.clone(), pcs.witness_assignment.clone(), pcs.num_constraints)
+            (
+                pcs.instance_assignment.as_slice().to_vec(),
+                pcs.witness_assignment.as_slice().to_vec(),
+                pcs.num_constraints,
+            )
         };
 
         let num_input_variables = formatted_input_assignment.len();

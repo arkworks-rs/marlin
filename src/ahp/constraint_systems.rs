@@ -9,7 +9,7 @@ use ff_fft::{
     cfg_iter_mut, EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain,
 };
 use poly_commit::LabeledPolynomial;
-use r1cs_core::{ConstraintSystem, lc};
+use r1cs_core::{lc, ConstraintSystemRef};
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -33,28 +33,35 @@ pub(crate) fn balance_matrices<F: Field>(a_matrix: &mut Matrix<F>, b_matrix: &mu
     }
 }
 
-pub(crate) fn num_non_zero<F: PrimeField>(cs: &ConstraintSystem<F>) -> usize {
+pub(crate) fn num_non_zero<F: PrimeField>(cs: ConstraintSystemRef<F>) -> usize {
     let matrices = cs.to_matrices().unwrap();
-    *[matrices.a_num_non_zero, matrices.b_num_non_zero, matrices.c_num_non_zero].iter().max().unwrap()
+    *[
+        matrices.a_num_non_zero,
+        matrices.b_num_non_zero,
+        matrices.c_num_non_zero,
+    ]
+    .iter()
+    .max()
+    .unwrap()
 }
 
-pub(crate) fn make_matrices_square_for_indexer<F: PrimeField>(cs: &mut ConstraintSystem<F>) {
-    let num_variables = cs.num_instance_variables + cs.num_witness_variables;
-    let num_non_zero_val = num_non_zero(cs);
-    let matrix_dim = padded_matrix_dim(num_variables, cs.num_constraints);
-    make_matrices_square(cs, num_variables);
+pub(crate) fn make_matrices_square_for_indexer<F: PrimeField>(cs: ConstraintSystemRef<F>) {
+    let num_variables = cs.num_instance_variables() + cs.num_witness_variables();
+    let num_non_zero_val = num_non_zero(cs.clone());
+    let matrix_dim = padded_matrix_dim(num_variables, cs.num_constraints());
+    make_matrices_square(cs.clone(), num_variables);
     assert_eq!(
-        cs.num_instance_variables + cs.num_witness_variables,
-        cs.num_constraints,
+        cs.num_instance_variables() + cs.num_witness_variables(),
+        cs.num_constraints(),
         "padding failed!"
     );
     assert_eq!(
-        cs.num_instance_variables + cs.num_witness_variables,
+        cs.num_instance_variables() + cs.num_witness_variables(),
         matrix_dim,
         "padding does not result in expected matrix size!"
     );
     assert_eq!(
-        num_non_zero(cs),
+        num_non_zero(cs.clone()),
         num_non_zero_val,
         "padding changed matrix density"
     );
@@ -66,23 +73,23 @@ pub(crate) fn padded_matrix_dim(num_formatted_variables: usize, num_constraints:
 }
 
 pub(crate) fn make_matrices_square<F: Field>(
-    cs: &mut ConstraintSystem<F>,
+    cs: ConstraintSystemRef<F>,
     num_formatted_variables: usize,
 ) {
-    let num_constraints = cs.num_constraints;
+    let num_constraints = cs.num_constraints();
     let matrix_padding = ((num_formatted_variables as isize) - (num_constraints as isize)).abs();
 
     if num_formatted_variables > num_constraints {
         // Add dummy constraints of the form 0 * 0 == 0
         for _ in 0..matrix_padding {
-            cs.enforce_constraint(lc!(), lc!(), lc!()).expect("enforce 0 * 0 == 0 failed");
+            cs.enforce_constraint(lc!(), lc!(), lc!())
+                .expect("enforce 0 * 0 == 0 failed");
         }
     } else {
         // Add dummy unconstrained variables
         for _ in 0..matrix_padding {
             let _ = cs
-                .new_witness_variable(
-                    || Ok(F::one()))
+                .new_witness_variable(|| Ok(F::one()))
                 .expect("alloc failed");
         }
     }
@@ -271,13 +278,12 @@ pub(crate) fn unformat_public_input<F: PrimeField>(input: &[F]) -> Vec<F> {
     input[1..].to_vec()
 }
 
-pub(crate) fn make_matrices_square_for_prover<F: PrimeField>(cs: &mut ConstraintSystem<F>) {
-    let num_variables = cs.num_instance_variables + cs.num_witness_variables;
-    make_matrices_square(cs, num_variables);
+pub(crate) fn make_matrices_square_for_prover<F: PrimeField>(cs: ConstraintSystemRef<F>) {
+    let num_variables = cs.num_instance_variables() + cs.num_witness_variables();
+    make_matrices_square(cs.clone(), num_variables);
     assert_eq!(
-        cs.num_instance_variables + cs.num_witness_variables,
-        cs.num_constraints,
+        cs.num_instance_variables() + cs.num_witness_variables(),
+        cs.num_constraints(),
         "padding failed!"
     );
 }
-

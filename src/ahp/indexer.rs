@@ -9,10 +9,12 @@ use algebra_core::PrimeField;
 use derivative::Derivative;
 use ff_fft::{EvaluationDomain, GeneralEvaluationDomain};
 use poly_commit::LabeledPolynomial;
-use r1cs_core::{ConstraintSynthesizer, SynthesisError, ConstraintSystem};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
+use crate::ahp::constraint_systems::{
+    balance_matrices, make_matrices_square_for_indexer, num_non_zero,
+};
 use core::marker::PhantomData;
-use crate::ahp::constraint_systems::{make_matrices_square_for_indexer, balance_matrices, num_non_zero};
 
 /// Information about the index, including the field of definition, the number of
 /// variables, the number of constraints, and the maximum number of non-zero
@@ -118,7 +120,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         end_timer!(constraint_time);
 
         let padding_time = start_timer!(|| "Padding matrices to make them square");
-        make_matrices_square_for_indexer(&mut ics.borrow_mut().unwrap());
+        make_matrices_square_for_indexer(ics.clone());
         end_timer!(padding_time);
         let matrix_processing_time = start_timer!(|| "Processing matrices");
         let (mut a, mut b, mut c) = {
@@ -128,10 +130,12 @@ impl<F: PrimeField> AHPForR1CS<F> {
         balance_matrices(&mut a, &mut b);
         end_timer!(matrix_processing_time);
 
-        let (num_formatted_input_variables, num_witness_variables, num_constraints, num_non_zero)  = {
-            let ics = ics.borrow().unwrap();
-            (ics.num_instance_variables, ics.num_witness_variables, ics.num_constraints, num_non_zero(&ics))
-        };
+        let (num_formatted_input_variables, num_witness_variables, num_constraints, num_non_zero) = (
+            ics.num_instance_variables(),
+            ics.num_witness_variables(),
+            ics.num_constraints(),
+            num_non_zero(ics.clone()),
+        );
         let num_variables = num_formatted_input_variables + num_witness_variables;
 
         if num_constraints != num_formatted_input_variables + num_witness_variables {
