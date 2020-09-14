@@ -10,7 +10,7 @@ authors = [
   "Nicholas Ward <npward@berkeley.edu>",
 ]
 description = "A library for the Marlin preprocessing zkSNARK"
-repository = "https://github.com/scipr/marlin"
+repository = "https://github.com/scipr-lab/marlin"
 documentation = "https://docs.rs/marlin/"
 keywords = ["cryptography", "polynomial commitments", "zkSNARK"]
 categories = ["cryptography"]
@@ -19,12 +19,12 @@ license = "MIT/Apache-2.0"
 edition = "2018"
 
 [dependencies]
-algebra-core = { git = "https://github.com/scipr-lab/zexe/", default-features = false }
-ff-fft = { git = "https://github.com/scipr-lab/zexe/", default-features = false }
-bench-utils = { git = "https://github.com/scipr-lab/zexe/" }
-r1cs-core = { git = "https://github.com/scipr-lab/zexe/", default-features = false }
+algebra-core = { git = "https://github.com/celo-org/zexe", rev = "ad37b47", default-features = false }
+ff-fft = { git = "https://github.com/celo-org/zexe", rev = "ad37b47", default-features = false }
+bench-utils = { git = "https://github.com/celo-org/zexe", rev = "ad37b47" }
+r1cs-core = { git = "https://github.com/celo-org/zexe", rev = "ad37b47", default-features = false }
 
-poly-commit = { git = "https://github.com/scipr-lab/poly-commit", default-features = false }
+poly-commit = { git = "https://github.com/celo-org/poly-commit", rev = "f1a4e708358abdccd87c79def2bdbc0bd896989f", default-features = false }
 
 rand_core = { version = "0.5" }
 rand_chacha = { version = "0.2.1", default-features = false }
@@ -35,7 +35,7 @@ derivative = { version = "2", features = ["use_core"] }
 
 [dev-dependencies]
 blake2 = { version = "0.8", default-features = false }
-algebra = { git = "https://github.com/scipr-lab/zexe/", default-features = false, features = ["bls12_381"] }
+algebra = { git = "https://github.com/celo-org/zexe", rev = "ad37b47", default-features = false, features = ["bls12_381"] }
 
 
 [profile.release]
