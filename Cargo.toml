@@ -19,12 +19,12 @@ license = "MIT/Apache-2.0"
 edition = "2018"
 
 [dependencies]
-algebra-core = { git = "https://github.com/celo-org/zexe", rev = "ad37b47", default-features = false }
-ff-fft = { git = "https://github.com/celo-org/zexe", rev = "ad37b47", default-features = false }
-bench-utils = { git = "https://github.com/celo-org/zexe", rev = "ad37b47" }
-r1cs-core = { git = "https://github.com/celo-org/zexe", rev = "ad37b47", default-features = false }
+algebra-core = { git = "https://github.com/celo-org/zexe", rev = "72ad6a13011ce96eb92e686bda59dedc5ece59ee", default-features = false }
+ff-fft = { git = "https://github.com/celo-org/zexe", rev = "72ad6a13011ce96eb92e686bda59dedc5ece59ee", default-features = false }
+bench-utils = { git = "https://github.com/celo-org/zexe", rev = "72ad6a13011ce96eb92e686bda59dedc5ece59ee" }
+r1cs-core = { git = "https://github.com/celo-org/zexe", rev = "72ad6a13011ce96eb92e686bda59dedc5ece59ee", default-features = false }
 
-poly-commit = { git = "https://github.com/celo-org/poly-commit", rev = "f1a4e708358abdccd87c79def2bdbc0bd896989f", default-features = false }
+poly-commit = { git = "https://github.com/celo-org/poly-commit", rev = "1fc90ca5cc2d8a67f5ea44f5367e02fe1319d166", default-features = false }
 
 rand_core = { version = "0.5" }
 rand_chacha = { version = "0.2.1", default-features = false }
@@ -35,7 +35,7 @@ derivative = { version = "2", features = ["use_core"] }
 
 [dev-dependencies]
 blake2 = { version = "0.8", default-features = false }
-algebra = { git = "https://github.com/celo-org/zexe", rev = "ad37b47", default-features = false, features = ["bls12_381"] }
+algebra = { git = "https://github.com/celo-org/zexe", rev = "72ad6a13011ce96eb92e686bda59dedc5ece59ee", default-features = false, features = ["bls12_381"] }
 
 
 [profile.release]

@@ -20,7 +20,6 @@ extern crate bench_utils;
 
 use algebra_core::to_bytes;
 use algebra_core::PrimeField;
-use algebra_core::ToBytes;
 use algebra_core::UniformRand;
 use core::marker::PhantomData;
 use digest::Digest;

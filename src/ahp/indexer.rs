@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use crate::ahp::{
-    constraint_systems::{arithmetize_matrix, IndexerConstraintSystem, MatrixArithmetization},
+    constraint_systems::{arithmetize_matrix, MatrixArithmetization},
     AHPForR1CS, Error,
 };
 use crate::Vec;
@@ -9,9 +9,10 @@ use algebra_core::PrimeField;
 use derivative::Derivative;
 use ff_fft::{EvaluationDomain, GeneralEvaluationDomain};
 use poly_commit::LabeledPolynomial;
-use r1cs_core::{ConstraintSynthesizer, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, SynthesisError, ConstraintSystem};
 
 use core::marker::PhantomData;
+use crate::ahp::constraint_systems::{make_matrices_square_for_indexer, balance_matrices, num_non_zero};
 
 /// Information about the index, including the field of definition, the number of
 /// variables, the number of constraints, and the maximum number of non-zero
@@ -112,21 +113,25 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let index_time = start_timer!(|| "AHP::Index");
 
         let constraint_time = start_timer!(|| "Generating constraints");
-        let mut ics = IndexerConstraintSystem::new();
-        c.generate_constraints(&mut ics)?;
+        let ics = ConstraintSystem::new_ref();
+        c.generate_constraints(ics.clone())?;
         end_timer!(constraint_time);
 
         let padding_time = start_timer!(|| "Padding matrices to make them square");
-        ics.make_matrices_square();
+        make_matrices_square_for_indexer(&mut ics.borrow_mut().unwrap());
         end_timer!(padding_time);
         let matrix_processing_time = start_timer!(|| "Processing matrices");
-        ics.process_matrices();
+        let (mut a, mut b, mut c) = {
+            let matrices = ics.to_matrices().expect("should not be `None`");
+            (matrices.a, matrices.b, matrices.c)
+        };
+        balance_matrices(&mut a, &mut b);
         end_timer!(matrix_processing_time);
 
-        let num_formatted_input_variables = ics.num_input_variables;
-        let num_witness_variables = ics.num_witness_variables;
-        let num_constraints = ics.num_constraints;
-        let num_non_zero = ics.num_non_zero();
+        let (num_formatted_input_variables, num_witness_variables, num_constraints, num_non_zero)  = {
+            let ics = ics.borrow().unwrap();
+            (ics.num_instance_variables, ics.num_witness_variables, ics.num_constraints, num_non_zero(&ics))
+        };
         let num_variables = num_formatted_input_variables + num_witness_variables;
 
         if num_constraints != num_formatted_input_variables + num_witness_variables {
@@ -136,7 +141,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             );
             eprintln!("number of witness_variables: {}", num_witness_variables);
             eprintln!("number of num_constraints: {}", num_constraints);
-            eprintln!("number of num_non_zero: {}", ics.num_non_zero());
+            eprintln!("number of num_non_zero: {}", num_non_zero);
             return Err(Error::NonSquareMatrix);
         }
 
@@ -161,8 +166,6 @@ impl<F: PrimeField> AHPForR1CS<F> {
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let b_domain = GeneralEvaluationDomain::<F>::new(3 * domain_k.size() - 3)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-
-        let (mut a, mut b, mut c) = ics.constraint_matrices().expect("should not be `None`");
 
         let a_arithmetization_time = start_timer!(|| "Arithmetizing A");
         let a_star_arith = arithmetize_matrix("a", &mut a, domain_k, domain_h, x_domain, b_domain);
