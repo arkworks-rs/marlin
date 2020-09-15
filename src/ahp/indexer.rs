@@ -124,6 +124,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         make_matrices_square_for_indexer(ics.clone());
         end_timer!(padding_time);
         let matrix_processing_time = start_timer!(|| "Processing matrices");
+        ics.inline_all_lcs();
         let matrices = ics.to_matrices().expect("should not be `None`");
         let num_non_zero_val = num_non_zero::<F>(&matrices);
         let (mut a, mut b, mut c) = (matrices.a, matrices.b, matrices.c);
