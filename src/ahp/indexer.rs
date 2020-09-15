@@ -9,7 +9,7 @@ use algebra_core::PrimeField;
 use derivative::Derivative;
 use ff_fft::{EvaluationDomain, GeneralEvaluationDomain};
 use poly_commit::LabeledPolynomial;
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError, SynthesisMode};
 
 use crate::ahp::constraint_systems::{
     balance_matrices, make_matrices_square_for_indexer, num_non_zero,
@@ -116,6 +116,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let constraint_time = start_timer!(|| "Generating constraints");
         let ics = ConstraintSystem::new_ref();
+        ics.set_mode(SynthesisMode::Setup);
         c.generate_constraints(ics.clone())?;
         end_timer!(constraint_time);
 
