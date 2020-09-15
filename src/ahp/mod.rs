@@ -120,8 +120,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let domain_k = state.domain_k;
         let k_size = domain_k.size_as_field_element();
 
-        let public_input =
-            constraint_systems::ProverConstraintSystem::format_public_input(public_input);
+        let public_input = constraint_systems::format_public_input(public_input);
         if !Self::formatted_public_input_is_admissible(&public_input) {
             Err(Error::InvalidPublicInputLength)?
         }

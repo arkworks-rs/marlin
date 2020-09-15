@@ -1,5 +1,5 @@
 use algebra_core::Field;
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 
 #[derive(Copy, Clone)]
 struct Circuit<F: Field> {
@@ -10,37 +10,26 @@ struct Circuit<F: Field> {
 }
 
 impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for Circuit<ConstraintF> {
-    fn generate_constraints<CS: ConstraintSystem<ConstraintF>>(
+    fn generate_constraints(
         self,
-        cs: &mut CS,
+        cs: ConstraintSystemRef<ConstraintF>,
     ) -> Result<(), SynthesisError> {
-        let a = cs.alloc(|| "a", || self.a.ok_or(SynthesisError::AssignmentMissing))?;
-        let b = cs.alloc(|| "b", || self.b.ok_or(SynthesisError::AssignmentMissing))?;
-        let c = cs.alloc_input(
-            || "c",
-            || {
-                let mut a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
-                let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
+        let a = cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;
+        let b = cs.new_witness_variable(|| self.b.ok_or(SynthesisError::AssignmentMissing))?;
+        let c = cs.new_input_variable(|| {
+            let mut a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
+            let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
 
-                a.mul_assign(&b);
-                Ok(a)
-            },
-        )?;
+            a.mul_assign(&b);
+            Ok(a)
+        })?;
 
-        for i in 0..(self.num_variables - 3) {
-            let _ = cs.alloc(
-                || format!("var {}", i),
-                || self.a.ok_or(SynthesisError::AssignmentMissing),
-            )?;
+        for _ in 0..(self.num_variables - 3) {
+            let _ = cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;
         }
 
-        for i in 0..self.num_constraints {
-            cs.enforce(
-                || format!("constraint {}", i),
-                |lc| lc + a,
-                |lc| lc + b,
-                |lc| lc + c,
-            );
+        for _ in 0..self.num_constraints {
+            cs.enforce_constraint(lc!() + a, lc!() + b, lc!() + c)?;
         }
         Ok(())
     }
