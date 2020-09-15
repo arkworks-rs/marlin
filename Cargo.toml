@@ -34,7 +34,7 @@ derivative = { version = "2", features = ["use_core"] }
 
 
 [dev-dependencies]
-blake2 = { version = "0.8", default-features = false }
+blake2 = { version = "0.9", default-features = false }
 algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", default-features = false, features = ["bls12_381"] }
 
 
