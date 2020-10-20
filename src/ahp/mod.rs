@@ -1,9 +1,10 @@
 use crate::{String, ToString, Vec};
-use algebra_core::{Field, PrimeField};
+use ark_ff::{Field, PrimeField};
+use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
+use ark_poly_commit::{LCTerm, LabeledPolynomial, LinearCombination};
+use ark_relations::r1cs::SynthesisError;
+use ark_std::{cfg_iter_mut, format, vec};
 use core::{borrow::Borrow, marker::PhantomData};
-use ff_fft::{cfg_iter_mut, EvaluationDomain, GeneralEvaluationDomain};
-use poly_commit::{LCTerm, LabeledPolynomial, LinearCombination};
-use r1cs_core::SynthesisError;
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -113,7 +114,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         state: &verifier::VerifierState<F, C>,
     ) -> Result<Vec<LinearCombination<F>>, Error>
     where
-        C: r1cs_core::ConstraintSynthesizer<F>,
+        C: ark_relations::r1cs::ConstraintSynthesizer<F>,
         E: EvaluationsProvider<F>,
     {
         let domain_h = state.domain_h;
@@ -263,7 +264,7 @@ pub trait EvaluationsProvider<F: Field> {
     fn get_lc_eval(&self, lc: &LinearCombination<F>, point: F) -> Result<F, Error>;
 }
 
-impl<'a, F: Field> EvaluationsProvider<F> for poly_commit::Evaluations<'a, F> {
+impl<'a, F: Field> EvaluationsProvider<F> for ark_poly_commit::Evaluations<'a, F> {
     fn get_lc_eval(&self, lc: &LinearCombination<F>, point: F) -> Result<F, Error> {
         let key = (lc.label.clone(), point);
         self.get(&key)
@@ -320,7 +321,7 @@ impl From<SynthesisError> for Error {
 }
 
 /// The derivative of the vanishing polynomial
-pub trait UnnormalizedBivariateLagrangePoly<F: algebra_core::FftField> {
+pub trait UnnormalizedBivariateLagrangePoly<F: ark_ff::FftField> {
     /// Evaluate the polynomial
     fn eval_unnormalized_bivariate_lagrange_poly(&self, x: F, y: F) -> F;
 
@@ -344,7 +345,7 @@ impl<F: PrimeField> UnnormalizedBivariateLagrangePoly<F> for GeneralEvaluationDo
     fn batch_eval_unnormalized_bivariate_lagrange_poly_with_diff_inputs(&self, x: F) -> Vec<F> {
         let vanish_x = self.evaluate_vanishing_polynomial(x);
         let mut inverses: Vec<F> = self.elements().map(|y| x - y).collect();
-        algebra_core::fields::batch_inversion(&mut inverses);
+        ark_ff::batch_inversion(&mut inverses);
 
         cfg_iter_mut!(inverses).for_each(|denominator| *denominator *= vanish_x);
         inverses
@@ -363,9 +364,9 @@ impl<F: PrimeField> UnnormalizedBivariateLagrangePoly<F> for GeneralEvaluationDo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use algebra::bls12_381::fr::Fr;
-    use algebra::{One, UniformRand, Zero};
-    use ff_fft::{DenseOrSparsePolynomial, DensePolynomial};
+    use ark_bls12_381::Fr;
+    use ark_ff::{One, UniformRand, Zero};
+    use ark_poly::{DenseOrSparsePolynomial, DensePolynomial};
 
     #[test]
     fn domain_unnormalized_bivariate_lagrange_poly() {
@@ -382,7 +383,7 @@ mod tests {
 
     #[test]
     fn domain_unnormalized_bivariate_lagrange_poly_diff_inputs() {
-        let rng = &mut algebra::test_rng();
+        let rng = &mut ark_ff::test_rng();
         for domain_size in 1..10 {
             let domain = GeneralEvaluationDomain::<Fr>::new(1 << domain_size).unwrap();
             let x = Fr::rand(rng);
@@ -397,7 +398,7 @@ mod tests {
 
     #[test]
     fn test_summation() {
-        let rng = &mut algebra::test_rng();
+        let rng = &mut ark_ff::test_rng();
         let size = 1 << 4;
         let domain = GeneralEvaluationDomain::<Fr>::new(1 << 4).unwrap();
         let size_as_fe = domain.size_as_field_element();
@@ -418,7 +419,7 @@ mod tests {
 
     #[test]
     fn test_alternator_polynomial() {
-        use ff_fft::Evaluations;
+        use ark_poly::Evaluations;
         let domain_k = GeneralEvaluationDomain::<Fr>::new(1 << 4).unwrap();
         let domain_h = GeneralEvaluationDomain::<Fr>::new(1 << 3).unwrap();
         let domain_h_elems = domain_h

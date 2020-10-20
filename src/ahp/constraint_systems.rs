@@ -3,13 +3,15 @@
 use crate::ahp::indexer::Matrix;
 use crate::ahp::*;
 use crate::{BTreeMap, Cow, ToString};
-use algebra_core::{Field, PrimeField};
-use derivative::Derivative;
-use ff_fft::{
-    cfg_iter_mut, EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain,
+use ark_ff::{Field, PrimeField};
+use ark_poly::{EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain};
+use ark_poly_commit::LabeledPolynomial;
+use ark_relations::{
+    lc,
+    r1cs::{ConstraintMatrices, ConstraintSystemRef},
 };
-use poly_commit::LabeledPolynomial;
-use r1cs_core::{lc, ConstraintMatrices, ConstraintSystemRef};
+use ark_std::cfg_iter_mut;
+use derivative::Derivative;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -182,7 +184,7 @@ pub(crate) fn arithmetize_matrix<'a, F: PrimeField>(
             count += 1;
         }
     }
-    algebra_core::fields::batch_inversion::<F>(&mut inverses);
+    ark_ff::batch_inversion::<F>(&mut inverses);
 
     cfg_iter_mut!(val_vec)
         .zip(inverses)

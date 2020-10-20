@@ -6,14 +6,12 @@ use crate::ahp::*;
 
 use crate::ahp::constraint_systems::{make_matrices_square_for_prover, unformat_public_input};
 use crate::{ToString, Vec};
-use algebra_core::{Field, PrimeField};
+use ark_ff::{Field, PrimeField};
+use ark_poly::{EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain};
+use ark_poly_commit::{LabeledPolynomial, Polynomial};
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use ark_std::{cfg_into_iter, cfg_iter, cfg_iter_mut};
 use core::marker::PhantomData;
-use ff_fft::{
-    cfg_into_iter, cfg_iter, cfg_iter_mut, EvaluationDomain, Evaluations as EvaluationsOnDomain,
-    GeneralEvaluationDomain,
-};
-use poly_commit::{LabeledPolynomial, Polynomial};
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use rand_core::RngCore;
 
 /// State for the AHP prover.
@@ -68,8 +66,8 @@ pub enum ProverMsg<F: Field> {
     FieldElements(Vec<F>),
 }
 
-impl<F: Field> algebra_core::ToBytes for ProverMsg<F> {
-    fn write<W: algebra_core::io::Write>(&self, w: W) -> algebra_core::io::Result<()> {
+impl<F: Field> ark_ff::ToBytes for ProverMsg<F> {
+    fn write<W: ark_std::io::Write>(&self, w: W) -> ark_std::io::Result<()> {
         match self {
             ProverMsg::EmptyMessage => Ok(()),
             ProverMsg::FieldElements(field_elems) => field_elems.write(w),
@@ -138,7 +136,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let constraint_time = start_timer!(|| "Generating constraints and witnesses");
         let pcs = ConstraintSystem::new_ref();
-        pcs.set_mode(r1cs_core::SynthesisMode::Prove {
+        pcs.set_mode(ark_relations::r1cs::SynthesisMode::Prove {
             construct_matrices: true,
         });
         c.generate_constraints(pcs.clone())?;
@@ -561,9 +559,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
             inverses_b.push((beta - b_star.evals_on_K.row[i]) * (alpha - b_star.evals_on_K.col[i]));
             inverses_c.push((beta - c_star.evals_on_K.row[i]) * (alpha - c_star.evals_on_K.col[i]));
         }
-        algebra_core::batch_inversion(&mut inverses_a);
-        algebra_core::batch_inversion(&mut inverses_b);
-        algebra_core::batch_inversion(&mut inverses_c);
+        ark_ff::batch_inversion(&mut inverses_a);
+        ark_ff::batch_inversion(&mut inverses_b);
+        ark_ff::batch_inversion(&mut inverses_c);
 
         for i in 0..domain_k.size() {
             let t = eta_a * a_star.evals_on_K.val[i] * inverses_a[i]

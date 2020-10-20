@@ -2,12 +2,12 @@
 
 use crate::ahp::indexer::IndexInfo;
 use crate::ahp::*;
-use r1cs_core::ConstraintSynthesizer;
+use ark_relations::r1cs::ConstraintSynthesizer;
 use rand_core::RngCore;
 
-use algebra_core::PrimeField;
-use ff_fft::{EvaluationDomain, GeneralEvaluationDomain};
-use poly_commit::QuerySet;
+use ark_ff::PrimeField;
+use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
+use ark_poly_commit::QuerySet;
 
 /// State of the AHP verifier
 pub struct VerifierState<F: PrimeField, C> {

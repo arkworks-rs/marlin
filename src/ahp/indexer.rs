@@ -5,11 +5,11 @@ use crate::ahp::{
     AHPForR1CS, Error,
 };
 use crate::Vec;
-use algebra_core::PrimeField;
+use ark_ff::PrimeField;
+use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
+use ark_poly_commit::LabeledPolynomial;
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError, SynthesisMode};
 use derivative::Derivative;
-use ff_fft::{EvaluationDomain, GeneralEvaluationDomain};
-use poly_commit::LabeledPolynomial;
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError, SynthesisMode};
 
 use crate::ahp::constraint_systems::{
     balance_matrices, make_matrices_square_for_indexer, num_non_zero,
@@ -35,8 +35,8 @@ pub struct IndexInfo<F, C> {
     cs: PhantomData<fn() -> C>,
 }
 
-impl<F: PrimeField, C: ConstraintSynthesizer<F>> algebra_core::ToBytes for IndexInfo<F, C> {
-    fn write<W: algebra_core::io::Write>(&self, mut w: W) -> algebra_core::io::Result<()> {
+impl<F: PrimeField, C: ConstraintSynthesizer<F>> ark_ff::ToBytes for IndexInfo<F, C> {
+    fn write<W: ark_std::io::Write>(&self, mut w: W) -> ark_std::io::Result<()> {
         (self.num_variables as u64).write(&mut w)?;
         (self.num_constraints as u64).write(&mut w)?;
         (self.num_non_zero as u64).write(&mut w)
@@ -91,7 +91,7 @@ impl<'a, F: PrimeField, C: ConstraintSynthesizer<F>> Index<'a, F, C> {
 
     /// Iterate over the indexed polynomials.
     pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<'a, F>> {
-        vec![
+        ark_std::vec![
             &self.a_star_arith.row,
             &self.a_star_arith.col,
             &self.a_star_arith.val,

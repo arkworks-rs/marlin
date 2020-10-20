@@ -18,33 +18,20 @@
 #[macro_use]
 extern crate bench_utils;
 
-use algebra_core::to_bytes;
-use algebra_core::PrimeField;
-use algebra_core::UniformRand;
+use ark_ff::{to_bytes, PrimeField, UniformRand};
+use ark_poly_commit::Evaluations;
+use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
+use ark_relations::r1cs::ConstraintSynthesizer;
 use core::marker::PhantomData;
 use digest::Digest;
-use poly_commit::Evaluations;
-use poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
-use r1cs_core::ConstraintSynthesizer;
 use rand_core::RngCore;
 
-#[cfg(not(feature = "std"))]
-#[macro_use]
-extern crate alloc;
-
-#[cfg(not(feature = "std"))]
-use alloc::{
+use ark_std::{
     borrow::Cow,
     collections::BTreeMap,
+    format,
     string::{String, ToString},
-    vec::Vec,
-};
-
-#[cfg(feature = "std")]
-use std::{
-    borrow::Cow,
-    collections::BTreeMap,
-    string::{String, ToString},
+    vec,
     vec::Vec,
 };
 
