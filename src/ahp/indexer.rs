@@ -11,7 +11,10 @@ use ff_fft::{EvaluationDomain, GeneralEvaluationDomain};
 use poly_commit::LabeledPolynomial;
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError, SynthesisMode};
 
-use crate::ahp::constraint_systems::{balance_matrices, make_matrices_square_for_indexer, num_non_zero, pad_input_for_indexer_and_prover};
+use crate::ahp::constraint_systems::{
+    balance_matrices, make_matrices_square_for_indexer, num_non_zero,
+    pad_input_for_indexer_and_prover,
+};
 use core::marker::PhantomData;
 
 /// Information about the index, including the field of definition, the number of

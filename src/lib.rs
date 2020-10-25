@@ -23,11 +23,11 @@ use algebra_core::PrimeField;
 use algebra_core::UniformRand;
 use core::marker::PhantomData;
 use digest::Digest;
+use ff_fft::{EvaluationDomain, GeneralEvaluationDomain};
 use poly_commit::Evaluations;
 use poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
 use r1cs_core::ConstraintSynthesizer;
 use rand_core::RngCore;
-use ff_fft::{EvaluationDomain, GeneralEvaluationDomain};
 
 #[cfg(not(feature = "std"))]
 #[macro_use]

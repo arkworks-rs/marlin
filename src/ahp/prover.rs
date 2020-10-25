@@ -4,7 +4,9 @@ use crate::ahp::indexer::*;
 use crate::ahp::verifier::*;
 use crate::ahp::*;
 
-use crate::ahp::constraint_systems::{make_matrices_square_for_prover, unformat_public_input, pad_input_for_indexer_and_prover};
+use crate::ahp::constraint_systems::{
+    make_matrices_square_for_prover, pad_input_for_indexer_and_prover, unformat_public_input,
+};
 use crate::{ToString, Vec};
 use algebra_core::{Field, PrimeField};
 use core::marker::PhantomData;
