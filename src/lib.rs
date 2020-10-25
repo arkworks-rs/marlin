@@ -27,6 +27,7 @@ use poly_commit::Evaluations;
 use poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
 use r1cs_core::ConstraintSynthesizer;
 use rand_core::RngCore;
+use ff_fft::{EvaluationDomain, GeneralEvaluationDomain};
 
 #[cfg(not(feature = "std"))]
 #[macro_use]
@@ -331,6 +332,19 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
         let mut fs_rng = FiatShamirRng::<D>::from_seed(
             &to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap(),
         );
+
+        let public_input = {
+            let domain_x = GeneralEvaluationDomain::<F>::new(public_input.len() + 1).unwrap();
+
+            let mut unpadded_input = public_input.to_vec();
+            let padded_size = domain_x.size();
+
+            if padded_size > unpadded_input.len() + 1 {
+                unpadded_input.resize(padded_size - 1, F::zero());
+            }
+
+            unpadded_input
+        };
 
         // --------------------------------------------------------------------
         // First round
