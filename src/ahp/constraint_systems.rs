@@ -2,16 +2,16 @@
 
 use crate::ahp::indexer::Matrix;
 use crate::ahp::*;
-use crate::{BTreeMap, Cow, ToString};
+use crate::{BTreeMap, ToString};
 use ark_ff::{Field, PrimeField};
-use ark_poly::{EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain};
-use ark_poly_commit::LabeledPolynomial;
-use ark_relations::{
-    lc,
-    r1cs::{ConstraintMatrices, ConstraintSystemRef},
+use derivative::Derivative;
+use ark_poly::{
+    EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain,
 };
 use ark_std::cfg_iter_mut;
-use derivative::Derivative;
+use ark_poly_commit::LabeledPolynomial;
+use ark_relations::r1cs::{ConstraintMatrices, ConstraintSystemRef};
+use ark_relations::lc;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -36,6 +36,10 @@ pub(crate) fn balance_matrices<F: Field>(a_matrix: &mut Matrix<F>, b_matrix: &mu
 }
 
 pub(crate) fn num_non_zero<F: PrimeField>(matrices: &ConstraintMatrices<F>) -> usize {
+    println!("a: {}", matrices.a_num_non_zero);
+    println!("b: {}", matrices.b_num_non_zero);
+    println!("c: {}", matrices.c_num_non_zero);
+
     *[
         matrices.a_num_non_zero,
         matrices.b_num_non_zero,
@@ -48,8 +52,8 @@ pub(crate) fn num_non_zero<F: PrimeField>(matrices: &ConstraintMatrices<F>) -> u
 
 pub(crate) fn make_matrices_square_for_indexer<F: PrimeField>(cs: ConstraintSystemRef<F>) {
     let num_variables = cs.num_instance_variables() + cs.num_witness_variables();
-    let matrices = cs.to_matrices().unwrap();
-    let num_non_zero_val = num_non_zero::<F>(&matrices);
+    //let matrices = cs.to_matrices().unwrap();
+    //let num_non_zero_val = num_non_zero::<F>(&matrices);
     let matrix_dim = padded_matrix_dim(num_variables, cs.num_constraints());
     make_matrices_square(cs.clone(), num_variables);
     assert_eq!(
@@ -62,11 +66,11 @@ pub(crate) fn make_matrices_square_for_indexer<F: PrimeField>(cs: ConstraintSyst
         matrix_dim,
         "padding does not result in expected matrix size!"
     );
-    assert_eq!(
+    /*assert_eq!(
         num_non_zero::<F>(&matrices),
         num_non_zero_val,
         "padding changed matrix density"
-    );
+    );*/
 }
 
 /// This must *always* be in sync with `make_matrices_square`.
@@ -99,51 +103,51 @@ pub(crate) fn make_matrices_square<F: Field>(
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = "F: PrimeField"))]
-pub struct MatrixEvals<'a, F: PrimeField> {
+pub struct MatrixEvals<F: PrimeField> {
     /// Evaluations of the LDE of row.
-    pub row: Cow<'a, EvaluationsOnDomain<F>>,
+    pub row: EvaluationsOnDomain<F>,
     /// Evaluations of the LDE of col.
-    pub col: Cow<'a, EvaluationsOnDomain<F>>,
+    pub col: EvaluationsOnDomain<F>,
     /// Evaluations of the LDE of val.
-    pub val: Cow<'a, EvaluationsOnDomain<F>>,
+    pub val: EvaluationsOnDomain<F>,
 }
 
 /// Contains information about the arithmetization of the matrix M^*.
 /// Here `M^*(i, j) := M(j, i) * u_H(j, j)`. For more details, see [COS19].
 #[derive(Derivative)]
 #[derivative(Clone(bound = "F: PrimeField"))]
-pub struct MatrixArithmetization<'a, F: PrimeField> {
+pub struct MatrixArithmetization<F: PrimeField> {
     /// LDE of the row indices of M^*.
-    pub row: LabeledPolynomial<'a, F>,
+    pub row: LabeledPolynomial<F>,
     /// LDE of the column indices of M^*.
-    pub col: LabeledPolynomial<'a, F>,
+    pub col: LabeledPolynomial<F>,
     /// LDE of the non-zero entries of M^*.
-    pub val: LabeledPolynomial<'a, F>,
+    pub val: LabeledPolynomial<F>,
     /// LDE of the vector containing entry-wise products of `row` and `col`,
     /// where `row` and `col` are as above.
-    pub row_col: LabeledPolynomial<'a, F>,
+    pub row_col: LabeledPolynomial<F>,
 
     /// Evaluation of `self.row`, `self.col`, and `self.val` on the domain `K`.
-    pub evals_on_K: MatrixEvals<'a, F>,
+    pub evals_on_K: MatrixEvals<F>,
 
     /// Evaluation of `self.row`, `self.col`, and, `self.val` on
     /// an extended domain B (of size > `3K`).
     // TODO: rename B everywhere.
-    pub evals_on_B: MatrixEvals<'a, F>,
+    pub evals_on_B: MatrixEvals<F>,
 
     /// Evaluation of `self.row_col` on an extended domain B (of size > `3K`).
-    pub row_col_evals_on_B: Cow<'a, EvaluationsOnDomain<F>>,
+    pub row_col_evals_on_B: EvaluationsOnDomain<F>,
 }
 
 // TODO for debugging: add test that checks result of arithmetize_matrix(M).
-pub(crate) fn arithmetize_matrix<'a, F: PrimeField>(
+pub(crate) fn arithmetize_matrix<F: PrimeField>(
     matrix_name: &str,
     matrix: &mut Matrix<F>,
     interpolation_domain: GeneralEvaluationDomain<F>,
     output_domain: GeneralEvaluationDomain<F>,
     input_domain: GeneralEvaluationDomain<F>,
     expanded_domain: GeneralEvaluationDomain<F>,
-) -> MatrixArithmetization<'a, F> {
+) -> MatrixArithmetization<F> {
     let matrix_time = start_timer!(|| "Computing row, col, and val LDEs");
 
     let elems: Vec<_> = output_domain.elements().collect();
@@ -226,25 +230,25 @@ pub(crate) fn arithmetize_matrix<'a, F: PrimeField>(
 
     end_timer!(matrix_time);
     let evals_on_K = MatrixEvals {
-        row: Cow::Owned(row_evals_on_K),
-        col: Cow::Owned(col_evals_on_K),
-        val: Cow::Owned(val_evals_on_K),
+        row: row_evals_on_K,
+        col: col_evals_on_K,
+        val: val_evals_on_K,
     };
     let evals_on_B = MatrixEvals {
-        row: Cow::Owned(row_evals_on_B),
-        col: Cow::Owned(col_evals_on_B),
-        val: Cow::Owned(val_evals_on_B),
+        row: row_evals_on_B,
+        col: col_evals_on_B,
+        val: val_evals_on_B,
     };
 
     let m_name = matrix_name.to_string();
     MatrixArithmetization {
-        row: LabeledPolynomial::new_owned(m_name.clone() + "_row", row, None, None),
-        col: LabeledPolynomial::new_owned(m_name.clone() + "_col", col, None, None),
-        val: LabeledPolynomial::new_owned(m_name.clone() + "_val", val, None, None),
-        row_col: LabeledPolynomial::new_owned(m_name.clone() + "_row_col", row_col, None, None),
+        row: LabeledPolynomial::new(m_name.clone() + "_row", row, None, None),
+        col: LabeledPolynomial::new(m_name.clone() + "_col", col, None, None),
+        val: LabeledPolynomial::new(m_name.clone() + "_val", val, None, None),
+        row_col: LabeledPolynomial::new(m_name.clone() + "_row_col", row_col, None, None),
         evals_on_K,
         evals_on_B,
-        row_col_evals_on_B: Cow::Owned(row_col_evals_on_B),
+        row_col_evals_on_B,
     }
 }
 

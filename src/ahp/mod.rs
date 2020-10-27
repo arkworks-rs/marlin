@@ -1,10 +1,10 @@
 use crate::{String, ToString, Vec};
 use ark_ff::{Field, PrimeField};
+use core::{borrow::Borrow, marker::PhantomData};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
+use ark_std::cfg_iter_mut;
 use ark_poly_commit::{LCTerm, LabeledPolynomial, LinearCombination};
 use ark_relations::r1cs::SynthesisError;
-use ark_std::{cfg_iter_mut, format, vec};
-use core::{borrow::Borrow, marker::PhantomData};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -36,6 +36,18 @@ impl<F: PrimeField> AHPForR1CS<F> {
         "c_row", "c_col", "c_val", "c_row_col",
     ];
 
+    #[rustfmt::skip]
+    pub const INDEXER_POLYNOMIALS_WITH_VANISHING: [&'static str; 14] = [
+        // Polynomials for A	
+        "a_row", "a_col", "a_val", "a_row_col",
+        // Polynomials for B	
+        "b_row", "b_col", "b_val", "b_row_col",
+        // Polynomials for C	
+        "c_row", "c_col", "c_val", "c_row_col",
+        // Vanishing polynomials	
+        "vanishing_poly_h", "vanishing_poly_k"
+    ];
+
     /// The labels for the polynomials output by the AHP prover.
     #[rustfmt::skip]
     pub const PROVER_POLYNOMIALS: [&'static str; 9] = [
@@ -50,6 +62,13 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
     pub(crate) fn polynomial_labels() -> impl Iterator<Item = String> {
         Self::INDEXER_POLYNOMIALS
+            .iter()
+            .chain(&Self::PROVER_POLYNOMIALS)
+            .map(|s| s.to_string())
+    }
+
+    pub(crate) fn polynomial_labels_with_vanishing() -> impl Iterator<Item = String> {
+        Self::INDEXER_POLYNOMIALS_WITH_VANISHING
             .iter()
             .chain(&Self::PROVER_POLYNOMIALS)
             .map(|s| s.to_string())
@@ -94,7 +113,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Get all the strict degree bounds enforced in the AHP.
-    pub fn get_degree_bounds<C>(info: &indexer::IndexInfo<F, C>) -> [usize; 2] {
+    pub fn get_degree_bounds(info: &indexer::IndexInfo<F>) -> [usize; 2] {
         let mut degree_bounds = [0usize; 2];
         let num_constraints = info.num_constraints;
         let num_non_zero = info.num_non_zero;
@@ -108,13 +127,13 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
     /// Construct the linear combinations that are checked by the AHP.
     #[allow(non_snake_case)]
-    pub fn construct_linear_combinations<C, E>(
+    pub fn construct_linear_combinations<E>(
         public_input: &[F],
         evals: &E,
-        state: &verifier::VerifierState<F, C>,
+        state: &verifier::VerifierState<F>,
+        with_vanishing: bool,
     ) -> Result<Vec<LinearCombination<F>>, Error>
     where
-        C: ark_relations::r1cs::ConstraintSynthesizer<F>,
         E: EvaluationsProvider<F>,
     {
         let domain_h = state.domain_h;
@@ -176,6 +195,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
                 (-beta * g_1_at_beta, LCTerm::One),
             ],
         );
+
         debug_assert!(evals.get_lc_eval(&outer_sumcheck, beta)?.is_zero());
 
         linear_combinations.push(z_b);
@@ -250,6 +270,25 @@ impl<F: PrimeField> AHPForR1CS<F> {
         linear_combinations.push(c_denom);
         linear_combinations.push(inner_sumcheck);
 
+        if with_vanishing {
+            let vanishing_poly_h_alpha = LinearCombination::new(
+                "vanishing_poly_h_alpha",
+                vec![(F::one(), "vanishing_poly_h")],
+            );
+            let vanishing_poly_h_beta = LinearCombination::new(
+                "vanishing_poly_h_beta",
+                vec![(F::one(), "vanishing_poly_h")],
+            );
+            let vanishing_poly_k_gamma = LinearCombination::new(
+                "vanishing_poly_k_gamma",
+                vec![(F::one(), "vanishing_poly_k")],
+            );
+
+            linear_combinations.push(vanishing_poly_h_alpha);
+            linear_combinations.push(vanishing_poly_h_beta);
+            linear_combinations.push(vanishing_poly_k_gamma);
+        }
+
         linear_combinations.sort_by(|a, b| a.label.cmp(&b.label));
         Ok(linear_combinations)
     }
@@ -273,7 +312,7 @@ impl<'a, F: Field> EvaluationsProvider<F> for ark_poly_commit::Evaluations<'a, F
     }
 }
 
-impl<'a, F: Field, T: Borrow<LabeledPolynomial<'a, F>>> EvaluationsProvider<F> for Vec<T> {
+impl<F: Field, T: Borrow<LabeledPolynomial<F>>> EvaluationsProvider<F> for Vec<T> {
     fn get_lc_eval(&self, lc: &LinearCombination<F>, point: F) -> Result<F, Error> {
         let mut eval = F::zero();
         for (coeff, term) in lc.iter() {
@@ -364,8 +403,8 @@ impl<F: PrimeField> UnnormalizedBivariateLagrangePoly<F> for GeneralEvaluationDo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ark_bls12_381::Fr;
-    use ark_ff::{One, UniformRand, Zero};
+    use algebra::bls12_381::fr::Fr;
+    use algebra::{One, UniformRand, Zero};
     use ark_poly::{DenseOrSparsePolynomial, DensePolynomial};
 
     #[test]
@@ -383,7 +422,7 @@ mod tests {
 
     #[test]
     fn domain_unnormalized_bivariate_lagrange_poly_diff_inputs() {
-        let rng = &mut ark_ff::test_rng();
+        let rng = &mut algebra::test_rng();
         for domain_size in 1..10 {
             let domain = GeneralEvaluationDomain::<Fr>::new(1 << domain_size).unwrap();
             let x = Fr::rand(rng);
@@ -398,7 +437,7 @@ mod tests {
 
     #[test]
     fn test_summation() {
-        let rng = &mut ark_ff::test_rng();
+        let rng = &mut algebra::test_rng();
         let size = 1 << 4;
         let domain = GeneralEvaluationDomain::<Fr>::new(1 << 4).unwrap();
         let size_as_fe = domain.size_as_field_element();
