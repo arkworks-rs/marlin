@@ -1,5 +1,5 @@
 use crate::{constraints::polynomial::AlgebraForAHP, PrimeField, SynthesisError};
-use ark_ff::{Field, batch_inversion};
+use ark_ff::{batch_inversion, Field};
 use ark_nonnative_field::NonNativeFieldVar;
 use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, fields::FieldVar, R1CSVar};
 

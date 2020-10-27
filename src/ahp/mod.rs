@@ -1,10 +1,10 @@
 use crate::{String, ToString, Vec};
 use ark_ff::{Field, PrimeField};
-use core::{borrow::Borrow, marker::PhantomData};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
-use ark_std::cfg_iter_mut;
 use ark_poly_commit::{LCTerm, LabeledPolynomial, LinearCombination};
 use ark_relations::r1cs::SynthesisError;
+use ark_std::cfg_iter_mut;
+use core::{borrow::Borrow, marker::PhantomData};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;

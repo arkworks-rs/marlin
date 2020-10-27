@@ -6,10 +6,10 @@ use crate::ahp::{
 };
 use crate::Vec;
 use ark_ff::PrimeField;
-use derivative::Derivative;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::LabeledPolynomial;
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError, SynthesisMode};
+use derivative::Derivative;
 
 use crate::ahp::constraint_systems::{
     balance_matrices, make_matrices_square_for_indexer, num_non_zero,

@@ -1,6 +1,6 @@
 use ark_ff::Field;
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 use ark_relations::lc;
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 
 #[derive(Copy, Clone)]
 struct Circuit<F: Field> {
@@ -45,9 +45,9 @@ mod marlin {
         bls12_381::{Fq, Fr},
         Bls12_381,
     };
+    use ark_poly_commit::marlin_pc::MarlinKZG10;
     use blake2::Blake2s;
     use core::ops::MulAssign;
-    use ark_poly_commit::marlin_pc::MarlinKZG10;
 
     type MultiPC = MarlinKZG10<Bls12_381>;
     type MarlinInst =
@@ -135,8 +135,8 @@ mod marlin_recursion {
     use algebra::{mnt4_298::Fq, mnt4_298::Fr, MNT4_298};
     use algebra::{UniformRand, MNT6_298};
     use ark_ec::CycleEngine;
-    use core::ops::MulAssign;
     use ark_poly_commit::marlin_pc::MarlinKZG10;
+    use core::ops::MulAssign;
 
     type MultiPC = MarlinKZG10<MNT4_298>;
     type MarlinInst = Marlin<
@@ -235,12 +235,12 @@ mod fiat_shamir {
     };
     use algebra::mnt4_298::{Fq, Fr};
     use ark_ff::{PrimeField, UniformRand};
-    use blake2::Blake2s;
     use ark_nonnative_field::NonNativeFieldVar;
-    use ark_relations::r1cs::{ConstraintSystem, ConstraintSystemRef};
     use ark_r1cs_std::alloc::AllocVar;
     use ark_r1cs_std::bits::uint8::UInt8;
     use ark_r1cs_std::R1CSVar;
+    use ark_relations::r1cs::{ConstraintSystem, ConstraintSystemRef};
+    use blake2::Blake2s;
 
     const NUM_ABSORBED_RAND_FIELD_ELEMS: usize = 10;
     const NUM_ABSORBED_RAND_BYTE_ELEMS: usize = 10;

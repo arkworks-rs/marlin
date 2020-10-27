@@ -19,12 +19,12 @@
 extern crate bench_utils;
 
 use ark_ff::{to_bytes, PrimeField, ToConstraintField};
-use core::marker::PhantomData;
 use ark_poly_commit::Evaluations;
+use ark_poly_commit::LabeledPolynomial;
 use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
 use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError};
+use core::marker::PhantomData;
 use rand_core::RngCore;
-use ark_poly_commit::LabeledPolynomial;
 
 #[cfg(not(feature = "std"))]
 #[macro_use]

@@ -1,13 +1,13 @@
 use crate::ahp::indexer::*;
 use crate::ahp::prover::ProverMsg;
 use crate::{PhantomData, Vec};
-use ark_relations::r1cs::SynthesisError;
 use ark_ff::PrimeField;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::{
     data_structures::{PCPreparedCommitment, PCPreparedVerifierKey},
     BatchLCProof, PolynomialCommitment,
 };
+use ark_relations::r1cs::SynthesisError;
 
 /* ************************************************************************* */
 /* ************************************************************************* */

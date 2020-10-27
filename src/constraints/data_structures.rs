@@ -5,17 +5,18 @@ use crate::{
     fiat_shamir::{constraints::FiatShamirRngVar, FiatShamirRng},
     BTreeMap, PhantomData, PrimeField, SynthesisError,
 };
-use core::borrow::Borrow;
 use ark_ff::{to_bytes, ToConstraintField};
-use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_nonnative_field::NonNativeFieldVar;
+use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::{PCCheckVar, PolynomialCommitment, PrepareVar};
-use ark_relations::r1cs::{ConstraintSystemRef, Namespace};
 use ark_r1cs_std::{
-    alloc::{AllocationMode, AllocVar},
-    uint8::UInt8, fields::fp::FpVar,
+    alloc::{AllocVar, AllocationMode},
+    fields::fp::FpVar,
+    uint8::UInt8,
     R1CSVar, ToBytesGadget, ToConstraintFieldGadget,
 };
+use ark_relations::r1cs::{ConstraintSystemRef, Namespace};
+use core::borrow::Borrow;
 
 pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F>>::UniversalParams;
 
