@@ -13,9 +13,10 @@ use ark_poly_commit::{
     EvaluationsVar, LCTerm, LinearCombinationVar, PCCheckVar, PolynomialCommitment, PrepareVar,
     QuerySetVar,
 };
-use ark_relations::r1cs::{BTreeSet, ConstraintSystemRef};
+use ark_relations::r1cs::ConstraintSystemRef;
+use ark_std::collections::BTreeSet;
 use ark_r1cs_std::{
-    alloc::AllocVar, bits::boolean::Boolean, eq::EqGadget, fields::{FpVar, FieldVar}, ToBitsGadget,
+    alloc::AllocVar, bits::boolean::Boolean, eq::EqGadget, fields::{fp::FpVar, FieldVar}, ToBitsGadget,
     ToConstraintFieldGadget,
 };
 

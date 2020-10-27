@@ -34,9 +34,9 @@ crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives" }
 
 ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std" }
 
-ark-nonnative-field = { git = "ssh://git@github.com/arkworks-rs/nonnative.git" }
+ark-nonnative-field = { git = "https://github.com/arkworks-rs/nonnative" }
 
-ark-poly-commit = { git = "https://github.com/scipr-lab/poly-commit", branch = "randomness-changes" }
+ark-poly-commit = { git = "https://github.com/scipr-lab/poly-commit", branch = "constraints" }
 
 ark-snark = { git = "https://github.com/arkworks-rs/snark" }
 

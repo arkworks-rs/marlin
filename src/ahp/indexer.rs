@@ -6,10 +6,10 @@ use crate::ahp::{
 };
 use crate::Vec;
 use ark_ff::PrimeField;
+use derivative::Derivative;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::LabeledPolynomial;
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError, SynthesisMode};
-use derivative::Derivative;
 
 use crate::ahp::constraint_systems::{
     balance_matrices, make_matrices_square_for_indexer, num_non_zero,
@@ -21,7 +21,7 @@ use core::marker::PhantomData;
 /// entries in any of the constraint matrices.
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Copy(bound = ""))]
-pub struct IndexInfo<F, C> {
+pub struct IndexInfo<F> {
     /// The total number of variables in the constraint system.
     pub num_variables: usize,
     /// The number of constraints.
@@ -30,12 +30,10 @@ pub struct IndexInfo<F, C> {
     pub num_non_zero: usize,
 
     #[doc(hidden)]
-    f: PhantomData<F>,
-    #[doc(hidden)]
-    cs: PhantomData<fn() -> C>,
+    pub f: PhantomData<F>,
 }
 
-impl<F: PrimeField, C: ConstraintSynthesizer<F>> ark_ff::ToBytes for IndexInfo<F, C> {
+impl<F: PrimeField> ark_ff::ToBytes for IndexInfo<F> {
     fn write<W: ark_std::io::Write>(&self, mut w: W) -> ark_std::io::Result<()> {
         (self.num_variables as u64).write(&mut w)?;
         (self.num_constraints as u64).write(&mut w)?;
@@ -43,7 +41,7 @@ impl<F: PrimeField, C: ConstraintSynthesizer<F>> ark_ff::ToBytes for IndexInfo<F
     }
 }
 
-impl<F: PrimeField, C> IndexInfo<F, C> {
+impl<F: PrimeField> IndexInfo<F> {
     /// The maximum degree of polynomial required to represent this index in the
     /// the AHP.
     pub fn max_degree(&self) -> usize {
@@ -64,9 +62,9 @@ pub type Matrix<F> = Vec<Vec<(F, usize)>>;
 /// 2) `{a,b,c}` are the matrices defining the R1CS instance
 /// 3) `{a,b,c}_star_arith` are structs containing information about A^*, B^*, and C^*,
 /// which are matrices defined as `M^*(i, j) = M(j, i) * u_H(j, j)`.
-pub struct Index<'a, F: PrimeField, C> {
+pub struct Index<F: PrimeField> {
     /// Information about the index.
-    pub index_info: IndexInfo<F, C>,
+    pub index_info: IndexInfo<F>,
 
     /// The A matrix for the R1CS instance
     pub a: Matrix<F>,
@@ -76,22 +74,22 @@ pub struct Index<'a, F: PrimeField, C> {
     pub c: Matrix<F>,
 
     /// Arithmetization of the A* matrix.
-    pub a_star_arith: MatrixArithmetization<'a, F>,
+    pub a_star_arith: MatrixArithmetization<F>,
     /// Arithmetization of the B* matrix.
-    pub b_star_arith: MatrixArithmetization<'a, F>,
+    pub b_star_arith: MatrixArithmetization<F>,
     /// Arithmetization of the C* matrix.
-    pub c_star_arith: MatrixArithmetization<'a, F>,
+    pub c_star_arith: MatrixArithmetization<F>,
 }
 
-impl<'a, F: PrimeField, C: ConstraintSynthesizer<F>> Index<'a, F, C> {
+impl<'a, F: PrimeField> Index<F> {
     /// The maximum degree required to represent polynomials of this index.
     pub fn max_degree(&self) -> usize {
         self.index_info.max_degree()
     }
 
     /// Iterate over the indexed polynomials.
-    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<'a, F>> {
-        ark_std::vec![
+    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
+        vec![
             &self.a_star_arith.row,
             &self.a_star_arith.col,
             &self.a_star_arith.val,
@@ -111,7 +109,7 @@ impl<'a, F: PrimeField, C: ConstraintSynthesizer<F>> Index<'a, F, C> {
 
 impl<F: PrimeField> AHPForR1CS<F> {
     /// Generate the index for this constraint system.
-    pub fn index<'a, C: ConstraintSynthesizer<F>>(c: C) -> Result<Index<'a, F, C>, Error> {
+    pub fn index<'a, C: ConstraintSynthesizer<F>>(c: C) -> Result<Index<F>, Error> {
         let index_time = start_timer!(|| "AHP::Index");
 
         let constraint_time = start_timer!(|| "Generating constraints");
@@ -121,10 +119,10 @@ impl<F: PrimeField> AHPForR1CS<F> {
         end_timer!(constraint_time);
 
         let padding_time = start_timer!(|| "Padding matrices to make them square");
-        make_matrices_square_for_indexer(ics.clone());
         end_timer!(padding_time);
         let matrix_processing_time = start_timer!(|| "Processing matrices");
-        ics.inline_all_lcs();
+        ics.outline_lcs();
+        make_matrices_square_for_indexer(ics.clone());
         let matrices = ics.to_matrices().expect("should not be `None`");
         let num_non_zero_val = num_non_zero::<F>(&matrices);
         let (mut a, mut b, mut c) = (matrices.a, matrices.b, matrices.c);
@@ -160,7 +158,6 @@ impl<F: PrimeField> AHPForR1CS<F> {
             num_non_zero,
 
             f: PhantomData,
-            cs: PhantomData,
         };
 
         let domain_h = GeneralEvaluationDomain::new(num_constraints)

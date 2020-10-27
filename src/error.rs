@@ -1,12 +1,15 @@
 use crate::ahp::Error as AHPError;
+use ark_relations::r1cs::SynthesisError;
 
 /// A `enum` specifying the possible failure modes of the `SNARK`.
 #[derive(Debug)]
 pub enum Error<E> {
     /// The index is too large for the universal public parameters.
-    IndexTooLarge,
+    IndexTooLarge(usize),
     /// There was an error in the underlying holographic IOP.
     AHPError(AHPError),
+    /// There was a synthesis error.
+    R1CSError(SynthesisError),
     /// There was an error in the underlying polynomial commitment.
     PolynomialCommitmentError(E),
 }
@@ -14,6 +17,12 @@ pub enum Error<E> {
 impl<E> From<AHPError> for Error<E> {
     fn from(err: AHPError) -> Self {
         Error::AHPError(err)
+    }
+}
+
+impl<E> From<SynthesisError> for Error<E> {
+    fn from(err: SynthesisError) -> Self {
+        Error::R1CSError(err)
     }
 }
 

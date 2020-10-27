@@ -3,15 +3,19 @@ use crate::{
     constraints::verifier::Marlin as MarlinVerifierVar,
     data_structures::{IndexVerifierKey, PreparedIndexVerifierKey, Proof},
     fiat_shamir::{constraints::FiatShamirRngVar, FiatShamirRng},
-    AllocVar, BTreeMap, Borrow, PhantomData, PrimeField, SynthesisError, ToBytesGadget,
-    UInt8,
+    BTreeMap, PhantomData, PrimeField, SynthesisError,
 };
+use core::borrow::Borrow;
 use ark_ff::{to_bytes, ToConstraintField};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
-use nonnative::NonNativeFieldVar;
+use ark_nonnative_field::NonNativeFieldVar;
 use ark_poly_commit::{PCCheckVar, PolynomialCommitment, PrepareVar};
 use ark_relations::r1cs::{ConstraintSystemRef, Namespace};
-use ark_r1cs_std::{alloc::AllocationMode, R1CSVar, ToConstraintFieldGadget, fields::FpVar};
+use ark_r1cs_std::{
+    alloc::{AllocationMode, AllocVar},
+    uint8::UInt8, fields::fp::FpVar,
+    R1CSVar, ToBytesGadget, ToConstraintFieldGadget,
+};
 
 pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F>>::UniversalParams;
 
