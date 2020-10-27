@@ -4,13 +4,12 @@ use crate::{
         data_structures::{IndexVerifierKeyVar, PreparedIndexVerifierKeyVar, ProofVar},
     },
     fiat_shamir::{constraints::FiatShamirRngVar, FiatShamirRng},
-    Error, FieldVar, PhantomData, PrimeField, Vec,
+    Error, PhantomData, PrimeField, Vec,
 };
-use nonnative::NonNativeFieldVar;
+use ark_nonnative_field::NonNativeFieldVar;
 use ark_poly_commit::{PCCheckVar, PolynomialCommitment};
-use r1cs_core::ConstraintSystemRef;
-use r1cs_std::bits::boolean::Boolean;
-use r1cs_std::ToConstraintFieldGadget;
+use ark_relations::r1cs::ConstraintSystemRef;
+use ark_r1cs_std::{bits::boolean::Boolean, ToConstraintFieldGadget, fields::FieldVar};
 
 pub struct Marlin<
     F: PrimeField,
@@ -77,7 +76,7 @@ where
         }
 
         let lc = AHPForR1CS::<F, CF, PC, PCG>::verifier_decision(
-            r1cs_core::ns!(cs, "ahp").cs(),
+            ark_relations::ns!(cs, "ahp").cs(),
             &formatted_public_input,
             &proof.evaluations,
             verifier_state.clone(),
@@ -115,7 +114,7 @@ where
         cs.current_density();
 
         Ok(PCG::prepared_check_combinations(
-            r1cs_core::ns!(cs, "pc_check").cs(),
+            ark_relations::ns!(cs, "pc_check").cs(),
             &index_pvk.prepared_verifier_key,
             &lc,
             &comm,

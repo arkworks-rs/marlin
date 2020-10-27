@@ -6,16 +6,16 @@ use crate::{
         polynomial::AlgebraForAHP,
     },
     fiat_shamir::{constraints::FiatShamirRngVar, FiatShamirRng},
-    BTreeMap, FpVar, PhantomData, PrimeField,
+    BTreeMap, PhantomData, PrimeField,
 };
-use nonnative::NonNativeFieldVar;
+use ark_nonnative_field::NonNativeFieldVar;
 use ark_poly_commit::{
     EvaluationsVar, LCTerm, LinearCombinationVar, PCCheckVar, PolynomialCommitment, PrepareVar,
     QuerySetVar,
 };
-use r1cs_core::{BTreeSet, ConstraintSystemRef};
-use r1cs_std::{
-    alloc::AllocVar, bits::boolean::Boolean, eq::EqGadget, fields::FieldVar, ToBitsGadget,
+use ark_relations::r1cs::{BTreeSet, ConstraintSystemRef};
+use ark_r1cs_std::{
+    alloc::AllocVar, bits::boolean::Boolean, eq::EqGadget, fields::{FpVar, FieldVar}, ToBitsGadget,
     ToConstraintFieldGadget,
 };
 
@@ -381,7 +381,7 @@ where
         let v_h_at_alpha_beta = v_h_at_alpha * v_h_at_beta;
 
         let domain_k_size_gadget =
-            NonNativeFieldVar::<F, CF>::new_witness(r1cs_core::ns!(cs, "domain_k"), || {
+            NonNativeFieldVar::<F, CF>::new_witness(ark_relations::ns!(cs, "domain_k"), || {
                 Ok(F::from(domain_k_size as u128))
             })?;
         let inv_domain_k_size_gadget = domain_k_size_gadget.inverse()?;

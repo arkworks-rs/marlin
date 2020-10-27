@@ -3,15 +3,15 @@ use crate::{
     constraints::verifier::Marlin as MarlinVerifierVar,
     data_structures::{IndexVerifierKey, PreparedIndexVerifierKey, Proof},
     fiat_shamir::{constraints::FiatShamirRngVar, FiatShamirRng},
-    AllocVar, BTreeMap, Borrow, FpVar, PhantomData, PrimeField, SynthesisError, ToBytesGadget,
+    AllocVar, BTreeMap, Borrow, PhantomData, PrimeField, SynthesisError, ToBytesGadget,
     UInt8,
 };
-use algebra_core::{to_bytes, ToConstraintField};
-use ark_ff::{EvaluationDomain, GeneralEvaluationDomain};
+use ark_ff::{to_bytes, ToConstraintField};
+use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use nonnative::NonNativeFieldVar;
 use ark_poly_commit::{PCCheckVar, PolynomialCommitment, PrepareVar};
-use r1cs_core::{ConstraintSystemRef, Namespace};
-use r1cs_std::{alloc::AllocationMode, R1CSVar, ToConstraintFieldGadget};
+use ark_relations::r1cs::{ConstraintSystemRef, Namespace};
+use ark_r1cs_std::{alloc::AllocationMode, R1CSVar, ToConstraintFieldGadget, fields::FpVar};
 
 pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F>>::UniversalParams;
 
@@ -49,14 +49,14 @@ impl<F: PrimeField, CF: PrimeField, PC: PolynomialCommitment<F>, PCG: PCCheckVar
         let mut index_comms = Vec::<PCG::CommitmentVar>::new();
         for index_comm in ivk.index_comms.iter() {
             index_comms.push(PCG::CommitmentVar::new_variable(
-                r1cs_core::ns!(cs, "index_comm"),
+                ark_relations::ns!(cs, "index_comm"),
                 || Ok(index_comm),
                 mode,
             )?);
         }
 
         let verifier_key = PCG::VerifierKeyVar::new_variable(
-            r1cs_core::ns!(cs, "verifier_key"),
+            ark_relations::ns!(cs, "verifier_key"),
             || Ok(&ivk.verifier_key),
             mode,
         )?;
@@ -67,12 +67,12 @@ impl<F: PrimeField, CF: PrimeField, PC: PolynomialCommitment<F>, PCG: PCCheckVar
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
         let domain_h_size_gadget = FpVar::<CF>::new_variable(
-            r1cs_core::ns!(cs, "domain_h_size"),
+            ark_relations::ns!(cs, "domain_h_size"),
             || Ok(CF::from(domain_h.size() as u128)),
             mode,
         )?;
         let domain_k_size_gadget = FpVar::<CF>::new_variable(
-            r1cs_core::ns!(cs, "domain_k_size"),
+            ark_relations::ns!(cs, "domain_k_size"),
             || Ok(CF::from(domain_k.size() as u128)),
             mode,
         )?;
@@ -205,7 +205,7 @@ where
                 );
             });
             vk_hash_rng.absorb_native_field_elements(&vk_elems);
-            FpVar::<CF>::new_witness(r1cs_core::ns!(cs, "alloc#vk_hash"), || {
+            FpVar::<CF>::new_witness(ark_relations::ns!(cs, "alloc#vk_hash"), || {
                 Ok(vk_hash_rng.squeeze_native_field_elements(1)[0].clone())
             })
             .unwrap()
@@ -268,14 +268,14 @@ where
         let mut prepared_index_comms = Vec::<PCG::PreparedCommitmentVar>::new();
         for index_comm in obj.prepared_index_comms.iter() {
             prepared_index_comms.push(PCG::PreparedCommitmentVar::new_variable(
-                r1cs_core::ns!(cs, "index_comm"),
+                ark_relations::ns!(cs, "index_comm"),
                 || Ok(index_comm),
                 mode,
             )?);
         }
 
         let prepared_verifier_key = PCG::PreparedVerifierKeyVar::new_variable(
-            r1cs_core::ns!(cs, "pvk"),
+            ark_relations::ns!(cs, "pvk"),
             || Ok(&obj.prepared_verifier_key),
             mode,
         )?;
@@ -290,7 +290,7 @@ where
 
             vk_hash_rng.absorb_native_field_elements(&vk_elems);
             FpVar::<CF>::new_variable(
-                r1cs_core::ns!(cs, "alloc#vk_hash"),
+                ark_relations::ns!(cs, "alloc#vk_hash"),
                 || Ok(vk_hash_rng.squeeze_native_field_elements(1)[0].clone()),
                 mode,
             )
@@ -308,12 +308,12 @@ where
         };
 
         let domain_h_size_gadget = FpVar::<CF>::new_variable(
-            r1cs_core::ns!(cs, "domain_h_size"),
+            ark_relations::ns!(cs, "domain_h_size"),
             || Ok(CF::from(obj.domain_h_size as u128)),
             mode,
         )?;
         let domain_k_size_gadget = FpVar::<CF>::new_variable(
-            r1cs_core::ns!(cs, "domain_k_size"),
+            ark_relations::ns!(cs, "domain_k_size"),
             || Ok(CF::from(obj.domain_k_size as u128)),
             mode,
         )?;
@@ -398,7 +398,7 @@ where
                 lst.iter()
                     .map(|comm| {
                         PCG::CommitmentVar::new_variable(
-                            r1cs_core::ns!(cs, "alloc#commitment"),
+                            ark_relations::ns!(cs, "alloc#commitment"),
                             || Ok(comm),
                             mode,
                         )
@@ -412,7 +412,7 @@ where
             .iter()
             .map(|eval| {
                 NonNativeFieldVar::new_variable(
-                    r1cs_core::ns!(cs, "alloc#evaluation"),
+                    ark_relations::ns!(cs, "alloc#evaluation"),
                     || Ok(eval),
                     mode,
                 )
@@ -429,7 +429,7 @@ where
                         .iter()
                         .map(|elem| {
                             NonNativeFieldVar::new_variable(
-                                r1cs_core::ns!(cs, "alloc#prover message"),
+                                ark_relations::ns!(cs, "alloc#prover message"),
                                 || Ok(elem),
                                 mode,
                             )
@@ -443,7 +443,7 @@ where
             .collect();
 
         let pc_batch_proof = PCG::BatchLCProofVar::new_variable(
-            r1cs_core::ns!(cs, "alloc#proof"),
+            ark_relations::ns!(cs, "alloc#proof"),
             || Ok(pc_proof),
             mode,
         )

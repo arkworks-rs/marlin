@@ -1,8 +1,8 @@
-use algebra_core::{BigInteger, FpParameters, PrimeField, ToConstraintField};
+use ark_ff::{BigInteger, FpParameters, PrimeField, ToConstraintField};
 use core::marker::PhantomData;
 use digest::Digest;
-use nonnative::params::gen_params;
-use nonnative::AllocatedNonNativeFieldVar;
+use ark_nonnative_field::params::gen_params;
+use ark_nonnative_field::AllocatedNonNativeFieldVar;
 use rand_chacha::ChaChaRng;
 use rand_core::SeedableRng;
 use rand_core::{Error, RngCore};

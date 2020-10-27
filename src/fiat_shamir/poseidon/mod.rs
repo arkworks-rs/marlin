@@ -6,7 +6,7 @@
  */
 
 use crate::fiat_shamir::AlgebraicSponge;
-use algebra::fields::PrimeField;
+use ark_ff::PrimeField;
 
 /// constraints for Poseidon
 pub mod constraints;

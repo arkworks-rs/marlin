@@ -7,10 +7,10 @@
 
 use crate::fiat_shamir::constraints::AlgebraicSpongeVar;
 use crate::fiat_shamir::poseidon::{PoseidonSponge, PoseidonSpongeState};
-use algebra::fields::PrimeField;
-use r1cs_core::{ConstraintSystemRef, SynthesisError};
-use r1cs_std::fields::fp::FpVar;
-use r1cs_std::prelude::*;
+use ark_ff::PrimeField;
+use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
+use ark_r1cs_std::fields::fp::FpVar;
+use ark_r1cs_std::prelude::*;
 
 #[derive(Clone)]
 /// the gadget for Poseidon sponge
@@ -247,7 +247,7 @@ impl<F: PrimeField> AlgebraicSpongeVar<F, PoseidonSponge<F>> for PoseidonSpongeV
 
         for state_elem in pfs.state.iter() {
             state_gadgets.push(
-                FpVar::<F>::new_constant(r1cs_core::ns!(cs, "alloc_elems"), state_elem.clone())
+                FpVar::<F>::new_constant(ark_relations::ns!(cs, "alloc_elems"), state_elem.clone())
                     .unwrap(),
             );
         }

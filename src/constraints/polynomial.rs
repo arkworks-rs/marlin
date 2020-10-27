@@ -1,6 +1,7 @@
-use crate::{PhantomData, PrimeField, SynthesisError};
-use nonnative::NonNativeFieldVar;
-use r1cs_std::fields::FieldVar;
+use crate::{PhantomData, PrimeField};
+use ark_nonnative_field::NonNativeFieldVar;
+use ark_r1cs_std::fields::FieldVar;
+use ark_relations::r1cs::SynthesisError;
 
 pub struct AlgebraForAHP<F: PrimeField, CF: PrimeField> {
     field: PhantomData<F>,
