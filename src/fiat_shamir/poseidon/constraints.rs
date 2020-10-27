@@ -8,9 +8,9 @@
 use crate::fiat_shamir::constraints::AlgebraicSpongeVar;
 use crate::fiat_shamir::poseidon::{PoseidonSponge, PoseidonSpongeState};
 use ark_ff::PrimeField;
-use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
 use ark_r1cs_std::fields::fp::FpVar;
 use ark_r1cs_std::prelude::*;
+use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
 
 #[derive(Clone)]
 /// the gadget for Poseidon sponge

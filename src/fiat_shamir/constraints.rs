@@ -1,11 +1,8 @@
 use crate::fiat_shamir::{AlgebraicSponge, FiatShamirAlgebraicSpongeRng, FiatShamirRng};
 use crate::overhead;
 use ark_ff::{BigInteger, PrimeField};
-use core::marker::PhantomData;
 use ark_nonnative_field::params::get_params;
 use ark_nonnative_field::{AllocatedNonNativeFieldVar, NonNativeFieldVar};
-use ark_relations::r1cs::{ConstraintSystemRef, LinearCombination, SynthesisError};
-use ark_relations::lc;
 use ark_r1cs_std::{
     alloc::AllocVar,
     bits::{uint8::UInt8, ToBitsGadget},
@@ -14,6 +11,9 @@ use ark_r1cs_std::{
     fields::fp::FpVar,
     R1CSVar,
 };
+use ark_relations::lc;
+use ark_relations::r1cs::{ConstraintSystemRef, LinearCombination, SynthesisError};
+use core::marker::PhantomData;
 
 /// Vars for a RNG for Fiat-Shamir purposes
 pub trait FiatShamirRngVar<F: PrimeField, CF: PrimeField, PFS: FiatShamirRng<F, CF>>:
@@ -381,7 +381,8 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
                 lc = &lc + bit.lc() * adjustment_factor.clone();
             }
 
-            let gadget = AllocatedFp::new_witness(ark_relations::ns!(self.cs, "gadget"), || Ok(elem))?;
+            let gadget =
+                AllocatedFp::new_witness(ark_relations::ns!(self.cs, "gadget"), || Ok(elem))?;
             lc = lc.clone() - (CF::one(), gadget.variable);
 
             gadgets.push(FpVar::from(gadget));

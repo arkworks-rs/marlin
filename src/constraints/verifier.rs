@@ -8,9 +8,9 @@ use crate::{
 };
 use ark_nonnative_field::NonNativeFieldVar;
 use ark_poly_commit::{PCCheckVar, PolynomialCommitment};
-use ark_relations::r1cs::ConstraintSystemRef;
-use ark_r1cs_std::{bits::boolean::Boolean, fields::FieldVar};
 use ark_r1cs_std::ToConstraintFieldGadget;
+use ark_r1cs_std::{bits::boolean::Boolean, fields::FieldVar};
+use ark_relations::r1cs::ConstraintSystemRef;
 
 pub struct Marlin<
     F: PrimeField,

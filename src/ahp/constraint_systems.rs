@@ -4,14 +4,12 @@ use crate::ahp::indexer::Matrix;
 use crate::ahp::*;
 use crate::{BTreeMap, ToString};
 use ark_ff::{Field, PrimeField};
-use derivative::Derivative;
-use ark_poly::{
-    EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain,
-};
-use ark_std::cfg_iter_mut;
+use ark_poly::{EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain};
 use ark_poly_commit::LabeledPolynomial;
-use ark_relations::r1cs::{ConstraintMatrices, ConstraintSystemRef};
 use ark_relations::lc;
+use ark_relations::r1cs::{ConstraintMatrices, ConstraintSystemRef};
+use ark_std::cfg_iter_mut;
+use derivative::Derivative;
 
 /* ************************************************************************* */
 /* ************************************************************************* */

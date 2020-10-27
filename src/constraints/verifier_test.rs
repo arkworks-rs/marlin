@@ -21,14 +21,16 @@ mod tests {
         CycleEngine,
     };
     use ark_ff::UniformRand;
-    use core::ops::MulAssign;
     use ark_nonnative_field::NonNativeFieldVar;
-    use ark_poly_commit::marlin_pc::{BatchLCProofVar, CommitmentVar, MarlinKZG10, MarlinKZG10Gadget};
-    use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
-    use ark_relations::lc;
+    use ark_poly_commit::marlin_pc::{
+        BatchLCProofVar, CommitmentVar, MarlinKZG10, MarlinKZG10Gadget,
+    };
     use ark_r1cs_std::bits::boolean::Boolean;
     use ark_r1cs_std::eq::EqGadget;
     use ark_r1cs_std::{alloc::AllocVar, mnt4_298::PairingVar as MNT4PairingVar};
+    use ark_relations::lc;
+    use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
+    use core::ops::MulAssign;
 
     #[derive(Copy, Clone, Debug)]
     struct MNT298Cycle;
