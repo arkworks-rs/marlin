@@ -20,14 +20,15 @@ mod tests {
         mnt6_298::MNT6_298,
         CycleEngine,
     };
-    use algebra_core::UniformRand;
+    use ark_ff::UniformRand;
     use core::ops::MulAssign;
-    use nonnative::NonNativeFieldVar;
+    use ark_nonnative_field::NonNativeFieldVar;
     use ark_poly_commit::marlin_pc::{BatchLCProofVar, CommitmentVar, MarlinKZG10, MarlinKZG10Gadget};
-    use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
-    use r1cs_std::bits::boolean::Boolean;
-    use r1cs_std::eq::EqGadget;
-    use r1cs_std::{alloc::AllocVar, mnt4_298::PairingVar as MNT4PairingVar};
+    use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
+    use ark_relations::lc;
+    use ark_r1cs_std::bits::boolean::Boolean;
+    use ark_r1cs_std::eq::EqGadget;
+    use ark_r1cs_std::{alloc::AllocVar, mnt4_298::PairingVar as MNT4PairingVar};
 
     #[derive(Copy, Clone, Debug)]
     struct MNT298Cycle;
@@ -126,7 +127,7 @@ mod tests {
             verifier_key: index_vk.verifier_key,
         };
         let ivk_gadget: IndexVerifierKeyVar<Fr, Fq, MultiPC, MultiPCVar> =
-            IndexVerifierKeyVar::new_witness(r1cs_core::ns!(cs, "alloc#index vk"), || Ok(ivk))
+            IndexVerifierKeyVar::new_witness(ark_relations::ns!(cs, "alloc#index vk"), || Ok(ivk))
                 .unwrap();
         // END: ivk to ivk_gadget
 
@@ -137,7 +138,7 @@ mod tests {
             .iter()
             .map(|x| {
                 NonNativeFieldVar::new_input(
-                    r1cs_core::ns!(cs.clone(), "alloc#public input"),
+                    ark_relations::ns!(cs.clone(), "alloc#public input"),
                     || Ok(x),
                 )
                 .unwrap()
@@ -160,7 +161,7 @@ mod tests {
                 lst.iter()
                     .map(|comm| {
                         CommitmentVar::new_witness(
-                            r1cs_core::ns!(cs.clone(), "alloc#commitment"),
+                            ark_relations::ns!(cs.clone(), "alloc#commitment"),
                             || Ok(comm),
                         )
                         .unwrap()
@@ -173,7 +174,7 @@ mod tests {
             .iter()
             .map(|eval| {
                 NonNativeFieldVar::new_witness(
-                    r1cs_core::ns!(cs.clone(), "alloc#evaluation"),
+                    ark_relations::ns!(cs.clone(), "alloc#evaluation"),
                     || Ok(eval),
                 )
                 .unwrap()
@@ -189,7 +190,7 @@ mod tests {
                         .iter()
                         .map(|elem| {
                             NonNativeFieldVar::new_witness(
-                                r1cs_core::ns!(cs, "alloc#prover message"),
+                                ark_relations::ns!(cs, "alloc#prover message"),
                                 || Ok(elem),
                             )
                             .unwrap()
@@ -202,7 +203,7 @@ mod tests {
             .collect();
 
         let pc_batch_proof = BatchLCProofVar::<MNT298Cycle, MNT4PairingVar>::new_witness(
-            r1cs_core::ns!(cs, "alloc#proof"),
+            ark_relations::ns!(cs, "alloc#proof"),
             || Ok(pc_proof),
         )
         .unwrap();
@@ -238,7 +239,7 @@ mod tests {
             FiatShamirAlgebraicSpongeRng<Fr, Fq, PoseidonSponge<Fq>>,
             FiatShamirAlgebraicSpongeRngVar<Fr, Fq, PoseidonSponge<Fq>, PoseidonSpongeVar<Fq>>,
         >(
-            r1cs_core::ns!(cs, "verify").cs(),
+            ark_relations::ns!(cs, "verify").cs(),
             &ivk_gadget,
             &public_input_gadget,
             &proof_gadget,

@@ -1,11 +1,12 @@
 use crate::fiat_shamir::{AlgebraicSponge, FiatShamirAlgebraicSpongeRng, FiatShamirRng};
 use crate::overhead;
-use algebra_core::{BigInteger, PrimeField};
+use ark_ff::{BigInteger, PrimeField};
 use core::marker::PhantomData;
-use nonnative::params::get_params;
-use nonnative::{AllocatedNonNativeFieldVar, NonNativeFieldVar};
-use r1cs_core::{lc, ConstraintSystemRef, LinearCombination, SynthesisError};
-use r1cs_std::{
+use ark_nonnative_field::params::get_params;
+use ark_nonnative_field::{AllocatedNonNativeFieldVar, NonNativeFieldVar};
+use ark_relations::r1cs::{ConstraintSystemRef, LinearCombination, SynthesisError};
+use ark_relations::lc;
+use ark_r1cs_std::{
     alloc::AllocVar,
     bits::{uint8::UInt8, ToBitsGadget},
     boolean::Boolean,
@@ -292,7 +293,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
                 let mut limbs = Vec::<AllocatedFp<CF>>::new();
                 for k in 0..params.num_limbs {
                     let gadget =
-                        AllocatedFp::new_witness(r1cs_core::ns!(cs, "alloc"), || Ok(val[k]))
+                        AllocatedFp::new_witness(ark_relations::ns!(cs, "alloc"), || Ok(val[k]))
                             .unwrap();
                     lc[k] = lc[k].clone() - (CF::one(), gadget.variable);
                     cs.enforce_constraint(lc!(), lc!(), lc[k].clone()).unwrap();
@@ -380,7 +381,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
                 lc = &lc + bit.lc() * adjustment_factor.clone();
             }
 
-            let gadget = AllocatedFp::new_witness(r1cs_core::ns!(self.cs, "gadget"), || Ok(elem))?;
+            let gadget = AllocatedFp::new_witness(ark_relations::ns!(self.cs, "gadget"), || Ok(elem))?;
             lc = lc.clone() - (CF::one(), gadget.variable);
 
             gadgets.push(FpVar::from(gadget));

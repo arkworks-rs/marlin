@@ -1,7 +1,7 @@
 use crate::{constraints::polynomial::AlgebraForAHP, Field, PrimeField, SynthesisError};
-use algebra::fields::batch_inversion;
-use nonnative::NonNativeFieldVar;
-use r1cs_std::{alloc::AllocVar, eq::EqGadget, fields::FieldVar, R1CSVar};
+use ark_ff::batch_inversion;
+use ark_nonnative_field::NonNativeFieldVar;
+use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget, fields::FieldVar, R1CSVar};
 
 pub struct LagrangeInterpolator<F: PrimeField> {
     all_domain_elems: Vec<F>,
@@ -158,7 +158,7 @@ impl<F: PrimeField, CF: PrimeField> LagrangeInterpolationVar<F, CF> {
             let add_constant_val: F = -self.lagrange_interpolator.all_domain_elems[i];
 
             let lag_coeff = NonNativeFieldVar::<F, CF>::new_witness(
-                r1cs_core::ns!(cs, "generate lagrange coefficient"),
+                ark_relations::ns!(cs, "generate lagrange coefficient"),
                 || Ok(lagrange_coeffs[i]),
             )?;
             lagrange_coeffs_fg.push(lag_coeff.clone());
