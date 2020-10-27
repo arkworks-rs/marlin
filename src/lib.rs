@@ -52,12 +52,6 @@ pub use error::*;
 mod data_structures;
 pub use data_structures::*;
 
-mod fiat_shamir;
-pub use fiat_shamir::*;
-
-mod constraints;
-pub use constraints::*;
-
 /// Implements an Algebraic Holographic Proof (AHP) for the R1CS indexed relation.
 pub mod ahp;
 pub use ahp::AHPForR1CS;
