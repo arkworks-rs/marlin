@@ -228,14 +228,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     pub fn prover_first_round<'a, 'b, R: RngCore, C: ConstraintSynthesizer<F>>(
         mut state: ProverState<'a, F, C>,
         rng: &mut R,
-    ) -> Result<
-        (
-            ProverMsg<F>,
-            ProverFirstOracles<F>,
-            ProverState<'a, F, C>,
-        ),
-        Error,
-    > {
+    ) -> Result<(ProverMsg<F>, ProverFirstOracles<F>, ProverState<'a, F, C>), Error> {
         let round_time = start_timer!(|| "AHP::Prover::FirstRound");
         let domain_h = state.domain_h;
         let zk_bound = state.zk_bound;
@@ -363,11 +356,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         ver_message: &VerifierFirstMsg<F>,
         mut state: ProverState<'a, F, C>,
         _r: &mut R,
-    ) -> (
-        ProverMsg<F>,
-        ProverSecondOracles<F>,
-        ProverState<'a, F, C>,
-    ) {
+    ) -> (ProverMsg<F>, ProverSecondOracles<F>, ProverState<'a, F, C>) {
         let round_time = start_timer!(|| "AHP::Prover::SecondRound");
 
         let domain_h = state.domain_h;
@@ -481,12 +470,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let oracles = ProverSecondOracles {
             t: LabeledPolynomial::new("t".into(), t_poly, None, None),
-            g_1: LabeledPolynomial::new(
-                "g_1".into(),
-                g_1,
-                Some(domain_h.size() - 2),
-                Some(1),
-            ),
+            g_1: LabeledPolynomial::new("g_1".into(), g_1, Some(domain_h.size() - 2), Some(1)),
             h_1: LabeledPolynomial::new("h_1".into(), h_1, None, None),
         };
 
@@ -642,12 +626,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         assert!(g_2.degree() <= domain_k.size() - 2);
         let oracles = ProverThirdOracles {
-            g_2: LabeledPolynomial::new(
-                "g_2".to_string(),
-                g_2,
-                Some(domain_k.size() - 2),
-                None,
-            ),
+            g_2: LabeledPolynomial::new("g_2".to_string(), g_2, Some(domain_k.size() - 2), None),
             h_2: LabeledPolynomial::new("h_2".to_string(), h_2, None, None),
         };
         end_timer!(round_time);
