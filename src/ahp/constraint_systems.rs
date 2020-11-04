@@ -2,7 +2,7 @@
 
 use crate::ahp::indexer::Matrix;
 use crate::ahp::*;
-use crate::{BTreeMap, ToString};
+use crate::ToString;
 use ark_ff::{Field, PrimeField};
 use ark_poly::{EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain};
 use ark_poly_commit::LabeledPolynomial;
@@ -10,6 +10,7 @@ use ark_relations::lc;
 use ark_relations::r1cs::{ConstraintMatrices, ConstraintSystemRef};
 use ark_std::cfg_iter_mut;
 use derivative::Derivative;
+use hashbrown::HashMap;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -155,7 +156,7 @@ pub(crate) fn arithmetize_matrix<F: PrimeField>(
     let mut val_vec = Vec::new();
 
     let eq_poly_vals_time = start_timer!(|| "Precomputing eq_poly_vals");
-    let eq_poly_vals: BTreeMap<F, F> = output_domain
+    let eq_poly_vals: HashMap<F, F> = output_domain
         .elements()
         .zip(output_domain.batch_eval_unnormalized_bivariate_lagrange_poly_with_same_inputs())
         .collect();

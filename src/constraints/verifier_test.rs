@@ -11,8 +11,8 @@ mod tests {
             constraints::FiatShamirAlgebraicSpongeRngVar, poseidon::constraints::PoseidonSpongeVar,
             poseidon::PoseidonSponge, FiatShamirAlgebraicSpongeRng,
         },
-        BTreeMap, ConstraintSystem, Field, IndexVerifierKey, Marlin as MarlinNative,
-        MarlinRecursiveConfig, PhantomData, Proof,
+        ConstraintSystem, Field, IndexVerifierKey, Marlin as MarlinNative, MarlinRecursiveConfig,
+        PhantomData, Proof,
     };
     use algebra::{
         mnt4_298::MNT4_298,
@@ -31,6 +31,7 @@ mod tests {
     use ark_relations::lc;
     use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
     use core::ops::MulAssign;
+    use hashbrown::HashMap;
 
     #[derive(Copy, Clone, Debug)]
     struct MNT298Cycle;
@@ -210,7 +211,7 @@ mod tests {
         )
         .unwrap();
 
-        let mut evaluation_gadgets = BTreeMap::<String, NonNativeFieldVar<Fr, Fq>>::new();
+        let mut evaluation_gadgets = HashMap::<String, NonNativeFieldVar<Fr, Fq>>::new();
 
         const ALL_POLYNOMIALS: [&'static str; 10] = [
             "a_denom",
