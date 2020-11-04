@@ -6,18 +6,16 @@ use crate::ahp::*;
 
 use crate::ahp::constraint_systems::{make_matrices_square_for_prover, unformat_public_input};
 use crate::{ToString, Vec};
-use algebra_core::{Field, PrimeField};
+use ark_ff::{Field, PrimeField};
+use ark_poly::{EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain};
+use ark_poly_commit::{LabeledPolynomial, Polynomial};
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use ark_std::{cfg_into_iter, cfg_iter, cfg_iter_mut};
 use core::marker::PhantomData;
-use ff_fft::{
-    cfg_into_iter, cfg_iter, cfg_iter_mut, EvaluationDomain, Evaluations as EvaluationsOnDomain,
-    GeneralEvaluationDomain,
-};
-use poly_commit::{LabeledPolynomial, Polynomial};
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use rand_core::RngCore;
 
 /// State for the AHP prover.
-pub struct ProverState<'a, 'b, F: PrimeField, C> {
+pub struct ProverState<'a, F: PrimeField, C> {
     formatted_input_assignment: Vec<F>,
     witness_assignment: Vec<F>,
     /// Az
@@ -27,8 +25,8 @@ pub struct ProverState<'a, 'b, F: PrimeField, C> {
     /// query bound b
     zk_bound: usize,
 
-    w_poly: Option<LabeledPolynomial<'b, F>>,
-    mz_polys: Option<(LabeledPolynomial<'b, F>, LabeledPolynomial<'b, F>)>,
+    w_poly: Option<LabeledPolynomial<F>>,
+    mz_polys: Option<(LabeledPolynomial<F>, LabeledPolynomial<F>)>,
 
     index: &'a Index<'a, F, C>,
 
@@ -36,7 +34,7 @@ pub struct ProverState<'a, 'b, F: PrimeField, C> {
     verifier_first_msg: Option<VerifierFirstMsg<F>>,
 
     /// the blinding polynomial for the first round
-    mask_poly: Option<LabeledPolynomial<'b, F>>,
+    mask_poly: Option<LabeledPolynomial<F>>,
 
     /// domain X, sized for the public input
     domain_x: GeneralEvaluationDomain<F>,
@@ -52,7 +50,7 @@ pub struct ProverState<'a, 'b, F: PrimeField, C> {
     _cs: PhantomData<C>,
 }
 
-impl<'a, 'b, F: PrimeField, C> ProverState<'a, 'b, F, C> {
+impl<'a, 'b, F: PrimeField, C> ProverState<'a, F, C> {
     /// Get the public input.
     pub fn public_input(&self) -> Vec<F> {
         unformat_public_input(&self.formatted_input_assignment)
@@ -68,8 +66,8 @@ pub enum ProverMsg<F: Field> {
     FieldElements(Vec<F>),
 }
 
-impl<F: Field> algebra_core::ToBytes for ProverMsg<F> {
-    fn write<W: algebra_core::io::Write>(&self, w: W) -> algebra_core::io::Result<()> {
+impl<F: Field> ark_ff::ToBytes for ProverMsg<F> {
+    fn write<W: ark_std::io::Write>(&self, w: W) -> ark_std::io::Result<()> {
         match self {
             ProverMsg::EmptyMessage => Ok(()),
             ProverMsg::FieldElements(field_elems) => field_elems.write(w),
@@ -78,52 +76,52 @@ impl<F: Field> algebra_core::ToBytes for ProverMsg<F> {
 }
 
 /// The first set of prover oracles.
-pub struct ProverFirstOracles<'b, F: Field> {
+pub struct ProverFirstOracles<F: Field> {
     /// The LDE of `w`.
-    pub w: LabeledPolynomial<'b, F>,
+    pub w: LabeledPolynomial<F>,
     /// The LDE of `Az`.
-    pub z_a: LabeledPolynomial<'b, F>,
+    pub z_a: LabeledPolynomial<F>,
     /// The LDE of `Bz`.
-    pub z_b: LabeledPolynomial<'b, F>,
+    pub z_b: LabeledPolynomial<F>,
     /// The sum-check hiding polynomial.
-    pub mask_poly: LabeledPolynomial<'b, F>,
+    pub mask_poly: LabeledPolynomial<F>,
 }
 
-impl<'b, F: Field> ProverFirstOracles<'b, F> {
+impl<'b, F: Field> ProverFirstOracles<F> {
     /// Iterate over the polynomials output by the prover in the first round.
-    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<'b, F>> {
+    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
         vec![&self.w, &self.z_a, &self.z_b, &self.mask_poly].into_iter()
     }
 }
 
 /// The second set of prover oracles.
-pub struct ProverSecondOracles<'b, F: Field> {
+pub struct ProverSecondOracles<F: Field> {
     /// The polynomial `t` that is produced in the first round.
-    pub t: LabeledPolynomial<'b, F>,
+    pub t: LabeledPolynomial<F>,
     /// The polynomial `g` resulting from the first sumcheck.
-    pub g_1: LabeledPolynomial<'b, F>,
+    pub g_1: LabeledPolynomial<F>,
     /// The polynomial `h` resulting from the first sumcheck.
-    pub h_1: LabeledPolynomial<'b, F>,
+    pub h_1: LabeledPolynomial<F>,
 }
 
-impl<'b, F: Field> ProverSecondOracles<'b, F> {
+impl<'b, F: Field> ProverSecondOracles<F> {
     /// Iterate over the polynomials output by the prover in the second round.
-    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<'b, F>> {
+    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
         vec![&self.t, &self.g_1, &self.h_1].into_iter()
     }
 }
 
 /// The third set of prover oracles.
-pub struct ProverThirdOracles<'b, F: Field> {
+pub struct ProverThirdOracles<F: Field> {
     /// The polynomial `g` resulting from the second sumcheck.
-    pub g_2: LabeledPolynomial<'b, F>,
+    pub g_2: LabeledPolynomial<F>,
     /// The polynomial `h` resulting from the second sumcheck.
-    pub h_2: LabeledPolynomial<'b, F>,
+    pub h_2: LabeledPolynomial<F>,
 }
 
-impl<'b, F: Field> ProverThirdOracles<'b, F> {
+impl<'b, F: Field> ProverThirdOracles<F> {
     /// Iterate over the polynomials output by the prover in the third round.
-    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<'b, F>> {
+    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
         vec![&self.g_2, &self.h_2].into_iter()
     }
 }
@@ -133,12 +131,12 @@ impl<F: PrimeField> AHPForR1CS<F> {
     pub fn prover_init<'a, 'b, C: ConstraintSynthesizer<F>>(
         index: &'a Index<F, C>,
         c: C,
-    ) -> Result<ProverState<'a, 'b, F, C>, Error> {
+    ) -> Result<ProverState<'a, F, C>, Error> {
         let init_time = start_timer!(|| "AHP::Prover::Init");
 
         let constraint_time = start_timer!(|| "Generating constraints and witnesses");
         let pcs = ConstraintSystem::new_ref();
-        pcs.set_mode(r1cs_core::SynthesisMode::Prove {
+        pcs.set_mode(ark_relations::r1cs::SynthesisMode::Prove {
             construct_matrices: true,
         });
         c.generate_constraints(pcs.clone())?;
@@ -228,16 +226,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
     /// Output the first round message and the next state.
     pub fn prover_first_round<'a, 'b, R: RngCore, C: ConstraintSynthesizer<F>>(
-        mut state: ProverState<'a, 'b, F, C>,
+        mut state: ProverState<'a, F, C>,
         rng: &mut R,
-    ) -> Result<
-        (
-            ProverMsg<F>,
-            ProverFirstOracles<'b, F>,
-            ProverState<'a, 'b, F, C>,
-        ),
-        Error,
-    > {
+    ) -> Result<(ProverMsg<F>, ProverFirstOracles<F>, ProverState<'a, F, C>), Error> {
         let round_time = start_timer!(|| "AHP::Prover::FirstRound");
         let domain_h = state.domain_h;
         let zk_bound = state.zk_bound;
@@ -308,11 +299,11 @@ impl<F: PrimeField> AHPForR1CS<F> {
         assert!(z_b_poly.degree() <= domain_h.size() + zk_bound - 1);
         assert!(mask_poly.degree() <= 3 * domain_h.size() + 2 * zk_bound - 3);
 
-        let w = LabeledPolynomial::new_owned("w".to_string(), w_poly, None, Some(1));
-        let z_a = LabeledPolynomial::new_owned("z_a".to_string(), z_a_poly, None, Some(1));
-        let z_b = LabeledPolynomial::new_owned("z_b".to_string(), z_b_poly, None, Some(1));
+        let w = LabeledPolynomial::new("w".to_string(), w_poly, None, Some(1));
+        let z_a = LabeledPolynomial::new("z_a".to_string(), z_a_poly, None, Some(1));
+        let z_b = LabeledPolynomial::new("z_b".to_string(), z_b_poly, None, Some(1));
         let mask_poly =
-            LabeledPolynomial::new_owned("mask_poly".to_string(), mask_poly.clone(), None, None);
+            LabeledPolynomial::new("mask_poly".to_string(), mask_poly.clone(), None, None);
 
         let oracles = ProverFirstOracles {
             w: w.clone(),
@@ -363,13 +354,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
     /// Output the second round message and the next state.
     pub fn prover_second_round<'a, 'b, R: RngCore, C: ConstraintSynthesizer<F>>(
         ver_message: &VerifierFirstMsg<F>,
-        mut state: ProverState<'a, 'b, F, C>,
+        mut state: ProverState<'a, F, C>,
         _r: &mut R,
-    ) -> (
-        ProverMsg<F>,
-        ProverSecondOracles<'b, F>,
-        ProverState<'a, 'b, F, C>,
-    ) {
+    ) -> (ProverMsg<F>, ProverSecondOracles<F>, ProverState<'a, F, C>) {
         let round_time = start_timer!(|| "AHP::Prover::SecondRound");
 
         let domain_h = state.domain_h;
@@ -482,14 +469,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
         assert!(h_1.degree() <= 2 * domain_h.size() + 2 * zk_bound - 2);
 
         let oracles = ProverSecondOracles {
-            t: LabeledPolynomial::new_owned("t".into(), t_poly, None, None),
-            g_1: LabeledPolynomial::new_owned(
-                "g_1".into(),
-                g_1,
-                Some(domain_h.size() - 2),
-                Some(1),
-            ),
-            h_1: LabeledPolynomial::new_owned("h_1".into(), h_1, None, None),
+            t: LabeledPolynomial::new("t".into(), t_poly, None, None),
+            g_1: LabeledPolynomial::new("g_1".into(), g_1, Some(domain_h.size() - 2), Some(1)),
+            h_1: LabeledPolynomial::new("h_1".into(), h_1, None, None),
         };
 
         state.w_poly = None;
@@ -517,9 +499,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
     /// Output the third round message and the next state.
     pub fn prover_third_round<'a, 'b, R: RngCore, C: ConstraintSynthesizer<F>>(
         ver_message: &VerifierSecondMsg<F>,
-        prover_state: ProverState<'a, 'b, F, C>,
+        prover_state: ProverState<'a, F, C>,
         _r: &mut R,
-    ) -> Result<(ProverMsg<F>, ProverThirdOracles<'b, F>), Error> {
+    ) -> Result<(ProverMsg<F>, ProverThirdOracles<F>), Error> {
         let round_time = start_timer!(|| "AHP::Prover::ThirdRound");
 
         let ProverState {
@@ -561,9 +543,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
             inverses_b.push((beta - b_star.evals_on_K.row[i]) * (alpha - b_star.evals_on_K.col[i]));
             inverses_c.push((beta - c_star.evals_on_K.row[i]) * (alpha - c_star.evals_on_K.col[i]));
         }
-        algebra_core::batch_inversion(&mut inverses_a);
-        algebra_core::batch_inversion(&mut inverses_b);
-        algebra_core::batch_inversion(&mut inverses_c);
+        ark_ff::batch_inversion(&mut inverses_a);
+        ark_ff::batch_inversion(&mut inverses_b);
+        ark_ff::batch_inversion(&mut inverses_c);
 
         for i in 0..domain_k.size() {
             let t = eta_a * a_star.evals_on_K.val[i] * inverses_a[i]
@@ -604,14 +586,19 @@ impl<F: PrimeField> AHPForR1CS<F> {
         end_timer!(denom_eval_time);
 
         let a_evals_time = start_timer!(|| "Computing a evals on B");
-        let a_poly_on_B = cfg_into_iter!(0..domain_b.size())
-            .map(|i| {
-                let t = eta_a * a_star.evals_on_B.val.evals[i] * b_denom[i] * c_denom[i]
-                    + eta_b * b_star.evals_on_B.val.evals[i] * a_denom[i] * c_denom[i]
-                    + eta_c * c_star.evals_on_B.val.evals[i] * a_denom[i] * b_denom[i];
-                v_H_at_beta * v_H_at_alpha * t
-            })
-            .collect();
+        let a_poly_on_B = {
+            let a_star_evals_on_B = &a_star.evals_on_B.val.evals;
+            let b_star_evals_on_B = &b_star.evals_on_B.val.evals;
+            let c_star_evals_on_B = &c_star.evals_on_B.val.evals;
+            cfg_into_iter!(0..domain_b.size())
+                .map(|i| {
+                    let t = eta_a * a_star_evals_on_B[i] * b_denom[i] * c_denom[i]
+                        + eta_b * b_star_evals_on_B[i] * a_denom[i] * c_denom[i]
+                        + eta_c * c_star_evals_on_B[i] * a_denom[i] * b_denom[i];
+                    v_H_at_beta * v_H_at_alpha * t
+                })
+                .collect()
+        };
         end_timer!(a_evals_time);
 
         let a_poly_time = start_timer!(|| "Computing a poly");
@@ -639,13 +626,8 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         assert!(g_2.degree() <= domain_k.size() - 2);
         let oracles = ProverThirdOracles {
-            g_2: LabeledPolynomial::new_owned(
-                "g_2".to_string(),
-                g_2,
-                Some(domain_k.size() - 2),
-                None,
-            ),
-            h_2: LabeledPolynomial::new_owned("h_2".to_string(), h_2, None, None),
+            g_2: LabeledPolynomial::new("g_2".to_string(), g_2, Some(domain_k.size() - 2), None),
+            h_2: LabeledPolynomial::new("h_2".to_string(), h_2, None, None),
         };
         end_timer!(round_time);
 
