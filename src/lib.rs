@@ -32,14 +32,12 @@ extern crate alloc;
 
 #[cfg(not(feature = "std"))]
 use alloc::{
-    collections::BTreeMap,
     string::{String, ToString},
     vec::Vec,
 };
 
 #[cfg(feature = "std")]
 use std::{
-    collections::BTreeMap,
     string::{String, ToString},
     vec::Vec,
 };
@@ -545,7 +543,7 @@ where
             opening_challenges
                 .append(&mut fs_rng.squeeze_128_bits_nonnative_field_elements(num_open_challenges));
 
-            let opening_challenges_f = |i| opening_challenges[i];
+            let opening_challenges_f = |i| opening_challenges[i as usize];
 
             PC::open_combinations_individual_opening_challenges(
                 &index_pk.committer_key,
@@ -730,7 +728,7 @@ where
             opening_challenges
                 .append(&mut fs_rng.squeeze_128_bits_nonnative_field_elements(num_open_challenges));
 
-            let opening_challenges_f = |i| opening_challenges[i];
+            let opening_challenges_f = |i| opening_challenges[i as usize];
 
             PC::check_combinations_individual_opening_challenges(
                 &index_vk.verifier_key,

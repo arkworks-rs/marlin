@@ -3,7 +3,7 @@ use crate::{
     constraints::verifier::Marlin as MarlinVerifierVar,
     data_structures::{IndexVerifierKey, PreparedIndexVerifierKey, Proof},
     fiat_shamir::{constraints::FiatShamirRngVar, FiatShamirRng},
-    BTreeMap, PhantomData, PrimeField, SynthesisError,
+    PhantomData, PrimeField, SynthesisError,
 };
 use ark_ff::{to_bytes, ToConstraintField};
 use ark_nonnative_field::NonNativeFieldVar;
@@ -17,6 +17,7 @@ use ark_r1cs_std::{
 };
 use ark_relations::r1cs::{ConstraintSystemRef, Namespace};
 use core::borrow::Borrow;
+use hashbrown::HashMap;
 
 pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F>>::UniversalParams;
 
@@ -343,7 +344,7 @@ pub struct ProofVar<
     PCG: PCCheckVar<F, PC, CF>,
 > {
     pub commitments: Vec<Vec<PCG::CommitmentVar>>,
-    pub evaluations: BTreeMap<String, NonNativeFieldVar<F, CF>>,
+    pub evaluations: HashMap<String, NonNativeFieldVar<F, CF>>,
     pub prover_messages: Vec<ProverMsgVar<F, CF>>,
     pub pc_batch_proof: PCG::BatchLCProofVar,
 }
@@ -353,7 +354,7 @@ impl<F: PrimeField, CF: PrimeField, PC: PolynomialCommitment<F>, PCG: PCCheckVar
 {
     pub fn new(
         commitments: Vec<Vec<PCG::CommitmentVar>>,
-        evaluations: BTreeMap<String, NonNativeFieldVar<F, CF>>,
+        evaluations: HashMap<String, NonNativeFieldVar<F, CF>>,
         prover_messages: Vec<ProverMsgVar<F, CF>>,
         pc_batch_proof: PCG::BatchLCProofVar,
     ) -> Self {
@@ -454,7 +455,7 @@ where
         )
         .unwrap();
 
-        let mut evaluation_gadgets = BTreeMap::<String, NonNativeFieldVar<F, CF>>::new();
+        let mut evaluation_gadgets = HashMap::<String, NonNativeFieldVar<F, CF>>::new();
 
         const ALL_POLYNOMIALS: [&'static str; 10] = [
             "a_denom",

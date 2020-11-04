@@ -6,7 +6,7 @@ use crate::{
         polynomial::AlgebraForAHP,
     },
     fiat_shamir::{constraints::FiatShamirRngVar, FiatShamirRng},
-    BTreeMap, PhantomData, PrimeField,
+    PhantomData, PrimeField,
 };
 use ark_nonnative_field::NonNativeFieldVar;
 use ark_poly_commit::{
@@ -21,7 +21,7 @@ use ark_r1cs_std::{
     ToBitsGadget, ToConstraintFieldGadget,
 };
 use ark_relations::r1cs::ConstraintSystemRef;
-use ark_std::collections::BTreeSet;
+use hashbrown::{HashMap, HashSet};
 
 #[derive(Clone)]
 pub struct VerifierStateVar<TargetField: PrimeField, BaseField: PrimeField> {
@@ -210,7 +210,7 @@ where
     pub fn verifier_decision(
         cs: ConstraintSystemRef<CF>,
         public_input: &Vec<NonNativeFieldVar<F, CF>>,
-        evals: &BTreeMap<String, NonNativeFieldVar<F, CF>>,
+        evals: &HashMap<String, NonNativeFieldVar<F, CF>>,
         state: VerifierStateVar<F, CF>,
         domain_k_size_in_vk: &FpVar<CF>,
     ) -> Result<Vec<LinearCombinationVar<F, CF>>, Error> {
@@ -511,7 +511,7 @@ where
 
         let gamma = gamma_ref.clone();
 
-        let mut query_set_gadget = QuerySetVar::<F, CF> { 0: BTreeSet::new() };
+        let mut query_set_gadget = QuerySetVar::<F, CF> { 0: HashSet::new() };
 
         query_set_gadget
             .0
@@ -556,7 +556,7 @@ where
             ("gamma".to_string(), gamma.clone()),
         ));
 
-        let mut evaluations_gadget = EvaluationsVar::<F, CF> { 0: BTreeMap::new() };
+        let mut evaluations_gadget = EvaluationsVar::<F, CF> { 0: HashMap::new() };
 
         let zero = NonNativeFieldVar::<F, CF>::zero();
 
