@@ -32,6 +32,7 @@ mod tests {
     use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
     use core::ops::MulAssign;
     use hashbrown::HashMap;
+    use ark_ec::CycleEngine;
 
     #[derive(Copy, Clone, Debug)]
     struct MNT298Cycle;

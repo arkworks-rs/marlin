@@ -25,7 +25,7 @@ use core::fmt::{Debug, Formatter};
 use core::marker::PhantomData;
 use rand::{CryptoRng, RngCore};
 
-#[derive(PartialEq, PartialOrd, Clone)]
+#[derive(Clone, PartialEq, PartialOrd)]
 pub struct MarlinBound {
     pub max_degree: usize,
 }
@@ -384,10 +384,6 @@ mod test {
     use crate::fiat_shamir::poseidon::constraints::PoseidonSpongeVar;
     use crate::fiat_shamir::poseidon::PoseidonSponge;
     use crate::fiat_shamir::FiatShamirAlgebraicSpongeRng;
-    use crate::snark::{
-        crate::{MarlinSNARK, MarlinSNARKGadget},
-        SNARKGadget, SNARK,
-    };
     use algebra::{
         mnt4_298::{Fq as MNT4Fq, Fr as MNT4Fr, MNT4_298 as MNT4PairingEngine},
         MNT4_298, MNT6_298,
@@ -402,6 +398,9 @@ mod test {
     };
     use core::ops::MulAssign;
     use poly_commit::marlin_pc::{MarlinKZG10, MarlinKZG10Gadget};
+    use crate::constraints::snark::{MarlinSNARK, MarlinSNARKGadget};
+    use ark_poly_commit::marlin_pc::{MarlinKZG10, MarlinKZG10Gadget};
+    use ark_crypto_primitives::snark::{SNARKGadget, SNARK};
 
     #[derive(Copy, Clone)]
     struct Circuit<F: Field> {
