@@ -27,7 +27,7 @@ use rand::{CryptoRng, RngCore};
 
 //pub type Error = Box<dyn ark_std::error::Error>;
 
-#[derive(Clone, PartialOrd)]
+#[derive(Clone, PartialEq, PartialOrd)]
 pub struct MarlinBound {
     pub max_degree: usize,
 }
@@ -231,7 +231,6 @@ where
     }
 
     fn verify(
-        cs: ConstraintSystemRef<FSF>,
         circuit_vk: &Self::VerifyingKeyVar,
         x: &Self::InputVar,
         proof: &Self::ProofVar,
