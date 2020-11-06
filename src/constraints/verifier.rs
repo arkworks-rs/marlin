@@ -8,9 +8,8 @@ use crate::{
 };
 use ark_nonnative_field::NonNativeFieldVar;
 use ark_poly_commit::{PCCheckVar, PolynomialCommitment};
-use ark_r1cs_std::ToConstraintFieldGadget;
 use ark_r1cs_std::{bits::boolean::Boolean, fields::FieldVar};
-use ark_relations::r1cs::ConstraintSystemRef;
+use ark_r1cs_std::{R1CSVar, ToConstraintFieldGadget};
 
 pub struct Marlin<
     F: PrimeField,
@@ -37,11 +36,16 @@ where
 
     /// verify with an established hashchain initial state
     pub fn prepared_verify<PR: FiatShamirRng<F, CF>, R: FiatShamirRngVar<F, CF, PR>>(
-        cs: ConstraintSystemRef<CF>,
         index_pvk: &PreparedIndexVerifierKeyVar<F, CF, PC, PCG, PR, R>,
         public_input: &Vec<NonNativeFieldVar<F, CF>>,
         proof: &ProofVar<F, CF, PC, PCG>,
     ) -> Result<Boolean<CF>, Error<PC::Error>> {
+        let cs = index_pvk
+            .cs
+            .clone()
+            .or(public_input.cs())
+            .or(proof.cs.clone());
+
         let mut fs_rng = index_pvk.fs_rng.clone();
 
         println!("before AHP: constraints: {}", cs.num_constraints());
@@ -128,13 +132,11 @@ where
     }
 
     pub fn verify<PR: FiatShamirRng<F, CF>, R: FiatShamirRngVar<F, CF, PR>>(
-        cs: ConstraintSystemRef<CF>,
         index_vk: &IndexVerifierKeyVar<F, CF, PC, PCG>,
         public_input: &Vec<NonNativeFieldVar<F, CF>>,
         proof: &ProofVar<F, CF, PC, PCG>,
     ) -> Result<Boolean<CF>, Error<PC::Error>> {
-        let index_pvk =
-            PreparedIndexVerifierKeyVar::<F, CF, PC, PCG, PR, R>::prepare(cs.clone(), &index_vk)?;
-        Self::prepared_verify(cs, &index_pvk, public_input, proof)
+        let index_pvk = PreparedIndexVerifierKeyVar::<F, CF, PC, PCG, PR, R>::prepare(&index_vk)?;
+        Self::prepared_verify(&index_pvk, public_input, proof)
     }
 }

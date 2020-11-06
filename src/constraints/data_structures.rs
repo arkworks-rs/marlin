@@ -27,12 +27,21 @@ pub struct IndexVerifierKeyVar<
     PC: PolynomialCommitment<F>,
     PCG: PCCheckVar<F, PC, CF>,
 > {
+    pub cs: ConstraintSystemRef<CF>,
     pub domain_h_size: u64,
     pub domain_k_size: u64,
     pub domain_h_size_gadget: FpVar<CF>,
     pub domain_k_size_gadget: FpVar<CF>,
     pub index_comms: Vec<PCG::CommitmentVar>,
     pub verifier_key: PCG::VerifierKeyVar,
+}
+
+impl<F: PrimeField, CF: PrimeField, PC: PolynomialCommitment<F>, PCG: PCCheckVar<F, PC, CF>>
+    IndexVerifierKeyVar<F, CF, PC, PCG>
+{
+    fn cs(&self) -> ConstraintSystemRef<CF> {
+        self.cs.clone()
+    }
 }
 
 impl<F: PrimeField, CF: PrimeField, PC: PolynomialCommitment<F>, PCG: PCCheckVar<F, PC, CF>>
@@ -84,6 +93,7 @@ impl<F: PrimeField, CF: PrimeField, PC: PolynomialCommitment<F>, PCG: PCCheckVar
         )?;
 
         Ok(IndexVerifierKeyVar {
+            cs,
             domain_h_size: domain_h.size() as u64,
             domain_k_size: domain_k.size() as u64,
             domain_h_size_gadget,
@@ -117,6 +127,7 @@ impl<F: PrimeField, CF: PrimeField, PC: PolynomialCommitment<F>, PCG: PCCheckVar
 {
     fn clone(&self) -> Self {
         Self {
+            cs: self.cs.clone(),
             domain_h_size: self.domain_h_size.clone(),
             domain_k_size: self.domain_k_size.clone(),
             domain_h_size_gadget: self.domain_h_size_gadget.clone(),
@@ -143,6 +154,7 @@ pub struct PreparedIndexVerifierKeyVar<
     PR: FiatShamirRng<F, CF>,
     R: FiatShamirRngVar<F, CF, PR>,
 > {
+    pub cs: ConstraintSystemRef<CF>,
     pub domain_h_size: u64,
     pub domain_k_size: u64,
     pub domain_h_size_gadget: FpVar<CF>,
@@ -165,6 +177,7 @@ impl<
 {
     fn clone(&self) -> Self {
         PreparedIndexVerifierKeyVar {
+            cs: self.cs.clone(),
             domain_h_size: self.domain_h_size,
             domain_k_size: self.domain_k_size,
             domain_h_size_gadget: self.domain_h_size_gadget.clone(),
@@ -188,10 +201,9 @@ where
     PCG::VerifierKeyVar: ToConstraintFieldGadget<CF>,
     PCG::CommitmentVar: ToConstraintFieldGadget<CF>,
 {
-    pub fn prepare(
-        cs: ConstraintSystemRef<CF>,
-        vk: &IndexVerifierKeyVar<F, CF, PC, PCG>,
-    ) -> Result<Self, SynthesisError> {
+    pub fn prepare(vk: &IndexVerifierKeyVar<F, CF, PC, PCG>) -> Result<Self, SynthesisError> {
+        let cs = vk.cs();
+
         let mut fs_rng_raw = PR::new();
         fs_rng_raw
             .absorb_bytes(&to_bytes![&MarlinVerifierVar::<F, CF, PC, PCG>::PROTOCOL_NAME].unwrap());
@@ -231,6 +243,7 @@ where
         let prepared_verifier_key = PCG::PreparedVerifierKeyVar::prepare(&vk.verifier_key)?;
 
         Ok(Self {
+            cs: vk.cs.clone(),
             domain_h_size: vk.domain_h_size.clone(),
             domain_k_size: vk.domain_k_size.clone(),
             domain_h_size_gadget: vk.domain_h_size_gadget.clone(),
@@ -325,6 +338,7 @@ where
         )?;
 
         Ok(Self {
+            cs,
             domain_h_size: obj.domain_h_size,
             domain_k_size: obj.domain_k_size,
             domain_h_size_gadget,
@@ -343,6 +357,7 @@ pub struct ProofVar<
     PC: PolynomialCommitment<F>,
     PCG: PCCheckVar<F, PC, CF>,
 > {
+    pub cs: ConstraintSystemRef<CF>,
     pub commitments: Vec<Vec<PCG::CommitmentVar>>,
     pub evaluations: HashMap<String, NonNativeFieldVar<F, CF>>,
     pub prover_messages: Vec<ProverMsgVar<F, CF>>,
@@ -353,12 +368,14 @@ impl<F: PrimeField, CF: PrimeField, PC: PolynomialCommitment<F>, PCG: PCCheckVar
     ProofVar<F, CF, PC, PCG>
 {
     pub fn new(
+        cs: ConstraintSystemRef<CF>,
         commitments: Vec<Vec<PCG::CommitmentVar>>,
         evaluations: HashMap<String, NonNativeFieldVar<F, CF>>,
         prover_messages: Vec<ProverMsgVar<F, CF>>,
         pc_batch_proof: PCG::BatchLCProofVar,
     ) -> Self {
         Self {
+            cs,
             commitments,
             evaluations,
             prover_messages,
@@ -475,6 +492,7 @@ where
         }
 
         Ok(ProofVar {
+            cs,
             commitments: commitment_gadgets,
             evaluations: evaluation_gadgets,
             prover_messages: prover_message_gadgets,
@@ -488,6 +506,7 @@ impl<F: PrimeField, CF: PrimeField, PC: PolynomialCommitment<F>, PCG: PCCheckVar
 {
     fn clone(&self) -> Self {
         ProofVar {
+            cs: self.cs.clone(),
             commitments: self.commitments.clone(),
             evaluations: self.evaluations.clone(),
             prover_messages: self.prover_messages.clone(),

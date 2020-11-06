@@ -10,7 +10,7 @@ use crate::{
 };
 use ark_crypto_primitives::snark::{
     constraints::{SNARKGadget, UniversalSetupSNARKGadget},
-    NonNativeFieldInputVar, SNARK, UniversalSetupIndexError,
+    NonNativeFieldInputVar, UniversalSetupIndexError, SNARK,
 };
 use ark_ff::{test_rng, PrimeField, ToConstraintField};
 use ark_poly_commit::{PCCheckVar, PolynomialCommitment};
@@ -25,9 +25,7 @@ use core::fmt::{Debug, Formatter};
 use core::marker::PhantomData;
 use rand::{CryptoRng, RngCore};
 
-//pub type Error = Box<dyn ark_std::error::Error>;
-
-#[derive(Clone)]
+#[derive(PartialEq, PartialOrd, Clone)]
 pub struct MarlinBound {
     pub max_degree: usize,
 }
@@ -42,10 +40,6 @@ impl Debug for MarlinBound {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.max_degree)
     }
-}
-
-impl PartialOrd for MarlinBound {
-    fn 
 }
 
 pub struct MarlinSNARK<
@@ -96,11 +90,7 @@ where
         }
     }
 
-    fn verify(
-        vk: &Self::VerifyingKey,
-        x: &[F],
-        proof: &Self::Proof,
-    ) -> Result<bool, Self::Error> {
+    fn verify(vk: &Self::VerifyingKey, x: &[F], proof: &Self::Proof) -> Result<bool, Self::Error> {
         match Marlin::<F, FSF, PC, FS, MC>::verify(vk, x, proof) {
             Ok(res) => Ok(res),
             Err(e) => Err(Box::new(MarlinError::from(e))),
@@ -164,9 +154,9 @@ where
                 IndexTooLarge(v) => Err(UniversalSetupIndexError::NeedLargerBound(MarlinBound {
                     max_degree: v,
                 })),
-                _ => Err(UniversalSetupIndexError::Other(
-                    Box::new(MarlinError::from(err))),
-                ),
+                _ => Err(UniversalSetupIndexError::Other(Box::new(
+                    MarlinError::from(err),
+                ))),
             },
         }
     }
@@ -226,25 +216,21 @@ where
         x: &Self::InputVar,
         proof: &Self::ProofVar,
     ) -> Result<Boolean<FSF>, SynthesisError> {
-        Ok(MarlinVerifierGadget::<F, FSF, PC, PCG>::prepared_verify(
-            cs,
-            &circuit_pvk,
-            &x.val,
-            proof,
+        Ok(
+            MarlinVerifierGadget::<F, FSF, PC, PCG>::prepared_verify(&circuit_pvk, &x.val, proof)
+                .unwrap(),
         )
-        .unwrap())
     }
 
     fn verify(
-        cs: ConstraintSystemRef<FSF>,
         circuit_vk: &Self::VerifyingKeyVar,
         x: &Self::InputVar,
         proof: &Self::ProofVar,
     ) -> Result<Boolean<FSF>, SynthesisError> {
-        Ok(MarlinVerifierGadget::<F, FSF, PC, PCG>::verify::<FS, FSG>(
-            cs, circuit_vk, &x.val, proof,
+        Ok(
+            MarlinVerifierGadget::<F, FSF, PC, PCG>::verify::<FS, FSG>(circuit_vk, &x.val, proof)
+                .unwrap(),
         )
-        .unwrap())
     }
 }
 
