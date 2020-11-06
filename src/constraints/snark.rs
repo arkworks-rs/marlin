@@ -10,7 +10,7 @@ use crate::{
 };
 use ark_crypto_primitives::snark::{
     constraints::{SNARKGadget, UniversalSetupSNARKGadget},
-    NonNativeFieldInputVar, SNARK,
+    NonNativeFieldInputVar, SNARK, UniversalSetupIndexError,
 };
 use ark_ff::{test_rng, PrimeField, ToConstraintField};
 use ark_poly_commit::{PCCheckVar, PolynomialCommitment};
@@ -42,6 +42,10 @@ impl Debug for MarlinBound {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.max_degree)
     }
+}
+
+impl PartialOrd for MarlinBound {
+    fn 
 }
 
 pub struct MarlinSNARK<
@@ -94,7 +98,7 @@ where
 
     fn verify(
         vk: &Self::VerifyingKey,
-        x: &Vec<F>,
+        x: &[F],
         proof: &Self::Proof,
     ) -> Result<bool, Self::Error> {
         match Marlin::<F, FSF, PC, FS, MC>::verify(vk, x, proof) {
@@ -110,7 +114,7 @@ where
 
     fn verify_with_processed_vk(
         pvk: &Self::ProcessedVerifyingKey,
-        x: &Vec<F>,
+        x: &[F],
         proof: &Self::Proof,
     ) -> Result<bool, Self::Error> {
         match Marlin::<F, FSF, PC, FS, MC>::prepared_verify(pvk, x, proof) {
@@ -150,17 +154,19 @@ where
         circuit: C,
         _rng: &mut R,
     ) -> Result<
-        UniversalSetupIndexResult<(Self::ProvingKey, Self::VerifyingKey), Self::ComputationBound>,
-        Self::Error,
+        (Self::ProvingKey, Self::VerifyingKey),
+        UniversalSetupIndexError<Self::ComputationBound, Self::Error>,
     > {
         let index_res = Marlin::<F, FSF, PC, FS, MC>::index(&crs.1, circuit);
         match index_res {
-            Ok(res) => Ok(UniversalSetupIndexResult::Successful(res)),
+            Ok(res) => Ok(res),
             Err(err) => match err {
-                IndexTooLarge(v) => Ok(UniversalSetupIndexResult::NeedLargerBound(MarlinBound {
+                IndexTooLarge(v) => Err(UniversalSetupIndexError::NeedLargerBound(MarlinBound {
                     max_degree: v,
                 })),
-                _ => Err(Box::new(MarlinError::from(err))),
+                _ => Err(UniversalSetupIndexError::Other(
+                    Box::new(MarlinError::from(err))),
+                ),
             },
         }
     }
@@ -205,8 +211,17 @@ where
     type InputVar = NonNativeFieldInputVar<F, FSF>;
     type ProofVar = ProofVar<F, FSF, PC, PCG>;
 
+    type VerifierSize = MarlinBound;
+
+    fn verifier_size(
+        circuit_vk: &<MarlinSNARK<F, FSF, PC, FS, MC> as SNARK<F>>::VerifyingKey,
+    ) -> Self::VerifierSize {
+        Self::VerifierSize {
+            max_degree: circuit_vk.index_info.max_degree(),
+        }
+    }
+
     fn verify_with_processed_vk(
-        cs: ConstraintSystemRef<FSF>,
         circuit_pvk: &Self::ProcessedVerifyingKeyVar,
         x: &Self::InputVar,
         proof: &Self::ProofVar,
