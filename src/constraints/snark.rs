@@ -27,7 +27,7 @@ use rand::{CryptoRng, RngCore};
 
 //pub type Error = Box<dyn ark_std::error::Error>;
 
-#[derive(Clone)]
+#[derive(Clone, PartialOrd)]
 pub struct MarlinBound {
     pub max_degree: usize,
 }
@@ -43,11 +43,6 @@ impl Debug for MarlinBound {
         write!(f, "{}", self.max_degree)
     }
 }
-
-impl PartialOrd for MarlinBound {
-    fn 
-}
-
 pub struct MarlinSNARK<
     F: PrimeField,
     FSF: PrimeField,
