@@ -1,5 +1,5 @@
 use crate::Vec;
-use algebra_core::{FromBytes, ToBytes};
+use ark_ff::{FromBytes, ToBytes};
 use core::marker::PhantomData;
 use digest::{generic_array::GenericArray, Digest};
 use rand_chacha::ChaChaRng;

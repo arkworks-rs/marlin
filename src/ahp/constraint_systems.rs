@@ -3,13 +3,15 @@
 use crate::ahp::indexer::Matrix;
 use crate::ahp::*;
 use crate::{BTreeMap, Cow, ToString};
-use algebra_core::{Field, PrimeField};
-use derivative::Derivative;
-use ff_fft::{
-    cfg_iter_mut, EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain,
+use ark_ff::{Field, PrimeField};
+use ark_poly::{EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain};
+use ark_poly_commit::LabeledPolynomial;
+use ark_relations::{
+    lc,
+    r1cs::{ConstraintMatrices, ConstraintSystemRef},
 };
-use poly_commit::LabeledPolynomial;
-use r1cs_core::{lc, ConstraintMatrices, ConstraintSystemRef};
+use ark_std::cfg_iter_mut;
+use derivative::Derivative;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -127,14 +129,14 @@ pub struct MatrixEvals<'a, F: PrimeField> {
 #[derivative(Clone(bound = "F: PrimeField"))]
 pub struct MatrixArithmetization<'a, F: PrimeField> {
     /// LDE of the row indices of M^*.
-    pub row: LabeledPolynomial<'a, F>,
+    pub row: LabeledPolynomial<F>,
     /// LDE of the column indices of M^*.
-    pub col: LabeledPolynomial<'a, F>,
+    pub col: LabeledPolynomial<F>,
     /// LDE of the non-zero entries of M^*.
-    pub val: LabeledPolynomial<'a, F>,
+    pub val: LabeledPolynomial<F>,
     /// LDE of the vector containing entry-wise products of `row` and `col`,
     /// where `row` and `col` are as above.
-    pub row_col: LabeledPolynomial<'a, F>,
+    pub row_col: LabeledPolynomial<F>,
 
     /// Evaluation of `self.row`, `self.col`, and `self.val` on the domain `K`.
     pub evals_on_K: MatrixEvals<'a, F>,
@@ -197,7 +199,7 @@ pub(crate) fn arithmetize_matrix<'a, F: PrimeField>(
             count += 1;
         }
     }
-    algebra_core::fields::batch_inversion::<F>(&mut inverses);
+    ark_ff::batch_inversion::<F>(&mut inverses);
 
     cfg_iter_mut!(val_vec)
         .zip(inverses)
@@ -251,10 +253,10 @@ pub(crate) fn arithmetize_matrix<'a, F: PrimeField>(
 
     let m_name = matrix_name.to_string();
     MatrixArithmetization {
-        row: LabeledPolynomial::new_owned(m_name.clone() + "_row", row, None, None),
-        col: LabeledPolynomial::new_owned(m_name.clone() + "_col", col, None, None),
-        val: LabeledPolynomial::new_owned(m_name.clone() + "_val", val, None, None),
-        row_col: LabeledPolynomial::new_owned(m_name.clone() + "_row_col", row_col, None, None),
+        row: LabeledPolynomial::new(m_name.clone() + "_row", row, None, None),
+        col: LabeledPolynomial::new(m_name.clone() + "_col", col, None, None),
+        val: LabeledPolynomial::new(m_name.clone() + "_val", val, None, None),
+        row_col: LabeledPolynomial::new(m_name.clone() + "_row_col", row_col, None, None),
         evals_on_K,
         evals_on_B,
         row_col_evals_on_B: Cow::Owned(row_col_evals_on_B),

@@ -18,34 +18,20 @@
 #[macro_use]
 extern crate bench_utils;
 
-use algebra_core::to_bytes;
-use algebra_core::PrimeField;
-use algebra_core::UniformRand;
+use ark_ff::{to_bytes, PrimeField, UniformRand};
+use ark_poly_commit::Evaluations;
+use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
+use ark_relations::r1cs::ConstraintSynthesizer;
 use core::marker::PhantomData;
 use digest::Digest;
-use ff_fft::{EvaluationDomain, GeneralEvaluationDomain};
-use poly_commit::Evaluations;
-use poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
-use r1cs_core::ConstraintSynthesizer;
 use rand_core::RngCore;
 
-#[cfg(not(feature = "std"))]
-#[macro_use]
-extern crate alloc;
-
-#[cfg(not(feature = "std"))]
-use alloc::{
+use ark_std::{
     borrow::Cow,
     collections::BTreeMap,
+    format,
     string::{String, ToString},
-    vec::Vec,
-};
-
-#[cfg(feature = "std")]
-use std::{
-    borrow::Cow,
-    collections::BTreeMap,
-    string::{String, ToString},
+    vec,
     vec::Vec,
 };
 
@@ -283,16 +269,19 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
 
         let eval_time = start_timer!(|| "Evaluating linear combinations over query set");
         let mut evaluations = Vec::new();
-        for (label, point) in &query_set {
+        for (label, (_, point)) in &query_set {
             let lc = lc_s
                 .iter()
                 .find(|lc| &lc.label == label)
                 .ok_or(ahp::Error::MissingEval(label.to_string()))?;
             let eval = polynomials.get_lc_eval(&lc, *point)?;
             if !AHPForR1CS::<F>::LC_WITH_ZERO_EVAL.contains(&lc.label.as_ref()) {
-                evaluations.push(eval);
+                evaluations.push((label.to_string(), eval));
             }
         }
+
+        evaluations.sort_by(|a, b| a.0.cmp(&b.0));
+        let evaluations = evaluations.into_iter().map(|x| x.1).collect::<Vec<F>>();
         end_timer!(eval_time);
 
         fs_rng.absorb(&evaluations);
@@ -402,13 +391,17 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
         let opening_challenge: F = u128::rand(&mut fs_rng).into();
 
         let mut evaluations = Evaluations::new();
-        let mut proof_evals = proof.evaluations.iter();
-        for q in query_set.iter().cloned() {
-            if AHPForR1CS::<F>::LC_WITH_ZERO_EVAL.contains(&q.0.as_ref()) {
-                evaluations.insert(q, F::zero());
+        let mut evaluation_labels = Vec::new();
+        for (poly_label, (_, point)) in query_set.iter().cloned() {
+            if AHPForR1CS::<F>::LC_WITH_ZERO_EVAL.contains(&poly_label.as_ref()) {
+                evaluations.insert((poly_label, point), F::zero());
             } else {
-                evaluations.insert(q, proof_evals.next().unwrap().clone());
+                evaluation_labels.push((poly_label, point));
             }
+        }
+        evaluation_labels.sort_by(|a, b| a.0.cmp(&b.0));
+        for (q, eval) in evaluation_labels.into_iter().zip(&proof.evaluations) {
+            evaluations.insert(q, *eval);
         }
 
         let lc_s = AHPForR1CS::construct_linear_combinations(

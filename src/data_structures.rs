@@ -1,10 +1,11 @@
 use crate::ahp::indexer::*;
 use crate::ahp::prover::ProverMsg;
 use crate::Vec;
-use algebra_core::PrimeField;
+use ark_ff::PrimeField;
+use ark_poly_commit::{BatchLCProof, PolynomialCommitment};
+use ark_relations::r1cs::ConstraintSynthesizer;
+use ark_std::format;
 use core::marker::PhantomData;
-use poly_commit::{BatchLCProof, PolynomialCommitment};
-use r1cs_core::ConstraintSynthesizer;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -29,10 +30,10 @@ pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: Const
     pub verifier_key: PC::VerifierKey,
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> algebra_core::ToBytes
+impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ark_ff::ToBytes
     for IndexVerifierKey<F, PC, C>
 {
-    fn write<W: algebra_core::io::Write>(&self, mut w: W) -> algebra_core::io::Result<()> {
+    fn write<W: ark_std::io::Write>(&self, mut w: W) -> ark_std::io::Result<()> {
         self.index_info.write(&mut w)?;
         self.index_comms.write(&mut w)
     }
@@ -132,7 +133,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Pr
 
     /// Prints information about the size of the proof.
     pub fn print_size_info(&self) {
-        use poly_commit::{PCCommitment, PCProof};
+        use ark_poly_commit::{PCCommitment, PCProof};
 
         let size_of_fe_in_bytes = F::zero().into_repr().as_ref().len() * 8;
         let mut num_comms_without_degree_bounds = 0;

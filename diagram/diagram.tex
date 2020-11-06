@@ -21,6 +21,7 @@
 \newcommand{\vcm}[1]{\ensuremath{\mathsf{vcm}_{#1}}}
 \newcommand{\s}{\ensuremath{\hat{s}}}
 \newcommand{\w}{\ensuremath{\hat{w}}}
+\newcommand{\x}{\ensuremath{\hat{x}}}
 \newcommand{\z}{\ensuremath{\hat{z}}}
 \newcommand{\za}{\ensuremath{\hat{z}_A}}
 \newcommand{\zb}{\ensuremath{\hat{z}_B}}
@@ -136,7 +137,7 @@ $\alpha \gets \F \setminus \DomainA$
 compute $t(X) := \sum_M \eta_M r_M(\alpha, X)$
 };
 
-\draw (-2.2,22.0) rectangle (15.2,5.4);
+\draw (-2.4,22.0) rectangle (15.4,4.8);
 
 \node (sc1label) at (6.5,21.7) {%
 \textbf{sumcheck for} $\s(X) + r(\alpha, X) \left(\sum_M \eta_M \zm(X)\right) - t(X)\z(X)$ \textbf{ over } $\DomainA$
@@ -197,50 +198,54 @@ To verify $(**)$, $\Verifier$ will need to check the following: \\[10pt]
 $ \underbrace{{\color{orange} a({\color{black} \gamma})} - {\color{Green4} b({\color{black} \gamma})} {\color{gray} (\gamma g_2(\gamma) + t(\beta) / |\DomainB|) - \vPoly{\DomainB}(\gamma)} h_2(\gamma)}_{\sumcheckinner(\gamma)} \stackrel{?}{=} 0 $
 };
 
-\draw[dashed] (-1.5,8.0) rectangle (14.5,5.8);
-
-\node[align=center] (mid5) at (6.5, 6.9) {%
-To verify $(*)$, $\Verifier$ will need to check the following: \\[10pt]
-$ \underbrace{s(\beta) + {\color{gray} r(\alpha, \beta)} ({\color{gray} \eta_A} \za(\beta) + {\color{gray} \eta_C\zb(\beta)} \za(\beta) + {\color{gray} \eta_B\zb(\beta)}) - {\color{gray} t(\beta) \vPoly{X}(\beta)} \w(\beta) - {\color{gray} \vPoly{\DomainA}(\beta)} h_1(\beta) - {\color{gray} \beta g_1(\beta)}}_{\sumcheckouter(\beta)} \stackrel{?}{=} 0 $
+\node[ralign] (verifier3) at (15.4, 7.9) {%
+Compute $\x(X) \in \F^{<|x|}[X]$
 };
 
-\node[lalign] (prover5) at (-3,4.5) {%
+\draw[dashed] (-2.2,7.4) rectangle (15.2,5.2);
+
+\node[align=center] (mid5) at (6.5, 6.3) {%
+To verify $(*)$, $\Verifier$ will need to check the following: \\[10pt]
+$ \underbrace{s(\beta) + {\color{gray} r(\alpha, \beta)} ({\color{gray} \eta_A} \za(\beta) + {\color{gray} \eta_C\zb(\beta)} \za(\beta) + {\color{gray} \eta_B\zb(\beta)}) - {\color{gray} t(\beta) \vPoly{X}(\beta)} \w(\beta) - {\color{gray} t(\beta) \x(\beta)} - {\color{gray} \vPoly{\DomainA}(\beta)} h_1(\beta) - {\color{gray} \beta g_1(\beta)}}_{\sumcheckouter(\beta)} \stackrel{?}{=} 0 $
+};
+
+\node[lalign] (prover5) at (-3,3.9) {%
 $v_{g_2} := g_2(\gamma), v_{A_\denom} := A_\denom(\gamma), v_{B_\denom} := B_\denom(\gamma), v_{C_\denom} := C_\denom(\gamma)$ \\[3pt]
 $v_{g_1} := g_1(\beta), v_{\zb} := \zb(\beta), v_{t} := t(\beta)$
 };
 
-\draw [->] (-2,3.5) -- node[midway,fill=white] {$v_{g_2}, v_{A_\denom}, v_{B_\denom}, v_{C_\denom}, v_{g_1}, v_{\zb}, v_{t}$} (15,3.5);
+\draw [->] (-2,2.9) -- node[midway,fill=white] {$v_{g_2}, v_{A_\denom}, v_{B_\denom}, v_{C_\denom}, v_{g_1}, v_{\zb}, v_{t}$} (15,2.9);
 
-\node[align=center] (mid6) at (6.5,2.5) {%
+\node[align=center] (mid6) at (6.5,1.9) {%
 use index commitments $\hrow, \hcol, \hrowcol$ to construct virtual commitments $\vcm{\{A_\denom, B_\denom, C_\denom\}}$
 };
 
-\node[align=center] (mid7) at (6.5,1.4) {%
-use index commitments $\hval$, commitments $\vcm{A_\denom}$, $\vcm{B_\denom}, \vcm{C_\denom}, \cm{h_2}$, and {\color{gray} evaluations $g_2(\gamma),t(\beta)$} \\
+\node[align=center] (mid7) at (6.5,0.8) {%
+use index commitments $\hval$, commitments $\vcm{A_\denom}$, $\vcm{B_\denom}, \vcm{C_\denom}, \cm{h_2}$, {\color{gray} and evaluations $g_2(\gamma),t(\beta)$} \\
 to construct virtual commitment $\vcm{\sumcheckinner}$
 };
 
-\node[align=center] (mid8) at (6.5,0.1) {%
-use commitments $\cm{\s}, \cm{\za}, \cm{\w}, \cm{h_1}$ and {\color{gray} evaluations $\zb(\beta), t(\beta), g_1(\beta)$} \\
+\node[align=center] (mid8) at (6.5,-0.5) {%
+use commitments $\cm{\s}, \cm{\za}, \cm{\w}, \cm{h_1}$ {\color{gray} and evaluations $\zb(\beta), t(\beta), g_1(\beta)$} \\
 to construct virtual commitment $\vcm{\sumcheckouter}$
 };
 
-\node[ralign] (verifier4) at (16,-0.9) {%
+\node[ralign] (verifier4) at (16,-1.5) {%
 $\xi_1, \dots, \xi_5 \gets \F$
 };
 
-\draw [->] (15,-1.5) -- node[midway,fill=white] {$\xi_1, \dots, \xi_5$} (-2,-1.5);
+\draw [->] (15,-2.1) -- node[midway,fill=white] {$\xi_1, \dots, \xi_5$} (-2,-2.1);
 
-\node[lalign] (prover6) at (-3,-3) {%
+\node[lalign] (prover6) at (-3,-3.6) {%
 use $\mathsf{PC}.\mathsf{Prove}$ with randomness $\xi_1, \dots, \xi_5$ to \\
 construct a batch opening proof $\pi$ of the following: \\
 $(\cm{g_2}, \cm{A_\denom}, \cm{B_\denom}, \cm{C_\denom}, {\color{red} \vcm{\sumcheckinner}})$ at $\gamma$ evaluate to $(v_{g_2}, v_{A_\denom}, v_{B_\denom}, v_{C_\denom}, {\color{red} 0})$ \hspace{0.3cm} ${\color{red} (**)}$ \\
 $(\cm{g_1}, \cm{\zb}, \cm{t}, {\color{red} \vcm{\sumcheckouter}})$ at $\beta$ evaluate to $(v_{g_1}, v_{\zb}, v_{t}, {\color{red} 0})$ \hspace{0.3cm} ${\color{red} (*)}$ \\
 };
 
-\draw [->] (-2,-4.1) -- node[midway,fill=white] {$\pi$} (15,-4.1);
+\draw [->] (-2,-4.7) -- node[midway,fill=white] {$\pi$} (15,-4.7);
 
-\node[ralign] (verifier5) at (16,-5.4) {%
+\node[ralign] (verifier5) at (16,-6.0) {%
 verify $\pi$ with $\mathsf{PC}.\mathsf{Verify}$, using randomness $\xi_1, \dots, \xi_5$, \\
 evaluations $v_{g_2}, v_{A_\denom}, v_{B_\denom}, v_{C_\denom}, v_{g_1}, v_{\zb}, v_{t}$, and \\
 commitments $\cm{g_2}, \cm{A_\denom}, \cm{B_\denom}, \cm{C_\denom},$ \\

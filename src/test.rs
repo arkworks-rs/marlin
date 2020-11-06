@@ -1,5 +1,8 @@
-use algebra_core::Field;
-use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
+use ark_ff::Field;
+use ark_relations::{
+    lc,
+    r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
+};
 
 #[derive(Copy, Clone)]
 struct Circuit<F: Field> {
@@ -39,17 +42,17 @@ mod marlin {
     use super::*;
     use crate::Marlin;
 
-    use algebra::UniformRand;
-    use algebra::{bls12_381::Fr, Bls12_381};
+    use ark_bls12_381::{Bls12_381, Fr};
+    use ark_ff::UniformRand;
+    use ark_poly_commit::marlin_pc::MarlinKZG10;
     use blake2::Blake2s;
     use core::ops::MulAssign;
-    use poly_commit::marlin_pc::MarlinKZG10;
 
     type MultiPC = MarlinKZG10<Bls12_381>;
     type MarlinInst = Marlin<Fr, MultiPC, Blake2s>;
 
     fn test_circuit(num_constraints: usize, num_variables: usize) {
-        let rng = &mut algebra::test_rng();
+        let rng = &mut ark_ff::test_rng();
 
         let universal_srs = MarlinInst::universal_setup(100, 25, 100, rng).unwrap();
 
