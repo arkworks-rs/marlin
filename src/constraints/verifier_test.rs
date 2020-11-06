@@ -20,6 +20,7 @@ mod tests {
         mnt6_298::MNT6_298,
         CycleEngine,
     };
+    use ark_ec::CycleEngine;
     use ark_ff::UniformRand;
     use ark_nonnative_field::NonNativeFieldVar;
     use ark_poly_commit::marlin_pc::{
@@ -32,7 +33,6 @@ mod tests {
     use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
     use core::ops::MulAssign;
     use hashbrown::HashMap;
-    use ark_ec::CycleEngine;
 
     #[derive(Copy, Clone, Debug)]
     struct MNT298Cycle;

@@ -380,6 +380,7 @@ mod test {
         type E2 = MNT4_298;
     }
 
+    use crate::constraints::snark::{MarlinSNARK, MarlinSNARKGadget};
     use crate::fiat_shamir::constraints::FiatShamirAlgebraicSpongeRngVar;
     use crate::fiat_shamir::poseidon::constraints::PoseidonSpongeVar;
     use crate::fiat_shamir::poseidon::PoseidonSponge;
@@ -388,8 +389,10 @@ mod test {
         mnt4_298::{Fq as MNT4Fq, Fr as MNT4Fr, MNT4_298 as MNT4PairingEngine},
         MNT4_298, MNT6_298,
     };
+    use ark_crypto_primitives::snark::{SNARKGadget, SNARK};
     use ark_ec::{CycleEngine, PairingEngine, UniformRand};
     use ark_ff::{Field, UniformRand};
+    use ark_poly_commit::marlin_pc::{MarlinKZG10, MarlinKZG10Gadget};
     use ark_r1cs_std::alloc::AllocVar;
     use ark_r1cs_std::eq::EqGadget;
     use ark_r1cs_std::{bits::boolean::Boolean, mnt4_298::PairingVar as MNT4PairingVar};
@@ -398,9 +401,6 @@ mod test {
     };
     use core::ops::MulAssign;
     use poly_commit::marlin_pc::{MarlinKZG10, MarlinKZG10Gadget};
-    use crate::constraints::snark::{MarlinSNARK, MarlinSNARKGadget};
-    use ark_poly_commit::marlin_pc::{MarlinKZG10, MarlinKZG10Gadget};
-    use ark_crypto_primitives::snark::{SNARKGadget, SNARK};
 
     #[derive(Copy, Clone)]
     struct Circuit<F: Field> {
