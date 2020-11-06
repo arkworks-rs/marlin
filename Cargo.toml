@@ -30,7 +30,7 @@ bench-utils = { git = "https://github.com/arkworks-rs/utils", default-features =
 
 ark-relations = { git = "https://github.com/arkworks-rs/snark", default-features = false }
 
-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives" }
+ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives", branch = "main", features = [ "r1cs" ] }
 
 ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std" }
 
@@ -40,6 +40,7 @@ ark-poly-commit = { git = "https://github.com/scipr-lab/poly-commit", branch = "
 
 ark-snark = { git = "https://github.com/arkworks-rs/snark" }
 
+rand = { version = "0.7", default-features = false }
 rand_core = { version = "0.5" }
 rand_chacha = { version = "0.2.1", default-features = false }
 rayon = { version = "1", optional = true }
