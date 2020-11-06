@@ -520,15 +520,12 @@ where
             }
         }
 
-        evaluations.sort_by(|a, b| a.0.cmp(&b.0));
-        let evaluations = evaluations.into_iter().map(|x| x.1).collect::<Vec<F>>();
-        end_timer!(eval_time);
-
         evaluations_unsorted.sort_by(|a, b| a.0.cmp(&b.0));
         let evaluations = evaluations_unsorted
             .iter()
             .map(|x| x.1.clone())
             .collect::<Vec<F>>();
+        end_timer!(eval_time);
 
         if for_recursion {
             fs_rng.absorb_nonnative_field_elements(&evaluations);
@@ -695,7 +692,6 @@ where
         let mut evaluations = Evaluations::new();
 
         let mut evaluation_labels = Vec::<(String, F)>::new();
-        let mut proof_evals = proof.evaluations.iter();
 
         for q in query_set.iter().cloned() {
             if AHPForR1CS::<F>::LC_WITH_ZERO_EVAL.contains(&q.0.as_ref()) {
@@ -707,11 +703,6 @@ where
         evaluation_labels.sort_by(|a, b| a.0.cmp(&b.0));
         for (q, eval) in evaluation_labels.into_iter().zip(&proof.evaluations) {
             evaluations.insert(q, *eval);
-        }
-
-        evaluation_labels.sort_by(|a, b| a.0.cmp(&b.0));
-        for q in evaluation_labels.iter().cloned() {
-            evaluations.insert(q, proof_evals.next().unwrap().clone());
         }
 
         let lc_s = AHPForR1CS::construct_linear_combinations(
