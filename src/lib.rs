@@ -19,10 +19,10 @@
 extern crate bench_utils;
 
 use ark_ff::{to_bytes, PrimeField, UniformRand};
+use ark_poly::univariate::DensePolynomial;
 use ark_poly_commit::Evaluations;
 use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
 use ark_relations::r1cs::ConstraintSynthesizer;
-use core::marker::PhantomData;
 use digest::Digest;
 use rand_core::RngCore;
 
@@ -30,6 +30,7 @@ use ark_std::{
     borrow::Cow,
     collections::BTreeMap,
     format,
+    marker::PhantomData,
     string::{String, ToString},
     vec,
     vec::Vec,
@@ -61,13 +62,13 @@ use ahp::EvaluationsProvider;
 mod test;
 
 /// The compiled argument system.
-pub struct Marlin<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest>(
+pub struct Marlin<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, D: Digest>(
     #[doc(hidden)] PhantomData<F>,
     #[doc(hidden)] PhantomData<PC>,
     #[doc(hidden)] PhantomData<D>,
 );
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, D: Digest> Marlin<F, PC, D> {
     /// The personalization string for this protocol. Used to personalize the
     /// Fiat-Shamir rng.
     pub const PROTOCOL_NAME: &'static [u8] = b"MARLIN-2019";
@@ -88,7 +89,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, D: Digest> Marlin<F, PC, D> {
         )
         });
 
-        let srs = PC::setup(max_degree, rng).map_err(Error::from_pc_err);
+        let srs = PC::setup(max_degree, None, rng).map_err(Error::from_pc_err);
         end_timer!(setup_time);
         srs
     }

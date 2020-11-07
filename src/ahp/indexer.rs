@@ -2,12 +2,11 @@
 
 use crate::ahp::{
     constraint_systems::{arithmetize_matrix, MatrixArithmetization},
-    AHPForR1CS, Error,
+    AHPForR1CS, Error, LabeledPolynomial,
 };
 use crate::Vec;
 use ark_ff::PrimeField;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
-use ark_poly_commit::LabeledPolynomial;
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError, SynthesisMode};
 use derivative::Derivative;
 

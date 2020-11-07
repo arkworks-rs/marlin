@@ -44,11 +44,12 @@ mod marlin {
 
     use ark_bls12_381::{Bls12_381, Fr};
     use ark_ff::UniformRand;
+    use ark_poly::univariate::DensePolynomial;
     use ark_poly_commit::marlin_pc::MarlinKZG10;
     use blake2::Blake2s;
     use core::ops::MulAssign;
 
-    type MultiPC = MarlinKZG10<Bls12_381>;
+    type MultiPC = MarlinKZG10<Bls12_381, DensePolynomial<Fr>>;
     type MarlinInst = Marlin<Fr, MultiPC, Blake2s>;
 
     fn test_circuit(num_constraints: usize, num_variables: usize) {
