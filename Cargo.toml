@@ -25,7 +25,7 @@ ark-ff = { git = "https://github.com/arkworks-rs/algebra", default-features = fa
 ark-std = { git = "https://github.com/arkworks-rs/utils", default-features = false }
 ark-poly = { git = "https://github.com/arkworks-rs/algebra", default-features = false }
 ark-relations = { git = "https://github.com/arkworks-rs/snark", default-features = false }
-ark-poly-commit = { git = "https://github.com/scipr-lab/poly-commit", default-features = false }
+ark-poly-commit = { git = "https://github.com/arkworks-rs/poly-commit", default-features = false }
 bench-utils = { git = "https://github.com/arkworks-rs/utils", default-features = false }
 
 rand_core = { version = "0.5" }
@@ -34,6 +34,13 @@ rayon = { version = "1", optional = true }
 digest = { version = "0.8" }
 derivative = { version = "2", features = ["use_core"] }
 
+[patch.'https://github.com/arkworks-rs/algebra']
+ark-serialize = { git = "https://github.com/ryanleh/algebra", branch = "multivariate-support", default-features = false }
+ark-ff = { git = "https://github.com/ryanleh/algebra", branch = "multivariate-support", default-features = false }
+ark-poly = { git = "https://github.com/ryanleh/algebra", branch = "multivariate-support", default-features = false }
+
+[patch.'https://github.com/arkworks-rs/poly-commit']
+ark-poly-commit = { git = "https://github.com/ryanleh/poly-commit", branch = "generic-polynomial", default-features = false }
 
 [dev-dependencies]
 blake2 = { version = "0.8", default-features = false }

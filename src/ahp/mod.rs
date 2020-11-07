@@ -1,7 +1,8 @@
 use crate::{String, ToString, Vec};
 use ark_ff::{Field, PrimeField};
+use ark_poly::univariate::DensePolynomial;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
-use ark_poly_commit::{LCTerm, LabeledPolynomial, LinearCombination};
+use ark_poly_commit::{LCTerm, LinearCombination};
 use ark_relations::r1cs::SynthesisError;
 use ark_std::{cfg_iter_mut, format, vec};
 use core::{borrow::Borrow, marker::PhantomData};
@@ -16,6 +17,9 @@ pub mod indexer;
 pub mod prover;
 /// Describes data structures and the algorithms used by the AHP verifier.
 pub mod verifier;
+
+/// A labeled DensePolynomial with coefficients over `F`
+pub type LabeledPolynomial<F> = ark_poly_commit::LabeledPolynomial<F, DensePolynomial<F>>;
 
 /// The algebraic holographic proof defined in [CHMMVW19](https://eprint.iacr.org/2019/1047).
 /// Currently, this AHP only supports inputs of size one
@@ -264,7 +268,7 @@ pub trait EvaluationsProvider<F: Field> {
     fn get_lc_eval(&self, lc: &LinearCombination<F>, point: F) -> Result<F, Error>;
 }
 
-impl<'a, F: Field> EvaluationsProvider<F> for ark_poly_commit::Evaluations<'a, F> {
+impl<'a, F: Field> EvaluationsProvider<F> for ark_poly_commit::Evaluations<'a, F, F> {
     fn get_lc_eval(&self, lc: &LinearCombination<F>, point: F) -> Result<F, Error> {
         let key = (lc.label.clone(), point);
         self.get(&key)
@@ -288,7 +292,7 @@ impl<F: Field, T: Borrow<LabeledPolynomial<F>>> EvaluationsProvider<F> for Vec<T
                         label, lc.label
                     )))?
                     .borrow()
-                    .evaluate(point)
+                    .evaluate(&point)
             } else {
                 assert!(term.is_one());
                 F::one()
@@ -366,7 +370,10 @@ mod tests {
     use super::*;
     use ark_bls12_381::Fr;
     use ark_ff::{One, UniformRand, Zero};
-    use ark_poly::{DenseOrSparsePolynomial, DensePolynomial};
+    use ark_poly::{
+        univariate::{DenseOrSparsePolynomial, DensePolynomial},
+        Polynomial, UVPolynomial,
+    };
 
     #[test]
     fn domain_unnormalized_bivariate_lagrange_poly() {
@@ -405,7 +412,7 @@ mod tests {
         let poly = DensePolynomial::rand(size, rng);
 
         let mut sum: Fr = Fr::zero();
-        for eval in domain.elements().map(|e| poly.evaluate(e)) {
+        for eval in domain.elements().map(|e| poly.evaluate(&e)) {
             sum += eval;
         }
         let first = poly.coeffs[0] * size_as_fe;
@@ -454,7 +461,7 @@ mod tests {
         );
 
         for e in domain_h.elements() {
-            println!("{:?}", divisor.evaluate(e));
+            println!("{:?}", divisor.evaluate(&e));
         }
         // Let p = v_K / v_H;
         // The alternator polynomial is p * t, where t is defined as
