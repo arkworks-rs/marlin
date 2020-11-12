@@ -325,7 +325,7 @@ where
     fn from(e: crate::Error<E>) -> Self {
         match e {
             IndexTooLarge(v) => Self {
-                error_msg: format!("index too large, needed deegree {}", v),
+                error_msg: format!("index too large, needed degree {}", v),
             },
             crate::Error::<E>::AHPError(err) => match err {
                 crate::ahp::Error::MissingEval(str) => Self {
