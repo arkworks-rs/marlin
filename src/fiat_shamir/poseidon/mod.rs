@@ -115,7 +115,7 @@ impl<F: PrimeField> PoseidonSponge<F> {
         }
         // otherwise absorb (rate - rate_start_index) elements
         let num_elements_absorbed = self.rate - rate_start_index;
-        for (i, element) in elements.iter().enumerate() {
+        for (i, element) in elements.iter().enumerate().take(num_elements_absorbed) {
             self.state[i + rate_start_index] += element;
         }
         self.permute();
