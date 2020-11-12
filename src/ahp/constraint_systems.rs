@@ -48,8 +48,6 @@ pub(crate) fn num_non_zero<F: PrimeField>(matrices: &ConstraintMatrices<F>) -> u
 
 pub(crate) fn make_matrices_square_for_indexer<F: PrimeField>(cs: ConstraintSystemRef<F>) {
     let num_variables = cs.num_instance_variables() + cs.num_witness_variables();
-    let matrices = cs.to_matrices().unwrap();
-    let num_non_zero_val = num_non_zero::<F>(&matrices);
     let matrix_dim = padded_matrix_dim(num_variables, cs.num_constraints());
     make_matrices_square(cs.clone(), num_variables);
     assert_eq!(
@@ -61,11 +59,6 @@ pub(crate) fn make_matrices_square_for_indexer<F: PrimeField>(cs: ConstraintSyst
         cs.num_instance_variables() + cs.num_witness_variables(),
         matrix_dim,
         "padding does not result in expected matrix size!"
-    );
-    assert_eq!(
-        num_non_zero::<F>(&matrices),
-        num_non_zero_val,
-        "padding changed matrix density"
     );
 }
 
