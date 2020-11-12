@@ -38,7 +38,7 @@ where
     #[tracing::instrument(target = "r1cs", skip(index_pvk, proof))]
     pub fn prepared_verify<PR: FiatShamirRng<F, CF>, R: FiatShamirRngVar<F, CF, PR>>(
         index_pvk: &PreparedIndexVerifierKeyVar<F, CF, PC, PCG, PR, R>,
-        public_input: &Vec<NonNativeFieldVar<F, CF>>,
+        public_input: &[NonNativeFieldVar<F, CF>],
         proof: &ProofVar<F, CF, PC, PCG>,
     ) -> Result<Boolean<CF>, Error<PC::Error>> {
         let cs = index_pvk
@@ -92,7 +92,7 @@ where
             AHPForR1CS::<F, CF, PC, PCG>::verifier_comm_query_eval_set(
                 &index_pvk,
                 &proof,
-                &verifier_state.clone(),
+                &verifier_state,
             )?;
 
         let mut evaluations_labels = Vec::<(String, NonNativeFieldVar<F, CF>)>::new();
@@ -135,7 +135,7 @@ where
     #[tracing::instrument(target = "r1cs", skip(index_vk, proof))]
     pub fn verify<PR: FiatShamirRng<F, CF>, R: FiatShamirRngVar<F, CF, PR>>(
         index_vk: &IndexVerifierKeyVar<F, CF, PC, PCG>,
-        public_input: &Vec<NonNativeFieldVar<F, CF>>,
+        public_input: &[NonNativeFieldVar<F, CF>],
         proof: &ProofVar<F, CF, PC, PCG>,
     ) -> Result<Boolean<CF>, Error<PC::Error>> {
         let index_pvk = PreparedIndexVerifierKeyVar::<F, CF, PC, PCG, PR, R>::prepare(&index_vk)?;

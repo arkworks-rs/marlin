@@ -162,11 +162,11 @@ impl<F: PrimeField> AHPForR1CS<F> {
         if index.index_info.num_constraints != num_constraints
             || num_input_variables + num_witness_variables != index.index_info.num_variables
         {
-            Err(Error::InstanceDoesNotMatchIndex)?;
+            return Err(Error::InstanceDoesNotMatchIndex);
         }
 
         if !Self::formatted_public_input_is_admissible(&formatted_input_assignment) {
-            Err(Error::InvalidPublicInputLength)?
+            return Err(Error::InvalidPublicInputLength);
         }
 
         // Perform matrix multiplications
@@ -223,6 +223,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the first round message and the next state.
+    #[allow(clippy::type_complexity)]
     pub fn prover_first_round<'a, R: RngCore>(
         mut state: ProverState<'a, F>,
         rng: &mut R,
@@ -293,9 +294,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let msg = ProverMsg::EmptyMessage;
 
-        assert!(w_poly.degree() <= domain_h.size() - domain_x.size() + zk_bound - 1);
-        assert!(z_a_poly.degree() <= domain_h.size() + zk_bound - 1);
-        assert!(z_b_poly.degree() <= domain_h.size() + zk_bound - 1);
+        assert!(w_poly.degree() < domain_h.size() - domain_x.size() + zk_bound);
+        assert!(z_a_poly.degree() < domain_h.size() + zk_bound);
+        assert!(z_b_poly.degree() < domain_h.size() + zk_bound);
         assert!(mask_poly.degree() <= 3 * domain_h.size() + 2 * zk_bound - 3);
 
         let (w, z_a, z_b) = if hiding {
@@ -312,8 +313,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             )
         };
 
-        let mask_poly =
-            LabeledPolynomial::new("mask_poly".to_string(), mask_poly.clone(), None, None);
+        let mask_poly = LabeledPolynomial::new("mask_poly".to_string(), mask_poly, None, None);
 
         let oracles = ProverFirstOracles {
             w: w.clone(),
@@ -436,7 +436,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         cfg_iter_mut!(z_poly.coeffs)
             .zip(&x_poly.coeffs)
             .for_each(|(z, x)| *z += x);
-        assert!(z_poly.degree() <= domain_h.size() + zk_bound - 1);
+        assert!(z_poly.degree() < domain_h.size() + zk_bound);
 
         end_timer!(z_poly_time);
 

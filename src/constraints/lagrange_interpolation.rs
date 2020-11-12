@@ -23,11 +23,10 @@ pub struct VanishingPolynomial<F: Field> {
 
 impl<F: Field> VanishingPolynomial<F> {
     pub fn new(offset: F, order_h: u64) -> Self {
-        let vp = VanishingPolynomial {
+        VanishingPolynomial {
             constant_term: offset.pow([order_h]),
             order_h,
-        };
-        vp
+        }
     }
 
     pub fn evaluate(&self, x: &F) -> F {
@@ -42,7 +41,7 @@ impl<CF: PrimeField> LagrangeInterpolator<CF> {
         let domain_order = domain_order;
         let poly_evaluations_size = poly_evaluations.len();
 
-        let mut cur_elem = domain_generator.clone();
+        let mut cur_elem = domain_generator;
         let mut all_domain_elems = vec![CF::one()];
         let mut v_inv_elems: Vec<CF> = Vec::new();
 
@@ -59,7 +58,7 @@ impl<CF: PrimeField> LagrangeInterpolator<CF> {
             v_inv_i *= g_inv;
         }
 
-        let vp = VanishingPolynomial::new(domain_generator.clone(), domain_order);
+        let vp = VanishingPolynomial::new(domain_generator, domain_order);
 
         let lagrange_interpolation: LagrangeInterpolator<CF> = LagrangeInterpolator {
             all_domain_elems,
@@ -87,7 +86,7 @@ impl<CF: PrimeField> LagrangeInterpolator<CF> {
         let lagrange_coeffs = inverted_lagrange_coeffs.as_mut_slice();
         batch_inversion::<CF>(lagrange_coeffs);
 
-        lagrange_coeffs.iter().cloned().collect()
+        lagrange_coeffs.to_vec()
     }
 
     pub fn interpolate(&self, interpolation_point: CF) -> CF {
@@ -96,8 +95,12 @@ impl<CF: PrimeField> LagrangeInterpolator<CF> {
         let lagrange_coeffs = self.compute_lagrange_coefficients(interpolation_point);
         let mut interpolation = CF::zero();
 
-        for i in 0..poly_evaluations_size {
-            interpolation += lagrange_coeffs[i] * self.poly_evaluations[i];
+        for (lagrange_coeff, poly_evaluation) in lagrange_coeffs
+            .iter()
+            .zip(self.poly_evaluations.iter())
+            .take(poly_evaluations_size)
+        {
+            interpolation += *lagrange_coeff * poly_evaluation;
         }
         interpolation
     }
@@ -108,24 +111,23 @@ impl<F: PrimeField, CF: PrimeField> LagrangeInterpolationVar<F, CF> {
     pub fn new(
         domain_generator: F,
         domain_dim: u64,
-        poly_evaluations: &Vec<NonNativeFieldVar<F, CF>>,
+        poly_evaluations: &[NonNativeFieldVar<F, CF>],
     ) -> Self {
         let poly_evaluations_size = poly_evaluations.len();
 
         let mut poly_evaluations_cf: Vec<F> = Vec::new();
-        for i in 0..poly_evaluations_size {
-            poly_evaluations_cf.push(poly_evaluations[i].value().unwrap_or_default());
+        for poly_evaluation in poly_evaluations.iter().take(poly_evaluations_size) {
+            poly_evaluations_cf.push(poly_evaluation.value().unwrap_or_default());
         }
 
         let lagrange_interpolator: LagrangeInterpolator<F> =
             LagrangeInterpolator::new(domain_generator, domain_dim, poly_evaluations_cf);
 
-        let lagrange_interpolation_gadget = LagrangeInterpolationVar {
+        LagrangeInterpolationVar {
             lagrange_interpolator,
             vp_t: None,
-            poly_evaluations: (*poly_evaluations).clone(),
-        };
-        lagrange_interpolation_gadget
+            poly_evaluations: (*poly_evaluations).to_vec(),
+        }
     }
 
     #[tracing::instrument(target = "r1cs", skip(self))]
@@ -156,17 +158,23 @@ impl<F: PrimeField, CF: PrimeField> LagrangeInterpolationVar<F, CF> {
             self.vp_t = Some(vp_t.clone());
         }
 
-        for i in 0..poly_evaluations_size {
-            let add_constant_val: F = -self.lagrange_interpolator.all_domain_elems[i];
+        for ((all_domain_elem, v_inv_elem), lagrange_coeff) in self
+            .lagrange_interpolator
+            .all_domain_elems
+            .iter()
+            .zip(self.lagrange_interpolator.v_inv_elems.iter())
+            .zip(lagrange_coeffs.iter())
+            .take(poly_evaluations_size)
+        {
+            let add_constant_val: F = -*all_domain_elem;
 
             let lag_coeff = NonNativeFieldVar::<F, CF>::new_witness(
                 ark_relations::ns!(cs, "generate lagrange coefficient"),
-                || Ok(lagrange_coeffs[i]),
+                || Ok(*lagrange_coeff),
             )?;
             lagrange_coeffs_fg.push(lag_coeff.clone());
 
-            let test_elem =
-                (&t + add_constant_val) * self.lagrange_interpolator.v_inv_elems[i] * &lag_coeff;
+            let test_elem = (&t + add_constant_val) * *v_inv_elem * &lag_coeff;
             test_elem.enforce_equal(&vp_t)?;
         }
         Ok(lagrange_coeffs_fg)
@@ -177,16 +185,16 @@ impl<F: PrimeField, CF: PrimeField> LagrangeInterpolationVar<F, CF> {
         &mut self,
         interpolation_point: &NonNativeFieldVar<F, CF>,
     ) -> Result<NonNativeFieldVar<F, CF>, SynthesisError> {
-        let poly_evaluations_size = self.poly_evaluations.len();
-
         let lagrange_coeffs =
             self.compute_lagrange_coefficients_constraints(&interpolation_point)?;
 
         let mut interpolation = NonNativeFieldVar::<F, CF>::zero();
 
-        for i in 0..poly_evaluations_size {
-            let intermediate = &lagrange_coeffs[i] * &self.poly_evaluations[i];
-            interpolation = interpolation + &intermediate;
+        for (lagrange_coeff, poly_evaluation) in
+            lagrange_coeffs.iter().zip(self.poly_evaluations.iter())
+        {
+            let intermediate = lagrange_coeff * poly_evaluation;
+            interpolation += &intermediate;
         }
         Ok(interpolation)
     }

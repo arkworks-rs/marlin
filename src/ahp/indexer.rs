@@ -109,7 +109,7 @@ impl<'a, F: PrimeField> Index<F> {
 
 impl<F: PrimeField> AHPForR1CS<F> {
     /// Generate the index for this constraint system.
-    pub fn index<'a, C: ConstraintSynthesizer<F>>(c: C) -> Result<Index<F>, Error> {
+    pub fn index<C: ConstraintSynthesizer<F>>(c: C) -> Result<Index<F>, Error> {
         let index_time = start_timer!(|| "AHP::Index");
 
         let constraint_time = start_timer!(|| "Generating constraints");
@@ -149,7 +149,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         }
 
         if !Self::num_formatted_public_inputs_is_admissible(num_formatted_input_variables) {
-            Err(Error::InvalidPublicInputLength)?
+            return Err(Error::InvalidPublicInputLength);
         }
 
         let index_info = IndexInfo {

@@ -152,6 +152,7 @@ where
 
     /// Generate the index-specific (i.e., circuit-specific) prover and verifier
     /// keys. This is a trusted setup.
+    #[allow(clippy::type_complexity)]
     pub fn circuit_specific_setup<C: ConstraintSynthesizer<F>, R: RngCore>(
         c: C,
         rng: &mut R,
@@ -219,7 +220,7 @@ where
         };
 
         let index_pk = IndexProverKey {
-            index: index.clone(),
+            index,
             index_comm_rands,
             index_vk: index_vk.clone(),
             committer_key,
@@ -232,6 +233,7 @@ where
 
     /// Generate the index-specific (i.e., circuit-specific) prover and verifier
     /// keys. This is a deterministic algorithm that anyone can rerun.
+    #[allow(clippy::type_complexity)]
     pub fn index<C: ConstraintSynthesizer<F>>(
         srs: &UniversalSRS<F, PC>,
         c: C,
@@ -243,7 +245,7 @@ where
         // TODO: Add check that c is in the correct mode.
         let index = AHPForR1CS::index(c)?;
         if srs.max_degree() < index.max_degree() {
-            Err(Error::IndexTooLarge(index.max_degree()))?;
+            return Err(Error::IndexTooLarge(index.max_degree()));
         }
 
         let coeff_support = AHPForR1CS::get_degree_bounds(&index.index_info);
@@ -301,7 +303,7 @@ where
         };
 
         let index_pk = IndexProverKey {
-            index: index.clone(),
+            index,
             index_comm_rands,
             index_vk: index_vk.clone(),
             committer_key,
@@ -368,7 +370,7 @@ where
         }
 
         let (verifier_first_msg, verifier_state) =
-            AHPForR1CS::verifier_first_round(index_pk.index_vk.index_info.clone(), &mut fs_rng)?;
+            AHPForR1CS::verifier_first_round(index_pk.index_vk.index_info, &mut fs_rng)?;
         // --------------------------------------------------------------------
 
         // --------------------------------------------------------------------
@@ -514,7 +516,7 @@ where
             let lc = lc_s
                 .iter()
                 .find(|lc| &lc.label == label)
-                .ok_or(ahp::Error::MissingEval(label.to_string()))?;
+                .ok_or_else(|| ahp::Error::MissingEval(label.to_string()))?;
             let eval = polynomials.get_lc_eval(&lc, *point)?;
             if !AHPForR1CS::<F>::LC_WITH_ZERO_EVAL.contains(&lc.label.as_ref()) {
                 evaluations_unsorted.push((label.to_string(), eval));
@@ -522,10 +524,7 @@ where
         }
 
         evaluations_unsorted.sort_by(|a, b| a.0.cmp(&b.0));
-        let evaluations = evaluations_unsorted
-            .iter()
-            .map(|x| x.1.clone())
-            .collect::<Vec<F>>();
+        let evaluations = evaluations_unsorted.iter().map(|x| x.1).collect::<Vec<F>>();
         end_timer!(eval_time);
 
         if for_recursion {
@@ -615,7 +614,7 @@ where
         }
 
         let (_, verifier_state) =
-            AHPForR1CS::verifier_first_round(index_vk.index_info.clone(), &mut fs_rng)?;
+            AHPForR1CS::verifier_first_round(index_vk.index_info, &mut fs_rng)?;
         // --------------------------------------------------------------------
 
         // --------------------------------------------------------------------
@@ -655,7 +654,7 @@ where
         // Collect degree bounds for commitments. Indexed polynomials have *no*
         // degree bounds because we know the committed index polynomial has the
         // correct degree.
-        let index_info = index_vk.index_info.clone();
+        let index_info = index_vk.index_info;
         let degree_bounds = vec![None; index_vk.index_comms.len()]
             .into_iter()
             .chain(AHPForR1CS::prover_first_round_degree_bounds(&index_info))
@@ -696,9 +695,9 @@ where
 
         for q in query_set.iter().cloned() {
             if AHPForR1CS::<F>::LC_WITH_ZERO_EVAL.contains(&q.0.as_ref()) {
-                evaluations.insert((q.0.clone(), (q.1).1.clone()), F::zero());
+                evaluations.insert((q.0.clone(), (q.1).1), F::zero());
             } else {
-                evaluation_labels.push((q.0.clone(), (q.1).1.clone()));
+                evaluation_labels.push((q.0.clone(), (q.1).1));
             }
         }
         evaluation_labels.sort_by(|a, b| a.0.cmp(&b.0));

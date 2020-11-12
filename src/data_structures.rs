@@ -42,7 +42,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>> Clone for IndexVerifierKey<F, P
     fn clone(&self) -> Self {
         Self {
             index_comms: self.index_comms.clone(),
-            index_info: self.index_info.clone(),
+            index_info: self.index_info,
             verifier_key: self.verifier_key.clone(),
         }
     }
@@ -196,7 +196,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>> Proof<F, PC> {
         let mut size_bytes_comms_without_degree_bounds = 0;
         let mut size_bytes_comms_with_degree_bounds = 0;
         let mut size_bytes_proofs = 0;
-        for c in self.commitments.iter().flat_map(|c| c) {
+        for c in self.commitments.iter().flatten() {
             if !c.has_degree_bound() {
                 num_comms_without_degree_bounds += 1;
                 size_bytes_comms_without_degree_bounds += c.size_in_bytes();

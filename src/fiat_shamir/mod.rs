@@ -190,7 +190,7 @@ pub struct FiatShamirAlgebraicSpongeRng<F: PrimeField, CF: PrimeField, S: Algebr
 
 impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> FiatShamirAlgebraicSpongeRng<F, CF, S> {
     /// compress every two elements if possible. Provides a vector of (limb, num_of_additions), both of which are P::BaseField.
-    pub fn compress_elements(src_limbs: &Vec<(CF, CF)>) -> Vec<CF> {
+    pub fn compress_elements(src_limbs: &[(CF, CF)]) -> Vec<CF> {
         let capacity = CF::size_in_bits() - 1;
         let mut dest_limbs = Vec::<CF>::new();
 
@@ -201,7 +201,7 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> FiatShamirAlgebraicS
 
             let mut cur = CF::one();
             for _ in 1..=capacity {
-                table.push(cur.clone());
+                table.push(cur);
                 cur.double_in_place();
             }
 
@@ -219,19 +219,25 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> FiatShamirAlgebraicS
             };
 
             let first_max_bits_per_limb = params.bits_per_limb + overhead!(first.1 + &CF::one());
-            let second_max_bits_per_limb = if second.is_some() {
-                params.bits_per_limb + overhead!(second.unwrap().1 + &CF::one())
+            let second_max_bits_per_limb = if let Some(second) = second {
+                params.bits_per_limb + overhead!(second.1 + &CF::one())
             } else {
                 0
             };
 
-            if second.is_some() && first_max_bits_per_limb + second_max_bits_per_limb <= capacity {
-                let adjustment_factor = &adjustment_factor_lookup_table[second_max_bits_per_limb];
+            if let Some(second) = second {
+                if first_max_bits_per_limb + second_max_bits_per_limb <= capacity {
+                    let adjustment_factor =
+                        &adjustment_factor_lookup_table[second_max_bits_per_limb];
 
-                dest_limbs.push(first.0.clone() * adjustment_factor + &second.unwrap().0);
-                i += 2;
+                    dest_limbs.push(first.0 * adjustment_factor + &second.0);
+                    i += 2;
+                } else {
+                    dest_limbs.push(first.0);
+                    i += 1;
+                }
             } else {
-                dest_limbs.push(first.0.clone());
+                dest_limbs.push(first.0);
                 i += 1;
             }
         }
@@ -247,7 +253,7 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> FiatShamirAlgebraicS
             let limbs =
                 AllocatedNonNativeFieldVar::<F, CF>::get_limbs_representations(elem, None).unwrap();
             for limb in limbs.iter() {
-                src_limbs.push((limb.clone(), CF::one()));
+                src_limbs.push((*limb, CF::one()));
                 // specifically set to one, since most gadgets in the constraint world would not have zero noise (due to the relatively weak normal form testing in `alloc`)
             }
         }
@@ -303,7 +309,7 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> FiatShamirAlgebraicS
                 let mut res = F::zero();
 
                 for (i, bit) in per_nonnative_bits.iter().rev().enumerate() {
-                    if *bit == true {
+                    if *bit {
                         res += &lookup_table[i];
                     }
                 }
@@ -366,8 +372,8 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> RngCore
             .enumerate()
             .for_each(|(i, bits_per_byte)| {
                 let mut byte = 0;
-                for j in 0..7 {
-                    if bits_per_byte[j] {
+                for (j, bit) in bits_per_byte.iter().enumerate() {
+                    if *bit {
                         byte += 1 << j;
                     }
                 }

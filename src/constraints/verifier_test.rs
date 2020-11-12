@@ -88,17 +88,17 @@ mod tests {
 
         let a = Fr::rand(rng);
         let b = Fr::rand(rng);
-        let mut c = a.clone();
+        let mut c = a;
         c.mul_assign(&b);
 
         let circ = Circuit {
-            a: Some(a.clone()),
+            a: Some(a),
             b: Some(b),
             num_constraints,
             num_variables,
         };
 
-        let (index_pk, index_vk) = MarlinNativeInst::index(&universal_srs, circ.clone()).unwrap();
+        let (index_pk, index_vk) = MarlinNativeInst::index(&universal_srs, circ).unwrap();
         println!("Called index");
 
         let proof = MarlinNativeInst::prove(&index_pk, circ, rng).unwrap();
@@ -198,7 +198,7 @@ mod tests {
 
         let mut evaluation_gadgets = HashMap::<String, NonNativeFieldVar<Fr, Fq>>::new();
 
-        const ALL_POLYNOMIALS: [&'static str; 10] = [
+        const ALL_POLYNOMIALS: [&str; 10] = [
             "a_denom",
             "b_denom",
             "c_denom",
@@ -220,7 +220,7 @@ mod tests {
             commitments: commitment_gadgets,
             evaluations: evaluation_gadgets,
             prover_messages: prover_message_gadgets,
-            pc_batch_proof: pc_batch_proof,
+            pc_batch_proof,
         };
         // END: proof to proof_gadget
 

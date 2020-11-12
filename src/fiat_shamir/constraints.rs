@@ -50,6 +50,7 @@ pub trait FiatShamirRngVar<F: PrimeField, CF: PrimeField, PFS: FiatShamirRng<F, 
     ) -> Result<Vec<NonNativeFieldVar<F, CF>>, SynthesisError>;
 
     /// take out field elements and the bits (this can reduce repeated computation)
+    #[allow(clippy::type_complexity)]
     fn squeeze_field_elements_and_bits(
         &mut self,
         num: usize,
@@ -62,6 +63,7 @@ pub trait FiatShamirRngVar<F: PrimeField, CF: PrimeField, PFS: FiatShamirRng<F, 
     ) -> Result<Vec<NonNativeFieldVar<F, CF>>, SynthesisError>;
 
     /// take out field elements with only 128 bits and the bits (this can reduce repeated computation)
+    #[allow(clippy::type_complexity)]
     fn squeeze_128_bits_field_elements_and_bits(
         &mut self,
         num: usize,
@@ -108,12 +110,12 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     /// compress every two elements if possible. Provides a vector of (limb, num_of_additions), both of which are CF.
     #[tracing::instrument(target = "r1cs")]
     pub fn compress_gadgets(
-        src_limbs: &Vec<(FpVar<CF>, CF)>,
+        src_limbs: &[(FpVar<CF>, CF)],
     ) -> Result<Vec<FpVar<CF>>, SynthesisError> {
         let capacity = CF::size_in_bits() - 1;
         let mut dest_limbs = Vec::<FpVar<CF>>::new();
 
-        if src_limbs.len() == 0 {
+        if src_limbs.is_empty() {
             return Ok(vec![]);
         }
 
@@ -124,7 +126,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
 
             let mut cur = CF::one();
             for _ in 1..=capacity {
-                table.push(cur.clone());
+                table.push(cur);
                 cur.double_in_place();
             }
 
@@ -151,11 +153,11 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
             if second.is_some() && first_max_bits_per_limb + second_max_bits_per_limb <= capacity {
                 let adjustment_factor = &adjustment_factor_lookup_table[second_max_bits_per_limb];
 
-                dest_limbs.push(&first.0 * adjustment_factor.clone() + &second.unwrap().0);
-                i = i + 2;
+                dest_limbs.push(&first.0 * *adjustment_factor + &second.unwrap().0);
+                i += 2;
             } else {
                 dest_limbs.push(first.0.clone());
-                i = i + 1;
+                i += 1;
             }
         }
 
@@ -166,7 +168,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     #[tracing::instrument(target = "r1cs", skip(sponge))]
     pub fn push_gadgets_to_sponge(
         sponge: &mut S,
-        src: &Vec<NonNativeFieldVar<F, CF>>,
+        src: &[NonNativeFieldVar<F, CF>],
     ) -> Result<(), SynthesisError> {
         let mut src_limbs: Vec<(FpVar<CF>, CF)> = Vec::new();
 
@@ -180,7 +182,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
                             if v.num_of_additions_over_normal_form == CF::zero() {
                                 CF::one()
                             } else {
-                                v.num_of_additions_over_normal_form.clone()
+                                v.num_of_additions_over_normal_form
                             };
                         src_limbs
                             .push((FpVar::from(limb.clone()), num_of_additions_over_normal_form));
@@ -192,7 +194,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
                             if v.num_of_additions_over_normal_form == CF::zero() {
                                 CF::one()
                             } else {
-                                v.num_of_additions_over_normal_form.clone()
+                                v.num_of_additions_over_normal_form
                             };
                         src_limbs
                             .push((FpVar::from(limb.clone()), num_of_additions_over_normal_form));
@@ -245,6 +247,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     /// obtain random elements from hashchain gadget.
     /// not guaranteed to be uniformly distributed, should only be used in certain situations.
     #[tracing::instrument(target = "r1cs", skip(sponge))]
+    #[allow(clippy::type_complexity)]
     pub fn get_gadgets_and_bits_from_sponge(
         sponge: &mut S,
         num_elements: usize,
@@ -283,12 +286,13 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
                 dest_bits.push(per_nonnative_bits_le.clone());
 
                 for (j, bit) in per_nonnative_bits_le.iter().enumerate() {
-                    if bit.value().unwrap_or_default() == true {
-                        for k in 0..params.num_limbs {
-                            val[k] += &lookup_table[j][k];
+                    if bit.value().unwrap_or_default() {
+                        for (k, val) in val.iter_mut().enumerate().take(params.num_limbs) {
+                            *val += &lookup_table[j][k];
                         }
                     }
 
+                    #[allow(clippy::needless_range_loop)]
                     for k in 0..params.num_limbs {
                         lc[k] = &lc[k] + bit.lc() * lookup_table[j][k];
                     }
@@ -340,7 +344,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     ) -> Self {
         Self {
             cs: cs.clone(),
-            s: S::constant(cs.clone(), &pfs.s.clone()),
+            s: S::constant(cs, &pfs.s.clone()),
             f_phantom: PhantomData,
             cf_phantom: PhantomData,
             ps_phantom: PhantomData,
@@ -383,10 +387,10 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
             let mut elem = CF::zero();
             let mut lc = LinearCombination::zero();
             for (bit, adjustment_factor) in elem_bits.iter().rev().zip(adjustment_factors.iter()) {
-                if bit.value().unwrap_or_default() == true {
+                if bit.value().unwrap_or_default() {
                     elem += adjustment_factor;
                 }
-                lc = &lc + bit.lc() * adjustment_factor.clone();
+                lc = &lc + bit.lc() * *adjustment_factor;
             }
 
             let gadget =
@@ -417,6 +421,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     }
 
     #[tracing::instrument(target = "r1cs", skip(self))]
+    #[allow(clippy::type_complexity)]
     fn squeeze_field_elements_and_bits(
         &mut self,
         num: usize,
@@ -433,6 +438,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     }
 
     #[tracing::instrument(target = "r1cs", skip(self))]
+    #[allow(clippy::type_complexity)]
     fn squeeze_128_bits_field_elements_and_bits(
         &mut self,
         num: usize,

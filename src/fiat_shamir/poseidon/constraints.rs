@@ -48,8 +48,8 @@ impl<F: PrimeField> PoseidonSpongeVar<F> {
     ) -> Result<(), SynthesisError> {
         // Full rounds apply the S Box (x^alpha) to every element of state
         if is_full_round {
-            for i in 0..state.len() {
-                state[i] = state[i].pow_by_constant(&[self.alpha])?;
+            for state_item in state.iter_mut() {
+                *state_item = state_item.pow_by_constant(&[self.alpha])?;
             }
         }
         // Partial rounds apply the S Box (x^alpha) to just the final element of state
@@ -62,8 +62,8 @@ impl<F: PrimeField> PoseidonSpongeVar<F> {
 
     #[tracing::instrument(target = "r1cs", skip(self))]
     fn apply_ark(&self, state: &mut [FpVar<F>], round_number: usize) -> Result<(), SynthesisError> {
-        for i in 0..state.len() {
-            state[i] += self.ark[round_number][i];
+        for (i, state_elem) in state.iter_mut().enumerate() {
+            *state_elem += self.ark[round_number][i];
         }
         Ok(())
     }
@@ -74,15 +74,13 @@ impl<F: PrimeField> PoseidonSpongeVar<F> {
         let zero = FpVar::<F>::zero();
         for i in 0..state.len() {
             let mut cur = zero.clone();
-            for j in 0..state.len() {
-                let term = &state[j] * self.mds[i][j];
+            for (j, state_elem) in state.iter().enumerate() {
+                let term = state_elem * self.mds[i][j];
                 cur += &term;
             }
             new_state.push(cur);
         }
-        for i in 0..state.len() {
-            state[i] = new_state[i].clone();
-        }
+        state.clone_from_slice(&new_state[..state.len()]);
         Ok(())
     }
 
@@ -121,8 +119,8 @@ impl<F: PrimeField> PoseidonSpongeVar<F> {
     ) -> Result<(), SynthesisError> {
         // if we can finish in this call
         if rate_start_index + elements.len() <= self.rate {
-            for i in 0..elements.len() {
-                self.state[i + rate_start_index] += &elements[i];
+            for (i, element) in elements.iter().enumerate() {
+                self.state[i + rate_start_index] += element;
             }
             self.mode = PoseidonSpongeState::Absorbing {
                 next_absorb_index: rate_start_index + elements.len(),
@@ -132,8 +130,8 @@ impl<F: PrimeField> PoseidonSpongeVar<F> {
         }
         // otherwise absorb (rate - rate_start_index) elements
         let num_elements_absorbed = self.rate - rate_start_index;
-        for i in 0..num_elements_absorbed {
-            self.state[i + rate_start_index] += &elements[i];
+        for (i, element) in elements.iter().enumerate().take(num_elements_absorbed) {
+            self.state[i + rate_start_index] += element;
         }
         self.permute()?;
         // Tail recurse, with the input elements being truncated by num elements absorbed
@@ -149,9 +147,8 @@ impl<F: PrimeField> PoseidonSpongeVar<F> {
     ) -> Result<(), SynthesisError> {
         // if we can finish in this call
         if rate_start_index + output.len() <= self.rate {
-            for i in 0..output.len() {
-                output[i] = self.state[i + rate_start_index].clone();
-            }
+            output
+                .clone_from_slice(&self.state[rate_start_index..(output.len() + rate_start_index)]);
             self.mode = PoseidonSpongeState::Squeezing {
                 next_squeeze_index: rate_start_index + output.len(),
             };
@@ -159,9 +156,9 @@ impl<F: PrimeField> PoseidonSpongeVar<F> {
         }
         // otherwise squeeze (rate - rate_start_index) elements
         let num_elements_squeezed = self.rate - rate_start_index;
-        for i in 0..num_elements_squeezed {
-            output[i] = self.state[i + rate_start_index].clone();
-        }
+        output[..num_elements_squeezed].clone_from_slice(
+            &self.state[rate_start_index..(num_elements_squeezed + rate_start_index)],
+        );
 
         // Unless we are done with squeezing in this call, permute.
         if output.len() != self.rate {
@@ -185,7 +182,7 @@ impl<F: PrimeField> AlgebraicSpongeVar<F, PoseidonSponge<F>> for PoseidonSpongeV
             vec![F::zero(), F::one(), F::one()],
         ];
 
-        #[cfg_attr(rustfmt, rustfmt_skip)]
+        #[rustfmt::skip]
             let ark = vec![
             vec![F::from_str("9478896780421655835758496955063136571251874317427585180076394551808670301829").map_err(|_| ()).unwrap(), F::from_str("1410220424381727336803825453763847584610565307685015130563813219659976870089").map_err(|_| ()).unwrap(), F::from_str("12324248147325396388933912754817224521085038231095815415485781874375379288849").map_err(|_| ()).unwrap()],
             vec![F::from_str("5869197693688547188262203345939784760013629955870738354032535473827837048029").map_err(|_| ()).unwrap(), F::from_str("7027675418691353855077049716619550622043312043660992344940177187528247727783").map_err(|_| ()).unwrap(), F::from_str("12525656923125347519081182951439180216858859245949104467678704676398049957654").map_err(|_| ()).unwrap()],
@@ -253,22 +250,22 @@ impl<F: PrimeField> AlgebraicSpongeVar<F, PoseidonSponge<F>> for PoseidonSpongeV
 
         for state_elem in pfs.state.iter() {
             state_gadgets.push(
-                FpVar::<F>::new_constant(ark_relations::ns!(cs, "alloc_elems"), state_elem.clone())
+                FpVar::<F>::new_constant(ark_relations::ns!(cs, "alloc_elems"), *state_elem)
                     .unwrap(),
             );
         }
 
         Self {
-            cs: cs.clone(),
-            full_rounds: pfs.full_rounds.clone(),
-            partial_rounds: pfs.partial_rounds.clone(),
-            alpha: pfs.alpha.clone(),
+            cs,
+            full_rounds: pfs.full_rounds,
+            partial_rounds: pfs.partial_rounds,
+            alpha: pfs.alpha,
             ark: pfs.ark.clone(),
             mds: pfs.mds.clone(),
 
             state: state_gadgets,
-            rate: pfs.rate.clone(),
-            capacity: pfs.capacity.clone(),
+            rate: pfs.rate,
+            capacity: pfs.capacity,
             mode: pfs.mode.clone(),
         }
     }
@@ -278,7 +275,7 @@ impl<F: PrimeField> AlgebraicSpongeVar<F, PoseidonSponge<F>> for PoseidonSpongeV
     }
 
     fn absorb(&mut self, elems: &[FpVar<F>]) -> Result<(), SynthesisError> {
-        if elems.len() == 0 {
+        if elems.is_empty() {
             return Ok(());
         }
 

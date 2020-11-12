@@ -75,6 +75,7 @@ where
 {
     /// Output the first message and next round state.
     #[tracing::instrument(target = "r1cs", skip(fs_rng, comms))]
+    #[allow(clippy::type_complexity)]
     pub fn verifier_first_round<
         CommitmentVar: ToConstraintFieldGadget<CF>,
         PR: FiatShamirRng<F, CF>,
@@ -83,8 +84,8 @@ where
         domain_h_size: u64,
         domain_k_size: u64,
         fs_rng: &mut R,
-        comms: &Vec<CommitmentVar>,
-        message: &Vec<NonNativeFieldVar<F, CF>>,
+        comms: &[CommitmentVar],
+        message: &[NonNativeFieldVar<F, CF>],
     ) -> Result<(VerifierFirstMsgVar<F, CF>, VerifierStateVar<F, CF>), Error> {
         // absorb the first commitments and messages
         {
@@ -118,10 +119,11 @@ where
             gamma: None,
         };
 
-        Ok((msg.clone(), new_state))
+        Ok((msg, new_state))
     }
 
     #[tracing::instrument(target = "r1cs", skip(state, fs_rng, comms))]
+    #[allow(clippy::type_complexity)]
     pub fn verifier_second_round<
         CommitmentVar: ToConstraintFieldGadget<CF>,
         PR: FiatShamirRng<F, CF>,
@@ -129,8 +131,8 @@ where
     >(
         state: VerifierStateVar<F, CF>,
         fs_rng: &mut R,
-        comms: &Vec<CommitmentVar>,
-        message: &Vec<NonNativeFieldVar<F, CF>>,
+        comms: &[CommitmentVar],
+        message: &[NonNativeFieldVar<F, CF>],
     ) -> Result<(VerifierSecondMsgVar<F, CF>, VerifierStateVar<F, CF>), Error> {
         let VerifierStateVar {
             domain_h_size,
@@ -158,12 +160,12 @@ where
         let new_state = VerifierStateVar {
             domain_h_size,
             domain_k_size,
-            first_round_msg: first_round_msg,
+            first_round_msg,
             second_round_msg: Some(msg.clone()),
             gamma: None,
         };
 
-        Ok((msg.clone(), new_state))
+        Ok((msg, new_state))
     }
 
     #[tracing::instrument(target = "r1cs", skip(state, fs_rng, comms))]
@@ -174,8 +176,8 @@ where
     >(
         state: VerifierStateVar<F, CF>,
         fs_rng: &mut R,
-        comms: &Vec<CommitmentVar>,
-        message: &Vec<NonNativeFieldVar<F, CF>>,
+        comms: &[CommitmentVar],
+        message: &[NonNativeFieldVar<F, CF>],
     ) -> Result<VerifierStateVar<F, CF>, Error> {
         let VerifierStateVar {
             domain_h_size,
@@ -202,8 +204,8 @@ where
         let new_state = VerifierStateVar {
             domain_h_size,
             domain_k_size,
-            first_round_msg: first_round_msg,
-            second_round_msg: second_round_msg,
+            first_round_msg,
+            second_round_msg,
             gamma: Some(gamma),
         };
 
@@ -213,7 +215,7 @@ where
     #[tracing::instrument(target = "r1cs", skip(state))]
     pub fn verifier_decision(
         cs: ConstraintSystemRef<CF>,
-        public_input: &Vec<NonNativeFieldVar<F, CF>>,
+        public_input: &[NonNativeFieldVar<F, CF>],
         evals: &HashMap<String, NonNativeFieldVar<F, CF>>,
         state: VerifierStateVar<F, CF>,
         domain_k_size_in_vk: &FpVar<CF>,
@@ -245,22 +247,24 @@ where
 
         let v_h_at_alpha = evals
             .get("vanishing_poly_h_alpha")
-            .ok_or(Error::MissingEval("vanishing_poly_h_alpha".to_string()))?;
+            .ok_or_else(|| Error::MissingEval("vanishing_poly_h_alpha".to_string()))?;
         v_h_at_alpha.enforce_not_equal(&zero)?;
 
         let v_h_at_beta = evals
             .get("vanishing_poly_h_beta")
-            .ok_or(Error::MissingEval("vanishing_poly_h_beta".to_string()))?;
+            .ok_or_else(|| Error::MissingEval("vanishing_poly_h_beta".to_string()))?;
         v_h_at_beta.enforce_not_equal(&zero)?;
 
         let gamma: NonNativeFieldVar<F, CF> =
             gamma.expect("VerifierState should include gamma when verifier_decision is called");
 
-        let t_at_beta = evals.get("t").ok_or(Error::MissingEval("t".to_string()))?;
+        let t_at_beta = evals
+            .get("t")
+            .ok_or_else(|| Error::MissingEval("t".to_string()))?;
 
         let v_k_at_gamma = evals
             .get("vanishing_poly_k_gamma")
-            .ok_or(Error::MissingEval("vanishing_poly_k_gamma".to_string()))?;
+            .ok_or_else(|| Error::MissingEval("vanishing_poly_k_gamma".to_string()))?;
 
         let r_alpha_at_beta = AlgebraForAHP::prepared_eval_bivariable_vanishing_polynomial(
             &alpha,
@@ -271,7 +275,7 @@ where
 
         let z_b_at_beta = evals
             .get("z_b")
-            .ok_or(Error::MissingEval("z_b".to_string()))?;
+            .ok_or_else(|| Error::MissingEval("z_b".to_string()))?;
 
         let x_padded_len = public_input.len().next_power_of_two() as u64;
 
@@ -285,7 +289,7 @@ where
 
         let g_1_at_beta = evals
             .get("g_1")
-            .ok_or(Error::MissingEval("g_1".to_string()))?;
+            .ok_or_else(|| Error::MissingEval("g_1".to_string()))?;
 
         // Compute linear combinations
         let mut linear_combinations = Vec::new();
@@ -331,8 +335,7 @@ where
                 (Some(t_at_beta * &f_x_at_beta), LCTerm::One, true),
                 (Some(v_h_at_beta.clone()), "h_1".into(), true),
                 (Some(&beta * g_1_at_beta), LCTerm::One, true),
-            ]
-            .clone(),
+            ],
         };
 
         linear_combinations.push(g_1_lc_gadget);
@@ -355,8 +358,7 @@ where
                 (Some(alpha.clone()), "a_row".into(), true),
                 (Some(beta.clone()), "a_col".into(), true),
                 (None, "a_row_col".into(), false),
-            ]
-            .clone(),
+            ],
         };
 
         let b_denom_lc_gadget = LinearCombinationVar::<F, CF> {
@@ -366,19 +368,17 @@ where
                 (Some(alpha.clone()), "b_row".into(), true),
                 (Some(beta.clone()), "b_col".into(), true),
                 (None, "b_row_col".into(), false),
-            ]
-            .clone(),
+            ],
         };
 
         let c_denom_lc_gadget = LinearCombinationVar::<F, CF> {
             label: "c_denom".to_string(),
             terms: vec![
-                (Some(beta_alpha.clone()), LCTerm::One, false),
-                (Some(alpha.clone()), "c_row".into(), true),
-                (Some(beta.clone()), "c_col".into(), true),
+                (Some(beta_alpha), LCTerm::One, false),
+                (Some(alpha), "c_row".into(), true),
+                (Some(beta), "c_col".into(), true),
                 (None, "c_row_col".into(), false),
-            ]
-            .clone(),
+            ],
         };
 
         let a_denom_at_gamma = evals.get(&a_denom_lc_gadget.label).unwrap();
@@ -441,8 +441,7 @@ where
                     true,
                 ),
                 (Some(v_k_at_gamma.clone()), "h_2".into(), true),
-            ]
-            .clone(),
+            ],
         };
 
         linear_combinations.push(g_2_lc_gadget);
@@ -473,6 +472,7 @@ where
     }
 
     #[tracing::instrument(target = "r1cs", skip(index_pvk, proof, state))]
+    #[allow(clippy::type_complexity)]
     pub fn verifier_comm_query_eval_set<
         PR: FiatShamirRng<F, CF>,
         R: FiatShamirRngVar<F, CF, PR>,
@@ -514,7 +514,7 @@ where
             .expect("VerifierState should include gamma when verifier_query_set is called")
             .clone();
 
-        let gamma = gamma_ref.clone();
+        let gamma = gamma_ref;
 
         let mut query_set_gadget = QuerySetVar::<F, CF> { 0: HashSet::new() };
 
@@ -598,23 +598,23 @@ where
         );
         evaluations_gadget
             .0
-            .insert(("inner_sumcheck".to_string(), gamma.clone()), zero.clone());
+            .insert(("inner_sumcheck".to_string(), gamma.clone()), zero);
         evaluations_gadget.0.insert(
-            ("vanishing_poly_h_alpha".to_string(), alpha.clone()),
+            ("vanishing_poly_h_alpha".to_string(), alpha),
             (*proof.evaluations.get("vanishing_poly_h_alpha").unwrap()).clone(),
         );
         evaluations_gadget.0.insert(
-            ("vanishing_poly_h_beta".to_string(), beta.clone()),
+            ("vanishing_poly_h_beta".to_string(), beta),
             (*proof.evaluations.get("vanishing_poly_h_beta").unwrap()).clone(),
         );
         evaluations_gadget.0.insert(
-            ("vanishing_poly_k_gamma".to_string(), gamma.clone()),
+            ("vanishing_poly_k_gamma".to_string(), gamma),
             (*proof.evaluations.get("vanishing_poly_k_gamma").unwrap()).clone(),
         );
 
         let mut comms = vec![];
 
-        const INDEX_LABELS: [&'static str; 14] = [
+        const INDEX_LABELS: [&str; 14] = [
             "a_row",
             "a_col",
             "a_val",
@@ -645,7 +645,7 @@ where
         }
 
         // 4 comms for beta from the round 1
-        const PROOF_1_LABELS: [&'static str; 4] = ["w", "z_a", "z_b", "mask_poly"];
+        const PROOF_1_LABELS: [&str; 4] = ["w", "z_a", "z_b", "mask_poly"];
         for (comm, label) in proof.commitments[0].iter().zip(PROOF_1_LABELS.iter()) {
             let prepared_comm = if label.eq(&"z_b") {
                 PCG::PreparedCommitmentVar::prepare_small(comm)?
@@ -662,7 +662,7 @@ where
         let h_minus_2 = index_pvk.domain_h_size_gadget.clone() - CF::from(2u128);
 
         // 3 comms for beta from the round 2
-        const PROOF_2_LABELS: [&'static str; 3] = ["t", "g_1", "h_1"];
+        const PROOF_2_LABELS: [&str; 3] = ["t", "g_1", "h_1"];
         let proof_2_bounds = [None, Some(h_minus_2), None];
         for ((comm, label), bound) in proof.commitments[1]
             .iter()
@@ -684,7 +684,7 @@ where
         let k_minus_2 = &index_pvk.domain_k_size_gadget - CF::from(2u128);
 
         // 2 comms for gamma from the round 3
-        const PROOF_3_LABELS: [&'static str; 2] = ["g_2", "h_2"];
+        const PROOF_3_LABELS: [&str; 2] = ["g_2", "h_2"];
         let proof_3_bounds = [Some(k_minus_2), None];
         for ((comm, label), bound) in proof.commitments[2]
             .iter()

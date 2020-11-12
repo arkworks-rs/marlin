@@ -139,6 +139,7 @@ where
         }
     }
 
+    #[allow(clippy::type_complexity)]
     fn index<C: ConstraintSynthesizer<F>, R: RngCore>(
         crs: &Self::PublicParameters,
         circuit: C,
@@ -276,10 +277,10 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for MarlinBoundCircuit<F> {
                 let mut lc_b = LinearCombination::zero();
                 let mut lc_c = LinearCombination::zero();
 
-                for i in 0..num_for_this_constraint {
-                    lc_a = lc_a + (F::rand(&mut rng), vars[i].clone());
-                    lc_b = lc_b + (F::rand(&mut rng), vars[i].clone());
-                    lc_c = lc_c + (F::rand(&mut rng), vars[i].clone());
+                for var in vars.iter().take(num_for_this_constraint) {
+                    lc_a += (F::rand(&mut rng), *var);
+                    lc_b += (F::rand(&mut rng), *var);
+                    lc_c += (F::rand(&mut rng), *var);
                 }
 
                 cs.enforce_constraint(lc_a, lc_b, lc_c)?;
@@ -324,7 +325,7 @@ where
     fn from(e: crate::Error<E>) -> Self {
         match e {
             IndexTooLarge(v) => Self {
-                error_msg: String::from(format!("index too large, needed deegree {}", v)),
+                error_msg: format!("index too large, needed deegree {}", v),
             },
             crate::Error::<E>::AHPError(err) => match err {
                 crate::ahp::Error::MissingEval(str) => Self {
@@ -475,18 +476,18 @@ mod test {
         c.mul_assign(&b);
 
         let circ = Circuit {
-            a: Some(a.clone()),
-            b: Some(b.clone()),
+            a: Some(a),
+            b: Some(b),
             num_constraints: 100,
             num_variables: 25,
         };
 
         let (pk, vk) = TestSNARK::circuit_specific_setup(circ, &mut rng).unwrap();
 
-        let proof = TestSNARK::prove(&pk, circ.clone(), &mut rng).unwrap();
+        let proof = TestSNARK::prove(&pk, circ, &mut rng).unwrap();
 
         assert!(
-            TestSNARK::verify(&vk, &vec![c], &proof).unwrap(),
+            TestSNARK::verify(&vk, &[c], &proof).unwrap(),
             "The native verification check fails."
         );
 
@@ -543,14 +544,13 @@ mod test {
         );
 
         let pvk = TestSNARK::process_vk(&vk).unwrap();
-        let pvk_gadget = <TestSNARKGadget as SNARKGadget<
-            <MNT4_298 as PairingEngine>::Fr,
-            <MNT4_298 as PairingEngine>::Fq,
-            TestSNARK,
-        >>::ProcessedVerifyingKeyVar::new_constant(
-            ns!(cs, "alloc_pvk"), pvk.clone()
-        )
-        .unwrap();
+        let pvk_gadget =
+            <TestSNARKGadget as SNARKGadget<
+                <MNT4_298 as PairingEngine>::Fr,
+                <MNT4_298 as PairingEngine>::Fq,
+                TestSNARK,
+            >>::ProcessedVerifyingKeyVar::new_constant(ns!(cs, "alloc_pvk"), pvk)
+            .unwrap();
         TestSNARKGadget::verify_with_processed_vk(&pvk_gadget, &input_gadget, &proof_gadget)
             .unwrap()
             .enforce_equal(&Boolean::Constant(true))

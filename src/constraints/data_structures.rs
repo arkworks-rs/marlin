@@ -130,8 +130,8 @@ impl<F: PrimeField, CF: PrimeField, PC: PolynomialCommitment<F>, PCG: PCCheckVar
     fn clone(&self) -> Self {
         Self {
             cs: self.cs.clone(),
-            domain_h_size: self.domain_h_size.clone(),
-            domain_k_size: self.domain_k_size.clone(),
+            domain_h_size: self.domain_h_size,
+            domain_k_size: self.domain_k_size,
             domain_h_size_gadget: self.domain_h_size_gadget.clone(),
             domain_k_size_gadget: self.domain_k_size_gadget.clone(),
             index_comms: self.index_comms.clone(),
@@ -227,14 +227,14 @@ where
             });
             vk_hash_rng.absorb_native_field_elements(&vk_elems);
             FpVar::<CF>::new_witness(ark_relations::ns!(cs, "alloc#vk_hash"), || {
-                Ok(vk_hash_rng.squeeze_native_field_elements(1)[0].clone())
+                Ok(vk_hash_rng.squeeze_native_field_elements(1)[0])
             })
             .unwrap()
         };
 
         let fs_rng = {
-            let mut fs_rng = R::constant(cs.clone(), &fs_rng_raw);
-            fs_rng.absorb_native_field_elements(&vec![index_vk_hash])?;
+            let mut fs_rng = R::constant(cs, &fs_rng_raw);
+            fs_rng.absorb_native_field_elements(&[index_vk_hash])?;
             fs_rng
         };
 
@@ -247,8 +247,8 @@ where
 
         Ok(Self {
             cs: vk.cs.clone(),
-            domain_h_size: vk.domain_h_size.clone(),
-            domain_k_size: vk.domain_k_size.clone(),
+            domain_h_size: vk.domain_h_size,
+            domain_k_size: vk.domain_k_size,
             domain_h_size_gadget: vk.domain_h_size_gadget.clone(),
             domain_k_size_gadget: vk.domain_k_size_gadget.clone(),
             prepared_index_comms,
@@ -314,7 +314,7 @@ where
             vk_hash_rng.absorb_native_field_elements(&vk_elems);
             FpVar::<CF>::new_variable(
                 ark_relations::ns!(cs, "alloc#vk_hash"),
-                || Ok(vk_hash_rng.squeeze_native_field_elements(1)[0].clone()),
+                || Ok(vk_hash_rng.squeeze_native_field_elements(1)[0]),
                 mode,
             )
             .unwrap()
@@ -326,7 +326,7 @@ where
 
         let fs_rng = {
             let mut fs_rng = R::constant(cs.clone(), &fs_rng_raw);
-            fs_rng.absorb_native_field_elements(&vec![index_vk_hash])?;
+            fs_rng.absorb_native_field_elements(&[index_vk_hash])?;
             fs_rng
         };
 
@@ -479,7 +479,7 @@ where
 
         let mut evaluation_gadgets = HashMap::<String, NonNativeFieldVar<F, CF>>::new();
 
-        const ALL_POLYNOMIALS: [&'static str; 10] = [
+        const ALL_POLYNOMIALS: [&str; 10] = [
             "a_denom",
             "b_denom",
             "c_denom",
@@ -501,7 +501,7 @@ where
             commitments: commitment_gadgets,
             evaluations: evaluation_gadgets,
             prover_messages: prover_message_gadgets,
-            pc_batch_proof: pc_batch_proof,
+            pc_batch_proof,
         })
     }
 }
