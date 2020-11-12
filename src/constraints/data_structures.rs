@@ -47,6 +47,7 @@ impl<F: PrimeField, CF: PrimeField, PC: PolynomialCommitment<F>, PCG: PCCheckVar
 impl<F: PrimeField, CF: PrimeField, PC: PolynomialCommitment<F>, PCG: PCCheckVar<F, PC, CF>>
     AllocVar<IndexVerifierKey<F, PC>, CF> for IndexVerifierKeyVar<F, CF, PC, PCG>
 {
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<T>(
         cs: impl Into<Namespace<CF>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -107,6 +108,7 @@ impl<F: PrimeField, CF: PrimeField, PC: PolynomialCommitment<F>, PCG: PCCheckVar
 impl<F: PrimeField, CF: PrimeField, PC: PolynomialCommitment<F>, PCG: PCCheckVar<F, PC, CF>>
     ToBytesGadget<CF> for IndexVerifierKeyVar<F, CF, PC, PCG>
 {
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn to_bytes(&self) -> Result<Vec<UInt8<CF>>, SynthesisError> {
         let mut res = Vec::<UInt8<CF>>::new();
 
@@ -201,6 +203,7 @@ where
     PCG::VerifierKeyVar: ToConstraintFieldGadget<CF>,
     PCG::CommitmentVar: ToConstraintFieldGadget<CF>,
 {
+    #[tracing::instrument(target = "r1cs", skip(vk))]
     pub fn prepare(vk: &IndexVerifierKeyVar<F, CF, PC, PCG>) -> Result<Self, SynthesisError> {
         let cs = vk.cs();
 
@@ -270,6 +273,7 @@ where
     PCG::VerifierKeyVar: ToConstraintFieldGadget<CF>,
     PCG::CommitmentVar: ToConstraintFieldGadget<CF>,
 {
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<T>(
         cs: impl Into<Namespace<CF>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,
@@ -395,6 +399,7 @@ where
     PCG::VerifierKeyVar: ToConstraintFieldGadget<CF>,
     PCG::CommitmentVar: ToConstraintFieldGadget<CF>,
 {
+    #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<T>(
         cs: impl Into<Namespace<CF>>,
         f: impl FnOnce() -> Result<T, SynthesisError>,

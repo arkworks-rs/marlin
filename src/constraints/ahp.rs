@@ -13,7 +13,13 @@ use ark_poly_commit::{
     EvaluationsVar, LCTerm, LinearCombinationVar, PCCheckVar, PolynomialCommitment, PrepareVar,
     QuerySetVar,
 };
-use ark_r1cs_std::{alloc::AllocVar, bits::boolean::Boolean, eq::EqGadget, fields::{fp::FpVar, FieldVar}, ToBitsGadget, ToConstraintFieldGadget, R1CSVar};
+use ark_r1cs_std::{
+    alloc::AllocVar,
+    bits::boolean::Boolean,
+    eq::EqGadget,
+    fields::{fp::FpVar, FieldVar},
+    ToBitsGadget, ToConstraintFieldGadget,
+};
 use ark_relations::r1cs::ConstraintSystemRef;
 use hashbrown::{HashMap, HashSet};
 
@@ -68,6 +74,7 @@ where
     PCG::CommitmentVar: ToConstraintFieldGadget<CF>,
 {
     /// Output the first message and next round state.
+    #[tracing::instrument(target = "r1cs", skip(fs_rng, comms))]
     pub fn verifier_first_round<
         CommitmentVar: ToConstraintFieldGadget<CF>,
         PR: FiatShamirRng<F, CF>,
@@ -114,6 +121,7 @@ where
         Ok((msg.clone(), new_state))
     }
 
+    #[tracing::instrument(target = "r1cs", skip(state, fs_rng, comms))]
     pub fn verifier_second_round<
         CommitmentVar: ToConstraintFieldGadget<CF>,
         PR: FiatShamirRng<F, CF>,
@@ -158,6 +166,7 @@ where
         Ok((msg.clone(), new_state))
     }
 
+    #[tracing::instrument(target = "r1cs", skip(state, fs_rng, comms))]
     pub fn verifier_third_round<
         CommitmentVar: ToConstraintFieldGadget<CF>,
         PR: FiatShamirRng<F, CF>,
@@ -201,6 +210,7 @@ where
         Ok(new_state)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(state))]
     pub fn verifier_decision(
         cs: ConstraintSystemRef<CF>,
         public_input: &Vec<NonNativeFieldVar<F, CF>>,
@@ -462,6 +472,7 @@ where
         Ok(linear_combinations)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(index_pvk, proof, state))]
     pub fn verifier_comm_query_eval_set<
         PR: FiatShamirRng<F, CF>,
         R: FiatShamirRngVar<F, CF, PR>,

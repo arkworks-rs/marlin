@@ -40,6 +40,7 @@ pub struct PoseidonSpongeVar<F: PrimeField> {
 }
 
 impl<F: PrimeField> PoseidonSpongeVar<F> {
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn apply_s_box(
         &self,
         state: &mut [FpVar<F>],
@@ -59,6 +60,7 @@ impl<F: PrimeField> PoseidonSpongeVar<F> {
         Ok(())
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn apply_ark(&self, state: &mut [FpVar<F>], round_number: usize) -> Result<(), SynthesisError> {
         for i in 0..state.len() {
             state[i] += self.ark[round_number][i];
@@ -66,6 +68,7 @@ impl<F: PrimeField> PoseidonSpongeVar<F> {
         Ok(())
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn apply_mds(&self, state: &mut [FpVar<F>]) -> Result<(), SynthesisError> {
         let mut new_state = Vec::new();
         let zero = FpVar::<F>::zero();
@@ -83,6 +86,7 @@ impl<F: PrimeField> PoseidonSpongeVar<F> {
         Ok(())
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn permute(&mut self) -> Result<(), SynthesisError> {
         let full_rounds_over_2 = self.full_rounds / 2;
         let mut state = self.state.clone();
@@ -109,6 +113,7 @@ impl<F: PrimeField> PoseidonSpongeVar<F> {
         Ok(())
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn absorb_internal(
         &mut self,
         rate_start_index: usize,
@@ -136,6 +141,7 @@ impl<F: PrimeField> PoseidonSpongeVar<F> {
     }
 
     // Squeeze |output| many elements. This does not end in a squeeze
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn squeeze_internal(
         &mut self,
         rate_start_index: usize,

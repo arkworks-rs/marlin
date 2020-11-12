@@ -106,6 +106,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     FiatShamirAlgebraicSpongeRngVar<F, CF, PS, S>
 {
     /// compress every two elements if possible. Provides a vector of (limb, num_of_additions), both of which are CF.
+    #[tracing::instrument(target = "r1cs")]
     pub fn compress_gadgets(
         src_limbs: &Vec<(FpVar<CF>, CF)>,
     ) -> Result<Vec<FpVar<CF>>, SynthesisError> {
@@ -162,6 +163,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     }
 
     /// Push gadgets to sponge
+    #[tracing::instrument(target = "r1cs", skip(sponge))]
     pub fn push_gadgets_to_sponge(
         sponge: &mut S,
         src: &Vec<NonNativeFieldVar<F, CF>>,
@@ -206,6 +208,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
 
     /// obtain random bits from hashchain gadget.
     /// not guaranteed to be uniformly distributed, should only be used in certain situations.
+    #[tracing::instrument(target = "r1cs", skip(sponge))]
     pub fn get_booleans_from_sponge(
         sponge: &mut S,
         num_bits: usize,
@@ -227,6 +230,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
 
     /// obtain random elements from hashchain gadget.
     /// not guaranteed to be uniformly distributed, should only be used in certain situations.
+    #[tracing::instrument(target = "r1cs", skip(sponge))]
     pub fn get_gadgets_from_sponge(
         sponge: &mut S,
         num_elements: usize,
@@ -240,6 +244,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
 
     /// obtain random elements from hashchain gadget.
     /// not guaranteed to be uniformly distributed, should only be used in certain situations.
+    #[tracing::instrument(target = "r1cs", skip(sponge))]
     pub fn get_gadgets_and_bits_from_sponge(
         sponge: &mut S,
         num_elements: usize,
@@ -342,6 +347,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
         }
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn absorb_nonnative_field_elements(
         &mut self,
         elems: &[NonNativeFieldVar<F, CF>],
@@ -349,11 +355,13 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
         Self::push_gadgets_to_sponge(&mut self.s, &elems.to_vec())
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn absorb_native_field_elements(&mut self, elems: &[FpVar<CF>]) -> Result<(), SynthesisError> {
         self.s.absorb(elems)?;
         Ok(())
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn absorb_bytes(&mut self, elems: &[UInt8<CF>]) -> Result<(), SynthesisError> {
         let capacity = CF::size_in_bits() - 1;
         let mut bits = Vec::<Boolean<CF>>::new();
@@ -392,6 +400,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
         self.s.absorb(&gadgets)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn squeeze_native_field_elements(
         &mut self,
         num: usize,
@@ -399,6 +408,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
         self.s.squeeze(num)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn squeeze_field_elements(
         &mut self,
         num: usize,
@@ -406,6 +416,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
         Self::get_gadgets_from_sponge(&mut self.s, num, false)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn squeeze_field_elements_and_bits(
         &mut self,
         num: usize,
@@ -413,6 +424,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
         Self::get_gadgets_and_bits_from_sponge(&mut self.s, num, false)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn squeeze_128_bits_field_elements(
         &mut self,
         num: usize,
@@ -420,6 +432,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
         Self::get_gadgets_from_sponge(&mut self.s, num, true)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn squeeze_128_bits_field_elements_and_bits(
         &mut self,
         num: usize,

@@ -35,6 +35,7 @@ where
     pub const PROTOCOL_NAME: &'static [u8] = b"MARLIN-2019";
 
     /// verify with an established hashchain initial state
+    #[tracing::instrument(target = "r1cs", skip(index_pvk, proof))]
     pub fn prepared_verify<PR: FiatShamirRng<F, CF>, R: FiatShamirRngVar<F, CF, PR>>(
         index_pvk: &PreparedIndexVerifierKeyVar<F, CF, PC, PCG, PR, R>,
         public_input: &Vec<NonNativeFieldVar<F, CF>>,
@@ -131,6 +132,7 @@ where
         )?)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(index_vk, proof))]
     pub fn verify<PR: FiatShamirRng<F, CF>, R: FiatShamirRngVar<F, CF, PR>>(
         index_vk: &IndexVerifierKeyVar<F, CF, PC, PCG>,
         public_input: &Vec<NonNativeFieldVar<F, CF>>,

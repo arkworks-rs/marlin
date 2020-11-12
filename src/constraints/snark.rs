@@ -211,6 +211,7 @@ where
         }
     }
 
+    #[tracing::instrument(target = "r1cs", skip(circuit_pvk, x, proof))]
     fn verify_with_processed_vk(
         circuit_pvk: &Self::ProcessedVerifyingKeyVar,
         x: &Self::InputVar,
@@ -222,6 +223,7 @@ where
         )
     }
 
+    #[tracing::instrument(target = "r1cs", skip(circuit_vk, x, proof))]
     fn verify(
         circuit_vk: &Self::VerifyingKeyVar,
         x: &Self::InputVar,
@@ -250,6 +252,7 @@ impl<F: PrimeField> From<MarlinBound> for MarlinBoundCircuit<F> {
 }
 
 impl<F: PrimeField> ConstraintSynthesizer<F> for MarlinBoundCircuit<F> {
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         let MarlinBound { max_degree } = self.bound;
 
@@ -394,6 +397,7 @@ mod test {
     use ark_mnt6_298::MNT6_298;
     use ark_poly_commit::marlin_pc::{MarlinKZG10, MarlinKZG10Gadget};
     use ark_r1cs_std::{alloc::AllocVar, bits::boolean::Boolean, eq::EqGadget};
+    use ark_relations::r1cs::ConstraintLayer;
     use ark_relations::{
         lc, ns,
         r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError},
@@ -455,8 +459,15 @@ mod test {
         FSG4,
     >;
 
+    use tracing_subscriber::layer::SubscriberExt;
+
     #[test]
     fn marlin_snark_test() {
+        let mut layer = ConstraintLayer::default();
+        layer.mode = ark_relations::r1cs::TracingMode::OnlyConstraints;
+        let subscriber = tracing_subscriber::Registry::default().with(layer);
+        tracing::subscriber::set_global_default(subscriber).unwrap();
+
         let mut rng = ark_ff::test_rng();
         let a = MNT4Fr::rand(&mut rng);
         let b = MNT4Fr::rand(&mut rng);
@@ -486,26 +497,20 @@ mod test {
             <MNT4_298 as PairingEngine>::Fr,
             <MNT4_298 as PairingEngine>::Fq,
             TestSNARK,
-        >>::InputVar::new_input(
-            ns!(cs, "new_input"), || Ok(vec![c])
-        )
+        >>::InputVar::new_input(ns!(cs, "new_input"), || Ok(vec![c]))
         .unwrap();
 
         let proof_gadget = <TestSNARKGadget as SNARKGadget<
             <MNT4_298 as PairingEngine>::Fr,
             <MNT4_298 as PairingEngine>::Fq,
             TestSNARK,
-        >>::ProofVar::new_witness(
-            ns!(cs, "alloc_proof"), || Ok(proof)
-        )
+        >>::ProofVar::new_witness(ns!(cs, "alloc_proof"), || Ok(proof))
         .unwrap();
         let vk_gadget = <TestSNARKGadget as SNARKGadget<
             <MNT4_298 as PairingEngine>::Fr,
             <MNT4_298 as PairingEngine>::Fq,
             TestSNARK,
-        >>::VerifyingKeyVar::new_constant(
-            ns!(cs, "alloc_vk"), vk.clone()
-        )
+        >>::VerifyingKeyVar::new_constant(ns!(cs, "alloc_vk"), vk.clone())
         .unwrap();
 
         assert!(
@@ -518,11 +523,7 @@ mod test {
             <MNT4_298 as PairingEngine>::Fr,
             <MNT4_298 as PairingEngine>::Fq,
             TestSNARK,
-        >>::verify(
-            &vk_gadget,
-            &input_gadget,
-            &proof_gadget,
-        )
+        >>::verify(&vk_gadget, &input_gadget, &proof_gadget)
         .unwrap();
 
         assert!(
@@ -547,18 +548,13 @@ mod test {
             <MNT4_298 as PairingEngine>::Fq,
             TestSNARK,
         >>::ProcessedVerifyingKeyVar::new_constant(
-            ns!(cs, "alloc_pvk"),
-            pvk.clone(),
+            ns!(cs, "alloc_pvk"), pvk.clone()
         )
         .unwrap();
-        TestSNARKGadget::verify_with_processed_vk(
-            &pvk_gadget,
-            &input_gadget,
-            &proof_gadget,
-        )
-        .unwrap()
-        .enforce_equal(&Boolean::Constant(true))
-        .unwrap();
+        TestSNARKGadget::verify_with_processed_vk(&pvk_gadget, &input_gadget, &proof_gadget)
+            .unwrap()
+            .enforce_equal(&Boolean::Constant(true))
+            .unwrap();
 
         assert!(
             cs.is_satisfied().unwrap(),

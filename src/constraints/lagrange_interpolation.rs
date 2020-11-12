@@ -104,6 +104,7 @@ impl<CF: PrimeField> LagrangeInterpolator<CF> {
 }
 
 impl<F: PrimeField, CF: PrimeField> LagrangeInterpolationVar<F, CF> {
+    #[tracing::instrument(target = "r1cs")]
     pub fn new(
         domain_generator: F,
         domain_dim: u64,
@@ -127,6 +128,7 @@ impl<F: PrimeField, CF: PrimeField> LagrangeInterpolationVar<F, CF> {
         lagrange_interpolation_gadget
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self))]
     fn compute_lagrange_coefficients_constraints(
         &mut self,
         interpolation_point: &NonNativeFieldVar<F, CF>,
@@ -170,6 +172,7 @@ impl<F: PrimeField, CF: PrimeField> LagrangeInterpolationVar<F, CF> {
         Ok(lagrange_coeffs_fg)
     }
 
+    #[tracing::instrument(target = "r1cs", skip(self))]
     pub fn interpolate_constraints(
         &mut self,
         interpolation_point: &NonNativeFieldVar<F, CF>,

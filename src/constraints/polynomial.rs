@@ -8,6 +8,7 @@ pub struct AlgebraForAHP<F: PrimeField, CF: PrimeField> {
 }
 
 impl<F: PrimeField, CF: PrimeField> AlgebraForAHP<F, CF> {
+    #[tracing::instrument(target = "r1cs")]
     pub fn prepare(
         x: &NonNativeFieldVar<F, CF>,
         domain_size: u64,
@@ -15,6 +16,7 @@ impl<F: PrimeField, CF: PrimeField> AlgebraForAHP<F, CF> {
         x.pow_by_constant(&[domain_size])
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn prepared_eval_vanishing_polynomial(
         x_prepared: &NonNativeFieldVar<F, CF>,
     ) -> Result<NonNativeFieldVar<F, CF>, SynthesisError> {
@@ -23,6 +25,7 @@ impl<F: PrimeField, CF: PrimeField> AlgebraForAHP<F, CF> {
         Ok(result)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn eval_vanishing_polynomial(
         x: &NonNativeFieldVar<F, CF>,
         domain_size: u64,
@@ -31,6 +34,7 @@ impl<F: PrimeField, CF: PrimeField> AlgebraForAHP<F, CF> {
         Self::prepared_eval_vanishing_polynomial(&x_prepared)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn prepared_eval_bivariable_vanishing_polynomial(
         x: &NonNativeFieldVar<F, CF>,
         y: &NonNativeFieldVar<F, CF>,
@@ -47,6 +51,7 @@ impl<F: PrimeField, CF: PrimeField> AlgebraForAHP<F, CF> {
         Ok(result)
     }
 
+    #[tracing::instrument(target = "r1cs")]
     pub fn eval_bivariate_vanishing_polynomial(
         x: &NonNativeFieldVar<F, CF>,
         y: &NonNativeFieldVar<F, CF>,

@@ -126,8 +126,7 @@ mod tests {
             verifier_key: index_vk.verifier_key,
         };
         let ivk_gadget: IndexVerifierKeyVar<Fr, Fq, MultiPC, MultiPCVar> =
-            IndexVerifierKeyVar::new_witness(ns!(cs, "alloc#index vk"), || Ok(ivk))
-                .unwrap();
+            IndexVerifierKeyVar::new_witness(ns!(cs, "alloc#index vk"), || Ok(ivk)).unwrap();
         // END: ivk to ivk_gadget
 
         // BEGIN: public input to public_input_gadget
@@ -136,11 +135,8 @@ mod tests {
         let public_input_gadget: Vec<NonNativeFieldVar<Fr, Fq>> = public_input
             .iter()
             .map(|x| {
-                NonNativeFieldVar::new_input(
-                    ns!(cs.clone(), "alloc#public input"),
-                    || Ok(x),
-                )
-                .unwrap()
+                NonNativeFieldVar::new_input(ns!(cs.clone(), "alloc#public input"), || Ok(x))
+                    .unwrap()
             })
             .collect();
         // END: public input to public_input_gadget
@@ -159,11 +155,8 @@ mod tests {
             .map(|lst| {
                 lst.iter()
                     .map(|comm| {
-                        CommitmentVar::new_witness(
-                            ns!(cs.clone(), "alloc#commitment"),
-                            || Ok(comm),
-                        )
-                        .unwrap()
+                        CommitmentVar::new_witness(ns!(cs.clone(), "alloc#commitment"), || Ok(comm))
+                            .unwrap()
                     })
                     .collect()
             })
@@ -172,11 +165,8 @@ mod tests {
         let evaluation_gadgets_vec: Vec<NonNativeFieldVar<Fr, Fq>> = evaluations
             .iter()
             .map(|eval| {
-                NonNativeFieldVar::new_witness(
-                    ns!(cs.clone(), "alloc#evaluation"),
-                    || Ok(eval),
-                )
-                .unwrap()
+                NonNativeFieldVar::new_witness(ns!(cs.clone(), "alloc#evaluation"), || Ok(eval))
+                    .unwrap()
             })
             .collect();
 
@@ -188,10 +178,9 @@ mod tests {
                     ProverMsg::FieldElements(v) => v
                         .iter()
                         .map(|elem| {
-                            NonNativeFieldVar::new_witness(
-                                ns!(cs, "alloc#prover message"),
-                                || Ok(elem),
-                            )
+                            NonNativeFieldVar::new_witness(ns!(cs, "alloc#prover message"), || {
+                                Ok(elem)
+                            })
                             .unwrap()
                         })
                         .collect(),
@@ -238,11 +227,7 @@ mod tests {
         Marlin::<Fr, Fq, MultiPC, MultiPCVar>::verify::<
             FiatShamirAlgebraicSpongeRng<Fr, Fq, PoseidonSponge<Fq>>,
             FiatShamirAlgebraicSpongeRngVar<Fr, Fq, PoseidonSponge<Fq>, PoseidonSpongeVar<Fq>>,
-        >(
-            &ivk_gadget,
-            &public_input_gadget,
-            &proof_gadget,
-        )
+        >(&ivk_gadget, &public_input_gadget, &proof_gadget)
         .unwrap()
         .enforce_equal(&Boolean::Constant(true))
         .unwrap();
