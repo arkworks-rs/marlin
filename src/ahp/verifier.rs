@@ -103,10 +103,10 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the query state and next round state.
-    pub fn verifier_query_set<'a, 'b, R: RngCore, C: ConstraintSynthesizer<F>>(
+    pub fn verifier_query_set<'a, R: RngCore, C: ConstraintSynthesizer<F>>(
         state: VerifierState<F, C>,
         _: &'a mut R,
-    ) -> (QuerySet<'b, F>, VerifierState<F, C>) {
+    ) -> (QuerySet<F>, VerifierState<F, C>) {
         let beta = state.second_round_msg.unwrap().beta;
 
         let gamma = state.gamma.unwrap();

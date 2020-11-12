@@ -34,14 +34,6 @@ rayon = { version = "1", optional = true }
 digest = { version = "0.8" }
 derivative = { version = "2", features = ["use_core"] }
 
-[patch.'https://github.com/arkworks-rs/algebra']
-ark-serialize = { git = "https://github.com/ryanleh/algebra", branch = "multivariate-support", default-features = false }
-ark-ff = { git = "https://github.com/ryanleh/algebra", branch = "multivariate-support", default-features = false }
-ark-poly = { git = "https://github.com/ryanleh/algebra", branch = "multivariate-support", default-features = false }
-
-[patch.'https://github.com/arkworks-rs/poly-commit']
-ark-poly-commit = { git = "https://github.com/ryanleh/poly-commit", branch = "generic-polynomial", default-features = false }
-
 [dev-dependencies]
 blake2 = { version = "0.8", default-features = false }
 ark-bls12-381 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = [ "curve" ] }
