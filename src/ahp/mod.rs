@@ -403,8 +403,8 @@ impl<F: PrimeField> UnnormalizedBivariateLagrangePoly<F> for GeneralEvaluationDo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use algebra::bls12_381::fr::Fr;
-    use algebra::{One, UniformRand, Zero};
+    use ark_bls12_381::Fr;
+    use ark_ff::{One, Zero, UniformRand};
     use ark_poly::{DenseOrSparsePolynomial, DensePolynomial};
 
     #[test]
@@ -422,7 +422,7 @@ mod tests {
 
     #[test]
     fn domain_unnormalized_bivariate_lagrange_poly_diff_inputs() {
-        let rng = &mut algebra::test_rng();
+        let rng = &mut ark_ff::test_rng();
         for domain_size in 1..10 {
             let domain = GeneralEvaluationDomain::<Fr>::new(1 << domain_size).unwrap();
             let x = Fr::rand(rng);
@@ -437,7 +437,7 @@ mod tests {
 
     #[test]
     fn test_summation() {
-        let rng = &mut algebra::test_rng();
+        let rng = &mut ark_ff::test_rng();
         let size = 1 << 4;
         let domain = GeneralEvaluationDomain::<Fr>::new(1 << 4).unwrap();
         let size_as_fe = domain.size_as_field_element();

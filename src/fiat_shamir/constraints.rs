@@ -141,9 +141,9 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
             };
 
             let first_max_bits_per_limb =
-                params.bits_per_non_top_limb + overhead!(first.1 + &CF::one());
+                params.bits_per_limb + overhead!(first.1 + &CF::one());
             let second_max_bits_per_limb = if second.is_some() {
-                params.bits_per_non_top_limb + overhead!(second.unwrap().1 + &CF::one())
+                params.bits_per_limb + overhead!(second.unwrap().1 + &CF::one())
             } else {
                 0
             };
@@ -306,6 +306,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
                         limbs,
                         num_of_additions_over_normal_form: CF::zero(),
                         is_in_the_normal_form: true,
+                        is_constant: false,
                         target_phantom: Default::default(),
                     },
                 ));

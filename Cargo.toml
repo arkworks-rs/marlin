@@ -24,21 +24,14 @@ ark-serialize = { git = "https://github.com/arkworks-rs/algebra", default-featur
 ark-ff = { git = "https://github.com/arkworks-rs/algebra", default-features = false }
 ark-ec = { git = "https://github.com/arkworks-rs/algebra", default-features = false }
 ark-poly = { git = "https://github.com/arkworks-rs/algebra", default-features = false }
-
 ark-std = { git = "https://github.com/arkworks-rs/utils", default-features = false }
 bench-utils = { git = "https://github.com/arkworks-rs/utils", default-features = false }
-
 ark-relations = { git = "https://github.com/arkworks-rs/snark", default-features = false }
-
-ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives", branch = "main", features = [ "r1cs" ] }
-
-ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std" }
-
-ark-nonnative-field = { git = "https://github.com/arkworks-rs/nonnative" }
-
-ark-poly-commit = { git = "https://github.com/scipr-lab/poly-commit", branch = "constraints" }
-
-ark-snark = { git = "https://github.com/arkworks-rs/snark" }
+ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives", branch = "main", default-features = false, features = [ "r1cs" ] }
+ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std", default-features = false }
+ark-nonnative-field = { git = "https://github.com/arkworks-rs/nonnative", default-features = false }
+ark-poly-commit = { git = "https://github.com/scipr-lab/poly-commit", branch = "constraints", default-features = false }
+ark-snark = { git = "https://github.com/arkworks-rs/snark", default-features = false }
 
 rand = { version = "0.7", default-features = false }
 rand_core = { version = "0.5" }
@@ -51,7 +44,8 @@ hashbrown = "0.9"
 [dev-dependencies]
 blake2 = { version = "0.8", default-features = false }
 ark-bls12-381 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = [ "curve" ] }
-
+ark-mnt4-298 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = [ "curve", "r1cs" ] }
+ark-mnt6-298 = { git = "https://github.com/arkworks-rs/curves", default-features = false }
 
 [profile.release]
 opt-level = 3
@@ -67,6 +61,7 @@ debug = true
 
 [features]
 default = ["std", "parallel"]
-std = [ "ark-ff/std", "ark-poly/std", "ark-relations/std", "ark-std/std", "ark-serialize/std", "ark-poly-commit/std" ]
+std = [ "ark-ff/std", "ark-nonnative-field/std", "ark-poly/std", "ark-relations/std", "ark-std/std", "ark-serialize/std", "ark-poly-commit/std" ]
 print-trace = [ "bench-utils/print-trace" ]
 parallel = [ "std", "ark-ff/parallel", "ark-poly/parallel", "ark-std/parallel", "ark-poly-commit/parallel", "rayon" ]
+density-optimized = [ "ark-nonnative-field/density-optimized" ]

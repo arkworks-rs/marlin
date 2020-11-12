@@ -194,7 +194,7 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> FiatShamirAlgebraicS
         let capacity = CF::size_in_bits() - 1;
         let mut dest_limbs = Vec::<CF>::new();
 
-        let params = gen_params::<F, CF>();
+        let params = gen_params(F::size_in_bits(), CF::size_in_bits());
 
         let adjustment_factor_lookup_table = {
             let mut table = Vec::<CF>::new();
@@ -219,9 +219,9 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> FiatShamirAlgebraicS
             };
 
             let first_max_bits_per_limb =
-                params.bits_per_non_top_limb + overhead!(first.1 + &CF::one());
+                params.bits_per_limb + overhead!(first.1 + &CF::one());
             let second_max_bits_per_limb = if second.is_some() {
-                params.bits_per_non_top_limb + overhead!(second.unwrap().1 + &CF::one())
+                params.bits_per_limb + overhead!(second.unwrap().1 + &CF::one())
             } else {
                 0
             };

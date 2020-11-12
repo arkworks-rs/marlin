@@ -40,11 +40,8 @@ mod marlin {
     use super::*;
     use crate::{fiat_shamir::FiatShamirChaChaRng, Marlin, MarlinDefaultConfig};
 
-    use algebra::UniformRand;
-    use algebra::{
-        bls12_381::{Fq, Fr},
-        Bls12_381,
-    };
+    use ark_ff::UniformRand;
+    use ark_bls12_381::{Fq, Fr, Bls12_381};
     use ark_poly_commit::marlin_pc::MarlinKZG10;
     use blake2::Blake2s;
     use core::ops::MulAssign;
@@ -54,7 +51,7 @@ mod marlin {
         Marlin<Fr, Fq, MultiPC, FiatShamirChaChaRng<Fr, Fq, Blake2s>, MarlinDefaultConfig>;
 
     fn test_circuit(num_constraints: usize, num_variables: usize) {
-        let rng = &mut algebra::test_rng();
+        let rng = &mut ark_ff::test_rng();
 
         let universal_srs = MarlinInst::universal_setup(100, 25, 100, rng).unwrap();
 
@@ -132,8 +129,9 @@ mod marlin_recursion {
         Marlin, MarlinRecursiveConfig,
     };
 
-    use algebra::{mnt4_298::Fq, mnt4_298::Fr, MNT4_298};
-    use algebra::{UniformRand, MNT6_298};
+    use ark_mnt4_298::{Fq, Fr, MNT4_298};
+    use ark_mnt6_298::MNT6_298;
+    use ark_ff::UniformRand;
     use ark_ec::CycleEngine;
     use ark_poly_commit::marlin_pc::MarlinKZG10;
     use core::ops::MulAssign;
@@ -155,7 +153,7 @@ mod marlin_recursion {
     }
 
     fn test_circuit(num_constraints: usize, num_variables: usize) {
-        let rng = &mut algebra::test_rng();
+        let rng = &mut ark_ff::test_rng();
 
         let universal_srs = MarlinInst::universal_setup(100, 25, 100, rng).unwrap();
 
@@ -233,7 +231,7 @@ mod fiat_shamir {
         poseidon::{constraints::PoseidonSpongeVar, PoseidonSponge},
         FiatShamirAlgebraicSpongeRng, FiatShamirChaChaRng, FiatShamirRng,
     };
-    use algebra::mnt4_298::{Fq, Fr};
+    use ark_mnt4_298::{Fq, Fr};
     use ark_ff::{PrimeField, UniformRand};
     use ark_nonnative_field::NonNativeFieldVar;
     use ark_r1cs_std::alloc::AllocVar;
@@ -251,7 +249,7 @@ mod fiat_shamir {
 
     #[test]
     fn test_chacharng() {
-        let rng = &mut algebra::test_rng();
+        let rng = &mut ark_ff::test_rng();
 
         let mut absorbed_rand_field_elems = Vec::new();
         for _ in 0..NUM_ABSORBED_RAND_FIELD_ELEMS {
@@ -281,7 +279,7 @@ mod fiat_shamir {
 
     #[test]
     fn test_poseidon() {
-        let rng = &mut algebra::test_rng();
+        let rng = &mut ark_ff::test_rng();
 
         let mut absorbed_rand_field_elems = Vec::new();
         for _ in 0..NUM_ABSORBED_RAND_FIELD_ELEMS {

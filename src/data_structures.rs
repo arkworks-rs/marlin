@@ -1,6 +1,6 @@
 use crate::ahp::indexer::*;
 use crate::ahp::prover::ProverMsg;
-use crate::{PhantomData, Vec};
+use crate::Vec;
 use ark_ff::PrimeField;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::{
@@ -29,21 +29,6 @@ pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>> {
     pub index_comms: Vec<PC::Commitment>,
     /// The verifier key for this index, trimmed from the universal SRS.
     pub verifier_key: PC::VerifierKey,
-}
-
-impl<F: PrimeField, PC: PolynomialCommitment<F>> Default for IndexVerifierKey<F, PC> {
-    fn default() -> Self {
-        IndexVerifierKey {
-            index_info: IndexInfo {
-                num_variables: 0,
-                num_constraints: 0,
-                num_non_zero: 0,
-                f: PhantomData,
-            },
-            index_comms: vec![],
-            verifier_key: Default::default(),
-        }
-    }
 }
 
 impl<F: PrimeField, PC: PolynomialCommitment<F>> ark_ff::ToBytes for IndexVerifierKey<F, PC> {
@@ -88,22 +73,6 @@ pub struct PreparedIndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>> 
     /// is actually standard verify), as well as in absorbing the original vk into
     /// the Fiat-Shamir sponge.
     pub orig_vk: IndexVerifierKey<F, PC>,
-}
-
-impl<F, PC> Default for PreparedIndexVerifierKey<F, PC>
-where
-    F: PrimeField,
-    PC: PolynomialCommitment<F>,
-{
-    fn default() -> Self {
-        PreparedIndexVerifierKey {
-            domain_h_size: 0,
-            domain_k_size: 0,
-            prepared_index_comms: vec![],
-            prepared_verifier_key: Default::default(),
-            orig_vk: Default::default(),
-        }
-    }
 }
 
 impl<F, PC> Clone for PreparedIndexVerifierKey<F, PC>

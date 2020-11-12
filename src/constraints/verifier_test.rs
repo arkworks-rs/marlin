@@ -11,26 +11,25 @@ mod tests {
             constraints::FiatShamirAlgebraicSpongeRngVar, poseidon::constraints::PoseidonSpongeVar,
             poseidon::PoseidonSponge, FiatShamirAlgebraicSpongeRng,
         },
-        ConstraintSystem, Field, IndexVerifierKey, Marlin as MarlinNative, MarlinRecursiveConfig,
+        IndexVerifierKey, Marlin as MarlinNative, MarlinRecursiveConfig,
         PhantomData, Proof,
     };
-    use algebra::{
-        mnt4_298::MNT4_298,
-        mnt4_298::{Fq, Fr},
-        mnt6_298::MNT6_298,
-        CycleEngine,
-    };
+    use ark_mnt4_298::{MNT4_298, Fq, Fr, constraints::PairingVar as MNT4PairingVar};
+    use ark_mnt6_298::MNT6_298;
     use ark_ec::CycleEngine;
-    use ark_ff::UniformRand;
+    use ark_ff::{UniformRand, Field};
     use ark_nonnative_field::NonNativeFieldVar;
     use ark_poly_commit::marlin_pc::{
         BatchLCProofVar, CommitmentVar, MarlinKZG10, MarlinKZG10Gadget,
     };
-    use ark_r1cs_std::bits::boolean::Boolean;
-    use ark_r1cs_std::eq::EqGadget;
-    use ark_r1cs_std::{alloc::AllocVar, mnt4_298::PairingVar as MNT4PairingVar};
-    use ark_relations::lc;
-    use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
+    use ark_r1cs_std::{
+        bits::boolean::Boolean,
+        eq::EqGadget,
+        alloc::AllocVar,
+    };
+    use ark_relations::{
+        lc, r1cs::{ConstraintSystem, ConstraintSynthesizer, ConstraintSystemRef, SynthesisError}
+    };
     use core::ops::MulAssign;
     use hashbrown::HashMap;
 
@@ -84,7 +83,7 @@ mod tests {
 
     #[test]
     fn verifier_test() {
-        let rng = &mut rand_core::OsRng;
+        let rng = &mut ark_ff::test_rng();
 
         let universal_srs = MarlinNativeInst::universal_setup(10000, 25, 10000, rng).unwrap();
 

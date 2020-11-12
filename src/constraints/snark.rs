@@ -385,22 +385,19 @@ mod test {
     use crate::fiat_shamir::poseidon::constraints::PoseidonSpongeVar;
     use crate::fiat_shamir::poseidon::PoseidonSponge;
     use crate::fiat_shamir::FiatShamirAlgebraicSpongeRng;
-    use algebra::{
-        mnt4_298::{Fq as MNT4Fq, Fr as MNT4Fr, MNT4_298 as MNT4PairingEngine},
-        MNT4_298, MNT6_298,
-    };
+    use ark_mnt4_298::{Fq as MNT4Fq, Fr as MNT4Fr, MNT4_298, constraints::PairingVar as MNT4PairingVar};
+    use ark_mnt6_298::MNT6_298;
     use ark_crypto_primitives::snark::{SNARKGadget, SNARK};
-    use ark_ec::{CycleEngine, PairingEngine, UniformRand};
+    use ark_ec::{CycleEngine, PairingEngine};
     use ark_ff::{Field, UniformRand};
     use ark_poly_commit::marlin_pc::{MarlinKZG10, MarlinKZG10Gadget};
-    use ark_r1cs_std::alloc::AllocVar;
-    use ark_r1cs_std::eq::EqGadget;
-    use ark_r1cs_std::{bits::boolean::Boolean, mnt4_298::PairingVar as MNT4PairingVar};
-    use ark_relations::r1cs::{
-        lc, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError,
+    use ark_r1cs_std::{
+        alloc::AllocVar, eq::EqGadget,bits::boolean::Boolean
     };
+    use ark_relations::{lc, r1cs::{
+        ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError,
+    }};
     use core::ops::MulAssign;
-    use poly_commit::marlin_pc::{MarlinKZG10, MarlinKZG10Gadget};
 
     #[derive(Copy, Clone)]
     struct Circuit<F: Field> {
@@ -485,8 +482,8 @@ mod test {
         let cs = ConstraintSystemRef::new(cs_sys);
 
         let input_gadget = <TestSNARKGadget as SNARKGadget<
-            <MNT4PairingEngine as PairingEngine>::Fr,
-            <MNT4PairingEngine as PairingEngine>::Fq,
+            <MNT4_298 as PairingEngine>::Fr,
+            <MNT4_298 as PairingEngine>::Fq,
             TestSNARK,
         >>::InputVar::new_input(
             ark_relations::ns!(cs, "new_input"), || Ok(vec![c])
@@ -494,16 +491,16 @@ mod test {
         .unwrap();
 
         let proof_gadget = <TestSNARKGadget as SNARKGadget<
-            <MNT4PairingEngine as PairingEngine>::Fr,
-            <MNT4PairingEngine as PairingEngine>::Fq,
+            <MNT4_298 as PairingEngine>::Fr,
+            <MNT4_298 as PairingEngine>::Fq,
             TestSNARK,
         >>::ProofVar::new_witness(
             ark_relations::ns!(cs, "alloc_proof"), || Ok(proof)
         )
         .unwrap();
         let vk_gadget = <TestSNARKGadget as SNARKGadget<
-            <MNT4PairingEngine as PairingEngine>::Fr,
-            <MNT4PairingEngine as PairingEngine>::Fq,
+            <MNT4_298 as PairingEngine>::Fr,
+            <MNT4_298 as PairingEngine>::Fq,
             TestSNARK,
         >>::VerifyingKeyVar::new_constant(
             ark_relations::ns!(cs, "alloc_vk"), vk.clone()
@@ -517,8 +514,8 @@ mod test {
         );
 
         let verification_result = <TestSNARKGadget as SNARKGadget<
-            <MNT4PairingEngine as PairingEngine>::Fr,
-            <MNT4PairingEngine as PairingEngine>::Fq,
+            <MNT4_298 as PairingEngine>::Fr,
+            <MNT4_298 as PairingEngine>::Fq,
             TestSNARK,
         >>::verify(
             ark_relations::ns!(cs, "verify").cs(),
@@ -546,8 +543,8 @@ mod test {
 
         let pvk = TestSNARK::process_vk(&vk).unwrap();
         let pvk_gadget = <TestSNARKGadget as SNARKGadget<
-            <MNT4PairingEngine as PairingEngine>::Fr,
-            <MNT4PairingEngine as PairingEngine>::Fq,
+            <MNT4_298 as PairingEngine>::Fr,
+            <MNT4_298 as PairingEngine>::Fq,
             TestSNARK,
         >>::ProcessedVerifyingKeyVar::new_constant(
             ark_relations::ns!(cs, "alloc_pvk"),
