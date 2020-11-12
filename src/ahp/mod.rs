@@ -404,7 +404,7 @@ impl<F: PrimeField> UnnormalizedBivariateLagrangePoly<F> for GeneralEvaluationDo
 mod tests {
     use super::*;
     use ark_bls12_381::Fr;
-    use ark_ff::{One, Zero, UniformRand};
+    use ark_ff::{One, UniformRand, Zero};
     use ark_poly::{DenseOrSparsePolynomial, DensePolynomial};
 
     #[test]

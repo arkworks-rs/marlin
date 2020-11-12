@@ -40,8 +40,8 @@ mod marlin {
     use super::*;
     use crate::{fiat_shamir::FiatShamirChaChaRng, Marlin, MarlinDefaultConfig};
 
+    use ark_bls12_381::{Bls12_381, Fq, Fr};
     use ark_ff::UniformRand;
-    use ark_bls12_381::{Fq, Fr, Bls12_381};
     use ark_poly_commit::marlin_pc::MarlinKZG10;
     use blake2::Blake2s;
     use core::ops::MulAssign;
@@ -129,10 +129,10 @@ mod marlin_recursion {
         Marlin, MarlinRecursiveConfig,
     };
 
+    use ark_ec::CycleEngine;
+    use ark_ff::UniformRand;
     use ark_mnt4_298::{Fq, Fr, MNT4_298};
     use ark_mnt6_298::MNT6_298;
-    use ark_ff::UniformRand;
-    use ark_ec::CycleEngine;
     use ark_poly_commit::marlin_pc::MarlinKZG10;
     use core::ops::MulAssign;
 
@@ -231,8 +231,8 @@ mod fiat_shamir {
         poseidon::{constraints::PoseidonSpongeVar, PoseidonSponge},
         FiatShamirAlgebraicSpongeRng, FiatShamirChaChaRng, FiatShamirRng,
     };
-    use ark_mnt4_298::{Fq, Fr};
     use ark_ff::{PrimeField, UniformRand};
+    use ark_mnt4_298::{Fq, Fr};
     use ark_nonnative_field::NonNativeFieldVar;
     use ark_r1cs_std::alloc::AllocVar;
     use ark_r1cs_std::bits::uint8::UInt8;

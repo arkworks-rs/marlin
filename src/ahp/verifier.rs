@@ -117,6 +117,10 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let beta = state.second_round_msg.unwrap().beta;
         let gamma = state.gamma.unwrap();
 
+        println!("alpha = {:?}", alpha.into_repr());
+        println!("beta = {:?}", beta.into_repr());
+        println!("gamma = {:?}", gamma.into_repr());
+
         let mut query_set = QuerySet::new();
         // For the first linear combination
         // Outer sumcheck test:

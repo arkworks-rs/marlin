@@ -218,8 +218,7 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> FiatShamirAlgebraicS
                 None
             };
 
-            let first_max_bits_per_limb =
-                params.bits_per_limb + overhead!(first.1 + &CF::one());
+            let first_max_bits_per_limb = params.bits_per_limb + overhead!(first.1 + &CF::one());
             let second_max_bits_per_limb = if second.is_some() {
                 params.bits_per_limb + overhead!(second.unwrap().1 + &CF::one())
             } else {

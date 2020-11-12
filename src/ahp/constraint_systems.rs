@@ -35,10 +35,6 @@ pub(crate) fn balance_matrices<F: Field>(a_matrix: &mut Matrix<F>, b_matrix: &mu
 }
 
 pub(crate) fn num_non_zero<F: PrimeField>(matrices: &ConstraintMatrices<F>) -> usize {
-    println!("a: {}", matrices.a_num_non_zero);
-    println!("b: {}", matrices.b_num_non_zero);
-    println!("c: {}", matrices.c_num_non_zero);
-
     *[
         matrices.a_num_non_zero,
         matrices.b_num_non_zero,
@@ -51,8 +47,8 @@ pub(crate) fn num_non_zero<F: PrimeField>(matrices: &ConstraintMatrices<F>) -> u
 
 pub(crate) fn make_matrices_square_for_indexer<F: PrimeField>(cs: ConstraintSystemRef<F>) {
     let num_variables = cs.num_instance_variables() + cs.num_witness_variables();
-    //let matrices = cs.to_matrices().unwrap();
-    //let num_non_zero_val = num_non_zero::<F>(&matrices);
+    let matrices = cs.to_matrices().unwrap();
+    let num_non_zero_val = num_non_zero::<F>(&matrices);
     let matrix_dim = padded_matrix_dim(num_variables, cs.num_constraints());
     make_matrices_square(cs.clone(), num_variables);
     assert_eq!(
@@ -65,11 +61,11 @@ pub(crate) fn make_matrices_square_for_indexer<F: PrimeField>(cs: ConstraintSyst
         matrix_dim,
         "padding does not result in expected matrix size!"
     );
-    /*assert_eq!(
+    assert_eq!(
         num_non_zero::<F>(&matrices),
         num_non_zero_val,
         "padding changed matrix density"
-    );*/
+    );
 }
 
 /// This must *always* be in sync with `make_matrices_square`.

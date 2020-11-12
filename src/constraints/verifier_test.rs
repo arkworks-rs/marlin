@@ -11,24 +11,20 @@ mod tests {
             constraints::FiatShamirAlgebraicSpongeRngVar, poseidon::constraints::PoseidonSpongeVar,
             poseidon::PoseidonSponge, FiatShamirAlgebraicSpongeRng,
         },
-        IndexVerifierKey, Marlin as MarlinNative, MarlinRecursiveConfig,
-        PhantomData, Proof,
+        IndexVerifierKey, Marlin as MarlinNative, MarlinRecursiveConfig, PhantomData, Proof,
     };
-    use ark_mnt4_298::{MNT4_298, Fq, Fr, constraints::PairingVar as MNT4PairingVar};
-    use ark_mnt6_298::MNT6_298;
     use ark_ec::CycleEngine;
-    use ark_ff::{UniformRand, Field};
+    use ark_ff::{Field, UniformRand};
+    use ark_mnt4_298::{constraints::PairingVar as MNT4PairingVar, Fq, Fr, MNT4_298};
+    use ark_mnt6_298::MNT6_298;
     use ark_nonnative_field::NonNativeFieldVar;
     use ark_poly_commit::marlin_pc::{
         BatchLCProofVar, CommitmentVar, MarlinKZG10, MarlinKZG10Gadget,
     };
-    use ark_r1cs_std::{
-        bits::boolean::Boolean,
-        eq::EqGadget,
-        alloc::AllocVar,
-    };
+    use ark_r1cs_std::{alloc::AllocVar, bits::boolean::Boolean, eq::EqGadget};
     use ark_relations::{
-        lc, r1cs::{ConstraintSystem, ConstraintSynthesizer, ConstraintSystemRef, SynthesisError}
+        lc, ns,
+        r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError},
     };
     use core::ops::MulAssign;
     use hashbrown::HashMap;
@@ -130,7 +126,7 @@ mod tests {
             verifier_key: index_vk.verifier_key,
         };
         let ivk_gadget: IndexVerifierKeyVar<Fr, Fq, MultiPC, MultiPCVar> =
-            IndexVerifierKeyVar::new_witness(ark_relations::ns!(cs, "alloc#index vk"), || Ok(ivk))
+            IndexVerifierKeyVar::new_witness(ns!(cs, "alloc#index vk"), || Ok(ivk))
                 .unwrap();
         // END: ivk to ivk_gadget
 
@@ -141,7 +137,7 @@ mod tests {
             .iter()
             .map(|x| {
                 NonNativeFieldVar::new_input(
-                    ark_relations::ns!(cs.clone(), "alloc#public input"),
+                    ns!(cs.clone(), "alloc#public input"),
                     || Ok(x),
                 )
                 .unwrap()
@@ -164,7 +160,7 @@ mod tests {
                 lst.iter()
                     .map(|comm| {
                         CommitmentVar::new_witness(
-                            ark_relations::ns!(cs.clone(), "alloc#commitment"),
+                            ns!(cs.clone(), "alloc#commitment"),
                             || Ok(comm),
                         )
                         .unwrap()
@@ -177,7 +173,7 @@ mod tests {
             .iter()
             .map(|eval| {
                 NonNativeFieldVar::new_witness(
-                    ark_relations::ns!(cs.clone(), "alloc#evaluation"),
+                    ns!(cs.clone(), "alloc#evaluation"),
                     || Ok(eval),
                 )
                 .unwrap()
@@ -193,7 +189,7 @@ mod tests {
                         .iter()
                         .map(|elem| {
                             NonNativeFieldVar::new_witness(
-                                ark_relations::ns!(cs, "alloc#prover message"),
+                                ns!(cs, "alloc#prover message"),
                                 || Ok(elem),
                             )
                             .unwrap()
@@ -206,7 +202,7 @@ mod tests {
             .collect();
 
         let pc_batch_proof = BatchLCProofVar::<MNT298Cycle, MNT4PairingVar>::new_witness(
-            ark_relations::ns!(cs, "alloc#proof"),
+            ns!(cs, "alloc#proof"),
             || Ok(pc_proof),
         )
         .unwrap();
@@ -231,6 +227,7 @@ mod tests {
         }
 
         let proof_gadget: ProofVar<Fr, Fq, MultiPC, MultiPCVar> = ProofVar {
+            cs: cs.clone(),
             commitments: commitment_gadgets,
             evaluations: evaluation_gadgets,
             prover_messages: prover_message_gadgets,
@@ -242,7 +239,6 @@ mod tests {
             FiatShamirAlgebraicSpongeRng<Fr, Fq, PoseidonSponge<Fq>>,
             FiatShamirAlgebraicSpongeRngVar<Fr, Fq, PoseidonSponge<Fq>, PoseidonSpongeVar<Fq>>,
         >(
-            ark_relations::ns!(cs, "verify").cs(),
             &ivk_gadget,
             &public_input_gadget,
             &proof_gadget,

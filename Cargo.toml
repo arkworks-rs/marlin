@@ -27,10 +27,10 @@ ark-poly = { git = "https://github.com/arkworks-rs/algebra", default-features = 
 ark-std = { git = "https://github.com/arkworks-rs/utils", default-features = false }
 bench-utils = { git = "https://github.com/arkworks-rs/utils", default-features = false }
 ark-relations = { git = "https://github.com/arkworks-rs/snark", default-features = false }
-ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives", branch = "main", default-features = false, features = [ "r1cs" ] }
+ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives", branch = "fix-snark-constraints", default-features = false, features = [ "r1cs" ] }
 ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std", default-features = false }
 ark-nonnative-field = { git = "https://github.com/arkworks-rs/nonnative", default-features = false }
-ark-poly-commit = { git = "https://github.com/scipr-lab/poly-commit", branch = "constraints", default-features = false }
+ark-poly-commit = { path = "../poly-commit", default-features = false }
 ark-snark = { git = "https://github.com/arkworks-rs/snark", default-features = false }
 
 rand = { version = "0.7", default-features = false }

@@ -13,13 +13,7 @@ use ark_poly_commit::{
     EvaluationsVar, LCTerm, LinearCombinationVar, PCCheckVar, PolynomialCommitment, PrepareVar,
     QuerySetVar,
 };
-use ark_r1cs_std::{
-    alloc::AllocVar,
-    bits::boolean::Boolean,
-    eq::EqGadget,
-    fields::{fp::FpVar, FieldVar},
-    ToBitsGadget, ToConstraintFieldGadget,
-};
+use ark_r1cs_std::{alloc::AllocVar, bits::boolean::Boolean, eq::EqGadget, fields::{fp::FpVar, FieldVar}, ToBitsGadget, ToConstraintFieldGadget, R1CSVar};
 use ark_relations::r1cs::ConstraintSystemRef;
 use hashbrown::{HashMap, HashSet};
 
