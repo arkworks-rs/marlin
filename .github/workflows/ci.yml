@@ -87,7 +87,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: thumbv6m-none-eabi
+          target: aarch64-unknown-none
           override: true
 
       - name: Build
