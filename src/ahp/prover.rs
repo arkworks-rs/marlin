@@ -7,8 +7,10 @@ use crate::ahp::*;
 use crate::ahp::constraint_systems::{make_matrices_square_for_prover, unformat_public_input};
 use crate::{ToString, Vec};
 use ark_ff::{Field, PrimeField};
-use ark_poly::{EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain};
-use ark_poly_commit::{LabeledPolynomial, Polynomial};
+use ark_poly::{
+    univariate::DensePolynomial, EvaluationDomain, Evaluations as EvaluationsOnDomain,
+    GeneralEvaluationDomain, Polynomial, UVPolynomial,
+};
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use ark_std::{cfg_into_iter, cfg_iter, cfg_iter_mut};
 use core::marker::PhantomData;
@@ -268,7 +270,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let w_poly = &EvaluationsOnDomain::from_vec_and_domain(w_poly_evals, domain_h)
             .interpolate()
-            + &(&Polynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
         let (w_poly, remainder) = w_poly.divide_by_vanishing_poly(domain_x).unwrap();
         assert!(remainder.is_zero());
         end_timer!(w_poly_time);
@@ -276,18 +278,18 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let z_a_poly_time = start_timer!(|| "Computing z_A polynomial");
         let z_a = state.z_a.clone().unwrap();
         let z_a_poly = &EvaluationsOnDomain::from_vec_and_domain(z_a, domain_h).interpolate()
-            + &(&Polynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
         end_timer!(z_a_poly_time);
 
         let z_b_poly_time = start_timer!(|| "Computing z_B polynomial");
         let z_b = state.z_b.clone().unwrap();
         let z_b_poly = &EvaluationsOnDomain::from_vec_and_domain(z_b, domain_h).interpolate()
-            + &(&Polynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
         end_timer!(z_b_poly_time);
 
         let mask_poly_time = start_timer!(|| "Computing mask polynomial");
         let mask_poly_degree = 3 * domain_h.size() + 2 * zk_bound - 3;
-        let mut mask_poly = Polynomial::rand(mask_poly_degree, rng);
+        let mut mask_poly = DensePolynomial::rand(mask_poly_degree, rng);
         let scaled_sigma_1 = (mask_poly.divide_by_vanishing_poly(domain_h).unwrap().1)[0];
         mask_poly[0] -= &scaled_sigma_1;
         end_timer!(mask_poly_time);
@@ -326,7 +328,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         input_domain: GeneralEvaluationDomain<F>,
         domain_h: GeneralEvaluationDomain<F>,
         r_alpha_x_on_h: Vec<F>,
-    ) -> Polynomial<F> {
+    ) -> DensePolynomial<F> {
         let mut t_evals_on_h = vec![F::zero(); domain_h.size()];
         for (matrix, eta) in matrices.zip(matrix_randomizers) {
             for (r, row) in matrix.iter().enumerate() {
@@ -388,7 +390,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             .zip(&z_b_poly.polynomial().coeffs)
             .for_each(|((c, a), b)| *c += &(eta_a * a + &(eta_b * b)));
 
-        let summed_z_m = Polynomial::from_coefficients_vec(summed_z_m_coeffs);
+        let summed_z_m = DensePolynomial::from_coefficients_vec(summed_z_m_coeffs);
         end_timer!(summed_z_m_poly_time);
 
         let r_alpha_x_evals_time = start_timer!(|| "Compute r_alpha_x evals");
@@ -397,7 +399,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         end_timer!(r_alpha_x_evals_time);
 
         let r_alpha_poly_time = start_timer!(|| "Compute r_alpha_x poly");
-        let r_alpha_poly = Polynomial::from_coefficients_vec(domain_h.ifft(&r_alpha_x_evals));
+        let r_alpha_poly = DensePolynomial::from_coefficients_vec(domain_h.ifft(&r_alpha_x_evals));
         end_timer!(r_alpha_poly_time);
 
         let t_poly_time = start_timer!(|| "Compute t poly");
@@ -460,7 +462,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let sumcheck_time = start_timer!(|| "Compute sumcheck h and g polys");
         let (h_1, x_g_1) = q_1.divide_by_vanishing_poly(domain_h).unwrap();
-        let g_1 = Polynomial::from_coefficients_slice(&x_g_1.coeffs[1..]);
+        let g_1 = DensePolynomial::from_coefficients_slice(&x_g_1.coeffs[1..]);
         end_timer!(sumcheck_time);
 
         let msg = ProverMsg::EmptyMessage;
@@ -560,7 +562,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let f = EvaluationsOnDomain::from_vec_and_domain(f_vals_on_K, domain_k).interpolate();
         end_timer!(f_poly_time);
 
-        let g_2 = Polynomial::from_coefficients_slice(&f.coeffs[1..]);
+        let g_2 = DensePolynomial::from_coefficients_slice(&f.coeffs[1..]);
 
         let domain_b = GeneralEvaluationDomain::<F>::new(3 * domain_k.size() - 3)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;

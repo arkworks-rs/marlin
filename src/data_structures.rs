@@ -2,6 +2,7 @@ use crate::ahp::indexer::*;
 use crate::ahp::prover::ProverMsg;
 use crate::Vec;
 use ark_ff::PrimeField;
+use ark_poly::univariate::DensePolynomial;
 use ark_poly_commit::{BatchLCProof, PolynomialCommitment};
 use ark_relations::r1cs::ConstraintSynthesizer;
 use ark_std::format;
@@ -12,15 +13,18 @@ use core::marker::PhantomData;
 /* ************************************************************************* */
 
 /// The universal public parameters for the argument system.
-pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F>>::UniversalParams;
+pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F, DensePolynomial<F>>>::UniversalParams;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
 /* ************************************************************************* */
 
 /// Verification key for a specific index (i.e., R1CS matrices).
-pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>>
-{
+pub struct IndexVerifierKey<
+    F: PrimeField,
+    PC: PolynomialCommitment<F, DensePolynomial<F>>,
+    C: ConstraintSynthesizer<F>,
+> {
     /// Stores information about the size of the index, as well as its field of
     /// definition.
     pub index_info: IndexInfo<F, C>,
@@ -30,8 +34,11 @@ pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>, C: Const
     pub verifier_key: PC::VerifierKey,
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ark_ff::ToBytes
-    for IndexVerifierKey<F, PC, C>
+impl<
+        F: PrimeField,
+        PC: PolynomialCommitment<F, DensePolynomial<F>>,
+        C: ConstraintSynthesizer<F>,
+    > ark_ff::ToBytes for IndexVerifierKey<F, PC, C>
 {
     fn write<W: ark_std::io::Write>(&self, mut w: W) -> ark_std::io::Result<()> {
         self.index_info.write(&mut w)?;
@@ -39,8 +46,11 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> ar
     }
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Clone
-    for IndexVerifierKey<F, PC, C>
+impl<
+        F: PrimeField,
+        PC: PolynomialCommitment<F, DensePolynomial<F>>,
+        C: ConstraintSynthesizer<F>,
+    > Clone for IndexVerifierKey<F, PC, C>
 {
     fn clone(&self) -> Self {
         Self {
@@ -51,8 +61,11 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Cl
     }
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>>
-    IndexVerifierKey<F, PC, C>
+impl<
+        F: PrimeField,
+        PC: PolynomialCommitment<F, DensePolynomial<F>>,
+        C: ConstraintSynthesizer<F>,
+    > IndexVerifierKey<F, PC, C>
 {
     /// Iterate over the commitments to indexed polynomials in `self`.
     pub fn iter(&self) -> impl Iterator<Item = &PC::Commitment> {
@@ -68,7 +81,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>>
 pub struct IndexProverKey<
     'a,
     F: PrimeField,
-    PC: PolynomialCommitment<F>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>>,
     C: ConstraintSynthesizer<F>,
 > {
     /// The index verifier key.
@@ -81,8 +94,12 @@ pub struct IndexProverKey<
     pub committer_key: PC::CommitterKey,
 }
 
-impl<'a, F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Clone
-    for IndexProverKey<'a, F, PC, C>
+impl<
+        'a,
+        F: PrimeField,
+        PC: PolynomialCommitment<F, DensePolynomial<F>>,
+        C: ConstraintSynthesizer<F>,
+    > Clone for IndexProverKey<'a, F, PC, C>
 where
     PC::Commitment: Clone,
 {
@@ -101,7 +118,11 @@ where
 /* ************************************************************************* */
 
 /// A zkSNARK proof.
-pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> {
+pub struct Proof<
+    F: PrimeField,
+    PC: PolynomialCommitment<F, DensePolynomial<F>>,
+    C: ConstraintSynthesizer<F>,
+> {
     /// Commitments to the polynomials produced by the AHP prover.
     pub commitments: Vec<Vec<PC::Commitment>>,
     /// Evaluations of these polynomials.
@@ -109,18 +130,23 @@ pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthe
     /// The field elements sent by the prover.
     pub prover_messages: Vec<ProverMsg<F>>,
     /// An evaluation proof from the polynomial commitment.
-    pub pc_proof: BatchLCProof<F, PC>,
+    pub pc_proof: BatchLCProof<F, DensePolynomial<F>, PC>,
     #[doc(hidden)]
     constraint_system: PhantomData<C>,
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>, C: ConstraintSynthesizer<F>> Proof<F, PC, C> {
+impl<
+        F: PrimeField,
+        PC: PolynomialCommitment<F, DensePolynomial<F>>,
+        C: ConstraintSynthesizer<F>,
+    > Proof<F, PC, C>
+{
     /// Construct a new proof.
     pub fn new(
         commitments: Vec<Vec<PC::Commitment>>,
         evaluations: Vec<F>,
         prover_messages: Vec<ProverMsg<F>>,
-        pc_proof: BatchLCProof<F, PC>,
+        pc_proof: BatchLCProof<F, DensePolynomial<F>, PC>,
     ) -> Self {
         Self {
             commitments,

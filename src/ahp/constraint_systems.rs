@@ -5,7 +5,6 @@ use crate::ahp::*;
 use crate::{BTreeMap, Cow, ToString};
 use ark_ff::{Field, PrimeField};
 use ark_poly::{EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain};
-use ark_poly_commit::LabeledPolynomial;
 use ark_relations::{
     lc,
     r1cs::{ConstraintMatrices, ConstraintSystemRef},
