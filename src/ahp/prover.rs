@@ -7,11 +7,10 @@ use crate::ahp::*;
 use crate::ahp::constraint_systems::{make_matrices_square_for_prover, unformat_public_input};
 use crate::{ToString, Vec};
 use ark_ff::{Field, PrimeField};
-use ark_poly::univariate::DensePolynomial;
 use ark_poly::{
-    EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain, UVPolynomial,
+    univariate::DensePolynomial, EvaluationDomain, Evaluations as EvaluationsOnDomain,
+    GeneralEvaluationDomain, Polynomial, UVPolynomial,
 };
-use ark_poly_commit::{LabeledPolynomial, Polynomial};
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use ark_std::{cfg_into_iter, cfg_iter, cfg_iter_mut};
 use rand_core::RngCore;

@@ -1,6 +1,8 @@
 use crate::{String, ToString, Vec};
 use ark_ff::{Field, PrimeField};
-use ark_poly_commit::{LCTerm, LabeledPolynomial, LinearCombination};
+use ark_poly::univariate::DensePolynomial;
+use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
+use ark_poly_commit::{LCTerm, LinearCombination};
 use ark_relations::r1cs::SynthesisError;
 use ark_std::cfg_iter_mut;
 use core::{borrow::Borrow, marker::PhantomData};
@@ -17,6 +19,9 @@ pub mod indexer;
 pub mod prover;
 /// Describes data structures and the algorithms used by the AHP verifier.
 pub mod verifier;
+
+/// A labeled DensePolynomial with coefficients over `F`
+pub type LabeledPolynomial<F> = ark_poly_commit::LabeledPolynomial<F, DensePolynomial<F>>;
 
 /// The algebraic holographic proof defined in [CHMMVW19](https://eprint.iacr.org/2019/1047).
 /// Currently, this AHP only supports inputs of size one

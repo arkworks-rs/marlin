@@ -146,7 +146,7 @@ where
         )
         });
 
-        let srs = PC::setup(max_degree, Some(num_variables), rng).map_err(Error::from_pc_err);
+        let srs = PC::setup(max_degree, None, rng).map_err(Error::from_pc_err);
         end_timer!(setup_time);
         srs
     }
