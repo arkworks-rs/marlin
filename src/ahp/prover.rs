@@ -7,13 +7,17 @@ use crate::ahp::*;
 use crate::ahp::constraint_systems::{make_matrices_square_for_prover, unformat_public_input};
 use crate::{ToString, Vec};
 use ark_ff::{Field, PrimeField};
-use ark_poly::{EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain};
+use ark_poly::univariate::DensePolynomial;
+use ark_poly::{
+    EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain, UVPolynomial,
+};
 use ark_poly_commit::{LabeledPolynomial, Polynomial};
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use ark_std::{cfg_into_iter, cfg_iter, cfg_iter_mut};
 use rand_core::RngCore;
 
 /// State for the AHP prover.
+#[allow(clippy::type_complexity)]
 pub struct ProverState<'a, F: PrimeField> {
     formatted_input_assignment: Vec<F>,
     witness_assignment: Vec<F>,
@@ -24,8 +28,11 @@ pub struct ProverState<'a, F: PrimeField> {
     /// query bound b
     zk_bound: usize,
 
-    w_poly: Option<LabeledPolynomial<F>>,
-    mz_polys: Option<(LabeledPolynomial<F>, LabeledPolynomial<F>)>,
+    w_poly: Option<LabeledPolynomial<F, DensePolynomial<F>>>,
+    mz_polys: Option<(
+        LabeledPolynomial<F, DensePolynomial<F>>,
+        LabeledPolynomial<F, DensePolynomial<F>>,
+    )>,
 
     index: &'a Index<F>,
 
@@ -33,7 +40,7 @@ pub struct ProverState<'a, F: PrimeField> {
     verifier_first_msg: Option<VerifierFirstMsg<F>>,
 
     /// the blinding polynomial for the first round
-    mask_poly: Option<LabeledPolynomial<F>>,
+    mask_poly: Option<LabeledPolynomial<F, DensePolynomial<F>>>,
 
     /// domain X, sized for the public input
     domain_x: GeneralEvaluationDomain<F>,
@@ -74,18 +81,18 @@ impl<F: Field> ark_ff::ToBytes for ProverMsg<F> {
 /// The first set of prover oracles.
 pub struct ProverFirstOracles<F: Field> {
     /// The LDE of `w`.
-    pub w: LabeledPolynomial<F>,
+    pub w: LabeledPolynomial<F, DensePolynomial<F>>,
     /// The LDE of `Az`.
-    pub z_a: LabeledPolynomial<F>,
+    pub z_a: LabeledPolynomial<F, DensePolynomial<F>>,
     /// The LDE of `Bz`.
-    pub z_b: LabeledPolynomial<F>,
+    pub z_b: LabeledPolynomial<F, DensePolynomial<F>>,
     /// The sum-check hiding polynomial.
-    pub mask_poly: LabeledPolynomial<F>,
+    pub mask_poly: LabeledPolynomial<F, DensePolynomial<F>>,
 }
 
 impl<F: Field> ProverFirstOracles<F> {
     /// Iterate over the polynomials output by the prover in the first round.
-    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
+    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F, DensePolynomial<F>>> {
         vec![&self.w, &self.z_a, &self.z_b, &self.mask_poly].into_iter()
     }
 }
@@ -93,16 +100,16 @@ impl<F: Field> ProverFirstOracles<F> {
 /// The second set of prover oracles.
 pub struct ProverSecondOracles<F: Field> {
     /// The polynomial `t` that is produced in the first round.
-    pub t: LabeledPolynomial<F>,
+    pub t: LabeledPolynomial<F, DensePolynomial<F>>,
     /// The polynomial `g` resulting from the first sumcheck.
-    pub g_1: LabeledPolynomial<F>,
+    pub g_1: LabeledPolynomial<F, DensePolynomial<F>>,
     /// The polynomial `h` resulting from the first sumcheck.
-    pub h_1: LabeledPolynomial<F>,
+    pub h_1: LabeledPolynomial<F, DensePolynomial<F>>,
 }
 
 impl<F: Field> ProverSecondOracles<F> {
     /// Iterate over the polynomials output by the prover in the second round.
-    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
+    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F, DensePolynomial<F>>> {
         vec![&self.t, &self.g_1, &self.h_1].into_iter()
     }
 }
@@ -110,14 +117,14 @@ impl<F: Field> ProverSecondOracles<F> {
 /// The third set of prover oracles.
 pub struct ProverThirdOracles<F: Field> {
     /// The polynomial `g` resulting from the second sumcheck.
-    pub g_2: LabeledPolynomial<F>,
+    pub g_2: LabeledPolynomial<F, DensePolynomial<F>>,
     /// The polynomial `h` resulting from the second sumcheck.
-    pub h_2: LabeledPolynomial<F>,
+    pub h_2: LabeledPolynomial<F, DensePolynomial<F>>,
 }
 
 impl<F: Field> ProverThirdOracles<F> {
     /// Iterate over the polynomials output by the prover in the third round.
-    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
+    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F, DensePolynomial<F>>> {
         vec![&self.g_2, &self.h_2].into_iter()
     }
 }
@@ -268,7 +275,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let w_poly = &EvaluationsOnDomain::from_vec_and_domain(w_poly_evals, domain_h)
             .interpolate()
-            + &(&Polynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
         let (w_poly, remainder) = w_poly.divide_by_vanishing_poly(domain_x).unwrap();
         assert!(remainder.is_zero());
         end_timer!(w_poly_time);
@@ -276,18 +283,18 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let z_a_poly_time = start_timer!(|| "Computing z_A polynomial");
         let z_a = state.z_a.clone().unwrap();
         let z_a_poly = &EvaluationsOnDomain::from_vec_and_domain(z_a, domain_h).interpolate()
-            + &(&Polynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
         end_timer!(z_a_poly_time);
 
         let z_b_poly_time = start_timer!(|| "Computing z_B polynomial");
         let z_b = state.z_b.clone().unwrap();
         let z_b_poly = &EvaluationsOnDomain::from_vec_and_domain(z_b, domain_h).interpolate()
-            + &(&Polynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
         end_timer!(z_b_poly_time);
 
         let mask_poly_time = start_timer!(|| "Computing mask polynomial");
         let mask_poly_degree = 3 * domain_h.size() + 2 * zk_bound - 3;
-        let mut mask_poly = Polynomial::rand(mask_poly_degree, rng);
+        let mut mask_poly = DensePolynomial::rand(mask_poly_degree, rng);
         let scaled_sigma_1 = (mask_poly.divide_by_vanishing_poly(domain_h).unwrap().1)[0];
         mask_poly[0] -= &scaled_sigma_1;
         end_timer!(mask_poly_time);
@@ -336,7 +343,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         input_domain: GeneralEvaluationDomain<F>,
         domain_h: GeneralEvaluationDomain<F>,
         r_alpha_x_on_h: Vec<F>,
-    ) -> Polynomial<F> {
+    ) -> DensePolynomial<F> {
         let mut t_evals_on_h = vec![F::zero(); domain_h.size()];
         for (matrix, eta) in matrices.zip(matrix_randomizers) {
             for (r, row) in matrix.iter().enumerate() {
@@ -399,7 +406,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             .zip(&z_b_poly.polynomial().coeffs)
             .for_each(|((c, a), b)| *c += &(eta_a * a + &(eta_b * b)));
 
-        let summed_z_m = Polynomial::from_coefficients_vec(summed_z_m_coeffs);
+        let summed_z_m = DensePolynomial::from_coefficients_vec(summed_z_m_coeffs);
         end_timer!(summed_z_m_poly_time);
 
         let r_alpha_x_evals_time = start_timer!(|| "Compute r_alpha_x evals");
@@ -408,7 +415,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         end_timer!(r_alpha_x_evals_time);
 
         let r_alpha_poly_time = start_timer!(|| "Compute r_alpha_x poly");
-        let r_alpha_poly = Polynomial::from_coefficients_vec(domain_h.ifft(&r_alpha_x_evals));
+        let r_alpha_poly = DensePolynomial::from_coefficients_vec(domain_h.ifft(&r_alpha_x_evals));
         end_timer!(r_alpha_poly_time);
 
         let t_poly_time = start_timer!(|| "Compute t poly");
@@ -417,7 +424,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             &[eta_a, eta_b, eta_c],
             state.domain_x,
             state.domain_h,
-            r_alpha_x_evals,
+            r_alpha_x_evals.to_vec(),
         );
         end_timer!(t_poly_time);
 
@@ -471,7 +478,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let sumcheck_time = start_timer!(|| "Compute sumcheck h and g polys");
         let (h_1, x_g_1) = q_1.divide_by_vanishing_poly(domain_h).unwrap();
-        let g_1 = Polynomial::from_coefficients_slice(&x_g_1.coeffs[1..]);
+        let g_1 = DensePolynomial::from_coefficients_slice(&x_g_1.coeffs[1..]);
         end_timer!(sumcheck_time);
 
         let msg = ProverMsg::EmptyMessage;
@@ -579,7 +586,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let f = EvaluationsOnDomain::from_vec_and_domain(f_vals_on_K, domain_k).interpolate();
         end_timer!(f_poly_time);
 
-        let g_2 = Polynomial::from_coefficients_slice(&f.coeffs[1..]);
+        let g_2 = DensePolynomial::from_coefficients_slice(&f.coeffs[1..]);
 
         let domain_b = GeneralEvaluationDomain::<F>::new(3 * domain_k.size() - 3)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;

@@ -1,11 +1,12 @@
 use crate::{String, ToString, Vec};
 use ark_ff::{Field, PrimeField};
-use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::{LCTerm, LabeledPolynomial, LinearCombination};
 use ark_relations::r1cs::SynthesisError;
 use ark_std::cfg_iter_mut;
 use core::{borrow::Borrow, marker::PhantomData};
 
+use ark_poly::univariate::DensePolynomial;
+use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
@@ -303,7 +304,7 @@ pub trait EvaluationsProvider<F: Field> {
     fn get_lc_eval(&self, lc: &LinearCombination<F>, point: F) -> Result<F, Error>;
 }
 
-impl<'a, F: Field> EvaluationsProvider<F> for ark_poly_commit::Evaluations<'a, F> {
+impl<'a, F: Field> EvaluationsProvider<F> for ark_poly_commit::Evaluations<F, F> {
     fn get_lc_eval(&self, lc: &LinearCombination<F>, point: F) -> Result<F, Error> {
         let key = (lc.label.clone(), point);
         self.get(&key)
@@ -312,21 +313,23 @@ impl<'a, F: Field> EvaluationsProvider<F> for ark_poly_commit::Evaluations<'a, F
     }
 }
 
-impl<F: Field, T: Borrow<LabeledPolynomial<F>>> EvaluationsProvider<F> for Vec<T> {
+impl<F: Field, T: Borrow<LabeledPolynomial<F, DensePolynomial<F>>>> EvaluationsProvider<F>
+    for Vec<T>
+{
     fn get_lc_eval(&self, lc: &LinearCombination<F>, point: F) -> Result<F, Error> {
         let mut eval = F::zero();
         for (coeff, term) in lc.iter() {
             let value = if let LCTerm::PolyLabel(label) = term {
                 self.iter()
                     .find(|p| {
-                        let p: &LabeledPolynomial<F> = (*p).borrow();
+                        let p: &LabeledPolynomial<F, DensePolynomial<F>> = (*p).borrow();
                         p.label() == label
                     })
                     .ok_or_else(|| {
                         Error::MissingEval(format!("Missing {} for {}", label, lc.label))
                     })?
                     .borrow()
-                    .evaluate(point)
+                    .evaluate(&point)
             } else {
                 assert!(term.is_one());
                 F::one()
@@ -404,7 +407,8 @@ mod tests {
     use super::*;
     use ark_bls12_381::Fr;
     use ark_ff::{One, UniformRand, Zero};
-    use ark_poly::{DenseOrSparsePolynomial, DensePolynomial};
+    use ark_poly::univariate::DenseOrSparsePolynomial;
+    use ark_poly::{Polynomial, UVPolynomial};
 
     #[test]
     fn domain_unnormalized_bivariate_lagrange_poly() {
@@ -443,7 +447,7 @@ mod tests {
         let poly = DensePolynomial::rand(size, rng);
 
         let mut sum: Fr = Fr::zero();
-        for eval in domain.elements().map(|e| poly.evaluate(e)) {
+        for eval in domain.elements().map(|e| poly.evaluate(&e)) {
             sum += eval;
         }
         let first = poly.coeffs[0] * size_as_fe;
@@ -492,7 +496,7 @@ mod tests {
         );
 
         for e in domain_h.elements() {
-            println!("{:?}", divisor.evaluate(e));
+            println!("{:?}", divisor.evaluate(&e));
         }
         // Let p = v_K / v_H;
         // The alternator polynomial is p * t, where t is defined as

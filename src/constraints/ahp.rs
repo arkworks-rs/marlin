@@ -9,6 +9,7 @@ use crate::{
     PhantomData, PrimeField,
 };
 use ark_nonnative_field::NonNativeFieldVar;
+use ark_poly::univariate::DensePolynomial;
 use ark_poly_commit::{
     EvaluationsVar, LCTerm, LinearCombinationVar, PCCheckVar, PolynomialCommitment, PrepareVar,
     QuerySetVar,
@@ -55,8 +56,8 @@ pub struct VerifierThirdMsgVar<TargetField: PrimeField, BaseField: PrimeField> {
 pub struct AHPForR1CS<
     F: PrimeField,
     CF: PrimeField,
-    PC: PolynomialCommitment<F>,
-    PCG: PCCheckVar<F, PC, CF>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>>,
+    PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF>,
 > where
     PCG::VerifierKeyVar: ToConstraintFieldGadget<CF>,
     PCG::CommitmentVar: ToConstraintFieldGadget<CF>,
@@ -67,8 +68,12 @@ pub struct AHPForR1CS<
     pc_check: PhantomData<PCG>,
 }
 
-impl<F: PrimeField, CF: PrimeField, PC: PolynomialCommitment<F>, PCG: PCCheckVar<F, PC, CF>>
-    AHPForR1CS<F, CF, PC, PCG>
+impl<
+        F: PrimeField,
+        CF: PrimeField,
+        PC: PolynomialCommitment<F, DensePolynomial<F>>,
+        PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF>,
+    > AHPForR1CS<F, CF, PC, PCG>
 where
     PCG::VerifierKeyVar: ToConstraintFieldGadget<CF>,
     PCG::CommitmentVar: ToConstraintFieldGadget<CF>,

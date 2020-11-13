@@ -7,6 +7,7 @@ use crate::{
     Error, PhantomData, PrimeField, Vec,
 };
 use ark_nonnative_field::NonNativeFieldVar;
+use ark_poly::univariate::DensePolynomial;
 use ark_poly_commit::{PCCheckVar, PolynomialCommitment};
 use ark_r1cs_std::{bits::boolean::Boolean, fields::FieldVar, R1CSVar, ToConstraintFieldGadget};
 use ark_relations::ns;
@@ -14,8 +15,8 @@ use ark_relations::ns;
 pub struct Marlin<
     F: PrimeField,
     CF: PrimeField,
-    PC: PolynomialCommitment<F>,
-    PCG: PCCheckVar<F, PC, CF>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>>,
+    PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF>,
 >(
     PhantomData<F>,
     PhantomData<CF>,
@@ -27,8 +28,8 @@ impl<F, CF, PC, PCG> Marlin<F, CF, PC, PCG>
 where
     F: PrimeField,
     CF: PrimeField,
-    PC: PolynomialCommitment<F>,
-    PCG: PCCheckVar<F, PC, CF>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>>,
+    PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF>,
     PCG::VerifierKeyVar: ToConstraintFieldGadget<CF>,
     PCG::CommitmentVar: ToConstraintFieldGadget<CF>,
 {

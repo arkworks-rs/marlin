@@ -108,18 +108,14 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the query state and next round state.
-    pub fn verifier_query_set<'a, 'b, FSF: PrimeField, R: FiatShamirRng<F, FSF>>(
+    pub fn verifier_query_set<'a, FSF: PrimeField, R: FiatShamirRng<F, FSF>>(
         state: VerifierState<F>,
         _: &'a mut R,
         with_vanishing: bool,
-    ) -> (QuerySet<'b, F>, VerifierState<F>) {
+    ) -> (QuerySet<F>, VerifierState<F>) {
         let alpha = state.first_round_msg.unwrap().alpha;
         let beta = state.second_round_msg.unwrap().beta;
         let gamma = state.gamma.unwrap();
-
-        println!("alpha = {:?}", alpha.into_repr());
-        println!("beta = {:?}", beta.into_repr());
-        println!("gamma = {:?}", gamma.into_repr());
 
         let mut query_set = QuerySet::new();
         // For the first linear combination

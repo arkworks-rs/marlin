@@ -42,11 +42,12 @@ mod marlin {
 
     use ark_bls12_381::{Bls12_381, Fq, Fr};
     use ark_ff::UniformRand;
+    use ark_poly::univariate::DensePolynomial;
     use ark_poly_commit::marlin_pc::MarlinKZG10;
+    use ark_std::ops::MulAssign;
     use blake2::Blake2s;
-    use core::ops::MulAssign;
 
-    type MultiPC = MarlinKZG10<Bls12_381>;
+    type MultiPC = MarlinKZG10<Bls12_381, DensePolynomial<Fr>>;
     type MarlinInst =
         Marlin<Fr, Fq, MultiPC, FiatShamirChaChaRng<Fr, Fq, Blake2s>, MarlinDefaultConfig>;
 
@@ -133,10 +134,11 @@ mod marlin_recursion {
     use ark_ff::UniformRand;
     use ark_mnt4_298::{Fq, Fr, MNT4_298};
     use ark_mnt6_298::MNT6_298;
+    use ark_poly::polynomial::univariate::DensePolynomial;
     use ark_poly_commit::marlin_pc::MarlinKZG10;
     use core::ops::MulAssign;
 
-    type MultiPC = MarlinKZG10<MNT4_298>;
+    type MultiPC = MarlinKZG10<MNT4_298, DensePolynomial<Fr>>;
     type MarlinInst = Marlin<
         Fr,
         Fq,

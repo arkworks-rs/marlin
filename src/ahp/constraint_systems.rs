@@ -113,14 +113,14 @@ pub struct MatrixEvals<F: PrimeField> {
 #[derivative(Clone(bound = "F: PrimeField"))]
 pub struct MatrixArithmetization<F: PrimeField> {
     /// LDE of the row indices of M^*.
-    pub row: LabeledPolynomial<F>,
+    pub row: LabeledPolynomial<F, DensePolynomial<F>>,
     /// LDE of the column indices of M^*.
-    pub col: LabeledPolynomial<F>,
+    pub col: LabeledPolynomial<F, DensePolynomial<F>>,
     /// LDE of the non-zero entries of M^*.
-    pub val: LabeledPolynomial<F>,
+    pub val: LabeledPolynomial<F, DensePolynomial<F>>,
     /// LDE of the vector containing entry-wise products of `row` and `col`,
     /// where `row` and `col` are as above.
-    pub row_col: LabeledPolynomial<F>,
+    pub row_col: LabeledPolynomial<F, DensePolynomial<F>>,
 
     /// Evaluation of `self.row`, `self.col`, and `self.val` on the domain `K`.
     pub evals_on_K: MatrixEvals<F>,

@@ -2,6 +2,7 @@ use crate::ahp::indexer::*;
 use crate::ahp::prover::ProverMsg;
 use crate::Vec;
 use ark_ff::PrimeField;
+use ark_poly::univariate::DensePolynomial;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::{
     data_structures::{PCPreparedCommitment, PCPreparedVerifierKey},
@@ -14,14 +15,14 @@ use ark_relations::r1cs::SynthesisError;
 /* ************************************************************************* */
 
 /// The universal public parameters for the argument system.
-pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F>>::UniversalParams;
+pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F, DensePolynomial<F>>>::UniversalParams;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
 /* ************************************************************************* */
 
 /// Verification key for a specific index (i.e., R1CS matrices).
-pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>> {
+pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> {
     /// Stores information about the size of the index, as well as its field of
     /// definition.
     pub index_info: IndexInfo<F>,
@@ -31,14 +32,18 @@ pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>> {
     pub verifier_key: PC::VerifierKey,
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>> ark_ff::ToBytes for IndexVerifierKey<F, PC> {
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> ark_ff::ToBytes
+    for IndexVerifierKey<F, PC>
+{
     fn write<W: ark_std::io::Write>(&self, mut w: W) -> ark_std::io::Result<()> {
         self.index_info.write(&mut w)?;
         self.index_comms.write(&mut w)
     }
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>> Clone for IndexVerifierKey<F, PC> {
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> Clone
+    for IndexVerifierKey<F, PC>
+{
     fn clone(&self) -> Self {
         Self {
             index_comms: self.index_comms.clone(),
@@ -48,7 +53,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>> Clone for IndexVerifierKey<F, P
     }
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>> IndexVerifierKey<F, PC> {
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> IndexVerifierKey<F, PC> {
     /// Iterate over the commitments to indexed polynomials in `self`.
     pub fn iter(&self) -> impl Iterator<Item = &PC::Commitment> {
         self.index_comms.iter()
@@ -60,7 +65,8 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>> IndexVerifierKey<F, PC> {
 /* ************************************************************************* */
 
 /// Verification key, prepared (preprocessed) for use in pairings.
-pub struct PreparedIndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>> {
+pub struct PreparedIndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>>
+{
     /// Size of the variable domain.
     pub domain_h_size: u64,
     /// Size of the matrix domain.
@@ -78,7 +84,7 @@ pub struct PreparedIndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F>> 
 impl<F, PC> Clone for PreparedIndexVerifierKey<F, PC>
 where
     F: PrimeField,
-    PC: PolynomialCommitment<F>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>>,
 {
     fn clone(&self) -> Self {
         PreparedIndexVerifierKey {
@@ -94,7 +100,7 @@ where
 impl<F, PC> PreparedIndexVerifierKey<F, PC>
 where
     F: PrimeField,
-    PC: PolynomialCommitment<F>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>>,
 {
     pub fn prepare(vk: &IndexVerifierKey<F, PC>) -> Self {
         let mut prepared_index_comms = Vec::<PC::PreparedCommitment>::new();
@@ -129,7 +135,7 @@ where
 /* ************************************************************************* */
 
 /// Proving key for a specific index (i.e., R1CS matrices).
-pub struct IndexProverKey<F: PrimeField, PC: PolynomialCommitment<F>> {
+pub struct IndexProverKey<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> {
     /// The index verifier key.
     pub index_vk: IndexVerifierKey<F, PC>,
     /// The randomness for the index polynomial commitments.
@@ -140,7 +146,7 @@ pub struct IndexProverKey<F: PrimeField, PC: PolynomialCommitment<F>> {
     pub committer_key: PC::CommitterKey,
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>> Clone for IndexProverKey<F, PC>
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> Clone for IndexProverKey<F, PC>
 where
     PC::Commitment: Clone,
 {
@@ -159,7 +165,7 @@ where
 /* ************************************************************************* */
 
 /// A zkSNARK proof.
-pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F>> {
+pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> {
     /// Commitments to the polynomials produced by the AHP prover.
     pub commitments: Vec<Vec<PC::Commitment>>,
     /// Evaluations of these polynomials.
@@ -167,16 +173,16 @@ pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F>> {
     /// The field elements sent by the prover.
     pub prover_messages: Vec<ProverMsg<F>>,
     /// An evaluation proof from the polynomial commitment.
-    pub pc_proof: BatchLCProof<F, PC>,
+    pub pc_proof: BatchLCProof<F, DensePolynomial<F>, PC>,
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>> Proof<F, PC> {
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> Proof<F, PC> {
     /// Construct a new proof.
     pub fn new(
         commitments: Vec<Vec<PC::Commitment>>,
         evaluations: Vec<F>,
         prover_messages: Vec<ProverMsg<F>>,
-        pc_proof: BatchLCProof<F, PC>,
+        pc_proof: BatchLCProof<F, DensePolynomial<F>, PC>,
     ) -> Self {
         Self {
             commitments,
@@ -256,7 +262,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F>> Proof<F, PC> {
     }
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F>> Clone for Proof<F, PC> {
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> Clone for Proof<F, PC> {
     fn clone(&self) -> Self {
         Proof {
             commitments: self.commitments.clone(),

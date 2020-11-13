@@ -18,6 +18,7 @@ mod tests {
     use ark_mnt4_298::{constraints::PairingVar as MNT4PairingVar, Fq, Fr, MNT4_298};
     use ark_mnt6_298::MNT6_298;
     use ark_nonnative_field::NonNativeFieldVar;
+    use ark_poly::univariate::DensePolynomial;
     use ark_poly_commit::marlin_pc::{
         BatchLCProofVar, CommitmentVar, MarlinKZG10, MarlinKZG10Gadget,
     };
@@ -37,10 +38,10 @@ mod tests {
     }
 
     type FS = FiatShamirAlgebraicSpongeRng<Fr, Fq, PoseidonSponge<Fq>>;
-    type MultiPC = MarlinKZG10<MNT4_298>;
+    type MultiPC = MarlinKZG10<MNT4_298, DensePolynomial<Fr>>;
     type MarlinNativeInst = MarlinNative<Fr, Fq, MultiPC, FS, MarlinRecursiveConfig>;
 
-    type MultiPCVar = MarlinKZG10Gadget<MNT298Cycle, MNT4PairingVar>;
+    type MultiPCVar = MarlinKZG10Gadget<MNT298Cycle, DensePolynomial<Fr>, MNT4PairingVar>;
 
     #[derive(Copy, Clone)]
     struct Circuit<F: Field> {
@@ -190,11 +191,12 @@ mod tests {
             })
             .collect();
 
-        let pc_batch_proof = BatchLCProofVar::<MNT298Cycle, MNT4PairingVar>::new_witness(
-            ns!(cs, "alloc#proof"),
-            || Ok(pc_proof),
-        )
-        .unwrap();
+        let pc_batch_proof =
+            BatchLCProofVar::<MNT298Cycle, DensePolynomial<Fr>, MNT4PairingVar>::new_witness(
+                ns!(cs, "alloc#proof"),
+                || Ok(pc_proof),
+            )
+            .unwrap();
 
         let mut evaluation_gadgets = HashMap::<String, NonNativeFieldVar<Fr, Fq>>::new();
 

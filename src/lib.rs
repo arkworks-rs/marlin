@@ -67,6 +67,7 @@ pub mod ahp;
 use crate::ahp::prover::ProverMsg;
 pub use ahp::AHPForR1CS;
 use ahp::EvaluationsProvider;
+use ark_poly::univariate::DensePolynomial;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 
 #[cfg(test)]
@@ -94,7 +95,7 @@ impl MarlinConfig for MarlinRecursiveConfig {
 pub struct Marlin<
     F: PrimeField,
     FSF: PrimeField,
-    PC: PolynomialCommitment<F>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>>,
     FS: FiatShamirRng<F, FSF>,
     MC: MarlinConfig,
 >(
@@ -109,7 +110,7 @@ fn compute_vk_hash<F, FSF, PC, FS>(vk: &IndexVerifierKey<F, PC>) -> Vec<FSF>
 where
     F: PrimeField,
     FSF: PrimeField,
-    PC: PolynomialCommitment<F>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>>,
     FS: FiatShamirRng<F, FSF>,
     PC::Commitment: ToConstraintField<FSF>,
 {
@@ -120,7 +121,7 @@ where
 
 impl<F: PrimeField, FSF: PrimeField, PC, FS, MC: MarlinConfig> Marlin<F, FSF, PC, FS, MC>
 where
-    PC: PolynomialCommitment<F>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>>,
     PC::VerifierKey: ToConstraintField<FSF>,
     PC::Commitment: ToConstraintField<FSF>,
     FS: FiatShamirRng<F, FSF>,
@@ -145,7 +146,7 @@ where
         )
         });
 
-        let srs = PC::setup(max_degree, rng).map_err(Error::from_pc_err);
+        let srs = PC::setup(max_degree, Some(num_variables), rng).map_err(Error::from_pc_err);
         end_timer!(setup_time);
         srs
     }
@@ -163,7 +164,12 @@ where
 
         // TODO: Add check that c is in the correct mode.
         let index = AHPForR1CS::index(c)?;
-        let srs = PC::setup(index.max_degree(), rng).map_err(Error::from_pc_err)?;
+        let srs = PC::setup(
+            index.max_degree(),
+            Some(index.index_info.num_variables),
+            rng,
+        )
+        .map_err(Error::from_pc_err)?;
 
         let coeff_support = AHPForR1CS::get_degree_bounds(&index.index_info);
 
