@@ -1,3 +1,4 @@
+use crate::Vec;
 use ark_ff::{BigInteger, FpParameters, PrimeField, ToConstraintField};
 use ark_nonnative_field::params::gen_params;
 use ark_nonnative_field::AllocatedNonNativeFieldVar;

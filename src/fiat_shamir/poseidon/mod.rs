@@ -6,6 +6,7 @@
  */
 
 use crate::fiat_shamir::AlgebraicSponge;
+use crate::Vec;
 use ark_ff::PrimeField;
 
 /// constraints for Poseidon

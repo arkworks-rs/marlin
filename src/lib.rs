@@ -27,18 +27,11 @@ use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError};
 use core::marker::PhantomData;
 use rand_core::RngCore;
 
-#[cfg(not(feature = "std"))]
 #[macro_use]
-extern crate alloc;
+extern crate ark_std;
 
-#[cfg(not(feature = "std"))]
-use alloc::{
-    string::{String, ToString},
-    vec::Vec,
-};
-
-#[cfg(feature = "std")]
-use std::{
+use ark_std::{
+    boxed::Box,
     string::{String, ToString},
     vec::Vec,
 };

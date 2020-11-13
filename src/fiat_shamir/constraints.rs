@@ -1,5 +1,5 @@
 use crate::fiat_shamir::{AlgebraicSponge, FiatShamirAlgebraicSpongeRng, FiatShamirRng};
-use crate::overhead;
+use crate::{overhead, Vec};
 use ark_ff::{BigInteger, PrimeField};
 use ark_nonnative_field::params::get_params;
 use ark_nonnative_field::{AllocatedNonNativeFieldVar, NonNativeFieldVar};

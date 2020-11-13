@@ -3,7 +3,7 @@ use crate::{
     constraints::verifier::Marlin as MarlinVerifierVar,
     data_structures::{IndexVerifierKey, PreparedIndexVerifierKey, Proof},
     fiat_shamir::{constraints::FiatShamirRngVar, FiatShamirRng},
-    PhantomData, PrimeField, SynthesisError,
+    PhantomData, PrimeField, String, SynthesisError, ToString, Vec,
 };
 use ark_ff::{to_bytes, ToConstraintField};
 use ark_nonnative_field::NonNativeFieldVar;

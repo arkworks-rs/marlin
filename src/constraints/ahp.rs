@@ -6,7 +6,7 @@ use crate::{
         polynomial::AlgebraForAHP,
     },
     fiat_shamir::{constraints::FiatShamirRngVar, FiatShamirRng},
-    PhantomData, PrimeField,
+    PhantomData, PrimeField, String, ToString, Vec,
 };
 use ark_nonnative_field::NonNativeFieldVar;
 use ark_poly::univariate::DensePolynomial;

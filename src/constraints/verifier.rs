@@ -4,7 +4,7 @@ use crate::{
         data_structures::{IndexVerifierKeyVar, PreparedIndexVerifierKeyVar, ProofVar},
     },
     fiat_shamir::{constraints::FiatShamirRngVar, FiatShamirRng},
-    Error, PhantomData, PrimeField, Vec,
+    Error, PhantomData, PrimeField, String, Vec,
 };
 use ark_nonnative_field::NonNativeFieldVar;
 use ark_poly::univariate::DensePolynomial;
@@ -50,7 +50,7 @@ where
 
         let mut fs_rng = index_pvk.fs_rng.clone();
 
-        println!("before AHP: constraints: {}", cs.num_constraints());
+        eprintln!("before AHP: constraints: {}", cs.num_constraints());
 
         fs_rng.absorb_nonnative_field_elements(&public_input)?;
 
@@ -116,7 +116,7 @@ where
         let (batching_rands, batching_rands_bits) =
             fs_rng.squeeze_128_bits_field_elements_and_bits(num_batching_rands)?;
 
-        println!("before PC checks: constraints: {}", cs.num_constraints());
+        eprintln!("before PC checks: constraints: {}", cs.num_constraints());
 
         Ok(PCG::prepared_check_combinations(
             ns!(cs, "pc_check").cs(),

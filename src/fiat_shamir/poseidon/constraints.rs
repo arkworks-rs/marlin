@@ -7,6 +7,7 @@
 
 use crate::fiat_shamir::constraints::AlgebraicSpongeVar;
 use crate::fiat_shamir::poseidon::{PoseidonSponge, PoseidonSpongeState};
+use crate::Vec;
 use ark_ff::PrimeField;
 use ark_r1cs_std::fields::fp::FpVar;
 use ark_r1cs_std::prelude::*;
