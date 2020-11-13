@@ -27,11 +27,8 @@ pub struct ProverState<'a, F: PrimeField> {
     /// query bound b
     zk_bound: usize,
 
-    w_poly: Option<LabeledPolynomial<F, DensePolynomial<F>>>,
-    mz_polys: Option<(
-        LabeledPolynomial<F, DensePolynomial<F>>,
-        LabeledPolynomial<F, DensePolynomial<F>>,
-    )>,
+    w_poly: Option<LabeledPolynomial<F>>,
+    mz_polys: Option<(LabeledPolynomial<F>, LabeledPolynomial<F>)>,
 
     index: &'a Index<F>,
 
@@ -39,7 +36,7 @@ pub struct ProverState<'a, F: PrimeField> {
     verifier_first_msg: Option<VerifierFirstMsg<F>>,
 
     /// the blinding polynomial for the first round
-    mask_poly: Option<LabeledPolynomial<F, DensePolynomial<F>>>,
+    mask_poly: Option<LabeledPolynomial<F>>,
 
     /// domain X, sized for the public input
     domain_x: GeneralEvaluationDomain<F>,
@@ -80,18 +77,18 @@ impl<F: Field> ark_ff::ToBytes for ProverMsg<F> {
 /// The first set of prover oracles.
 pub struct ProverFirstOracles<F: Field> {
     /// The LDE of `w`.
-    pub w: LabeledPolynomial<F, DensePolynomial<F>>,
+    pub w: LabeledPolynomial<F>,
     /// The LDE of `Az`.
-    pub z_a: LabeledPolynomial<F, DensePolynomial<F>>,
+    pub z_a: LabeledPolynomial<F>,
     /// The LDE of `Bz`.
-    pub z_b: LabeledPolynomial<F, DensePolynomial<F>>,
+    pub z_b: LabeledPolynomial<F>,
     /// The sum-check hiding polynomial.
-    pub mask_poly: LabeledPolynomial<F, DensePolynomial<F>>,
+    pub mask_poly: LabeledPolynomial<F>,
 }
 
 impl<F: Field> ProverFirstOracles<F> {
     /// Iterate over the polynomials output by the prover in the first round.
-    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F, DensePolynomial<F>>> {
+    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
         vec![&self.w, &self.z_a, &self.z_b, &self.mask_poly].into_iter()
     }
 }
@@ -99,16 +96,16 @@ impl<F: Field> ProverFirstOracles<F> {
 /// The second set of prover oracles.
 pub struct ProverSecondOracles<F: Field> {
     /// The polynomial `t` that is produced in the first round.
-    pub t: LabeledPolynomial<F, DensePolynomial<F>>,
+    pub t: LabeledPolynomial<F>,
     /// The polynomial `g` resulting from the first sumcheck.
-    pub g_1: LabeledPolynomial<F, DensePolynomial<F>>,
+    pub g_1: LabeledPolynomial<F>,
     /// The polynomial `h` resulting from the first sumcheck.
-    pub h_1: LabeledPolynomial<F, DensePolynomial<F>>,
+    pub h_1: LabeledPolynomial<F>,
 }
 
 impl<F: Field> ProverSecondOracles<F> {
     /// Iterate over the polynomials output by the prover in the second round.
-    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F, DensePolynomial<F>>> {
+    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
         vec![&self.t, &self.g_1, &self.h_1].into_iter()
     }
 }
@@ -116,14 +113,14 @@ impl<F: Field> ProverSecondOracles<F> {
 /// The third set of prover oracles.
 pub struct ProverThirdOracles<F: Field> {
     /// The polynomial `g` resulting from the second sumcheck.
-    pub g_2: LabeledPolynomial<F, DensePolynomial<F>>,
+    pub g_2: LabeledPolynomial<F>,
     /// The polynomial `h` resulting from the second sumcheck.
-    pub h_2: LabeledPolynomial<F, DensePolynomial<F>>,
+    pub h_2: LabeledPolynomial<F>,
 }
 
 impl<F: Field> ProverThirdOracles<F> {
     /// Iterate over the polynomials output by the prover in the third round.
-    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F, DensePolynomial<F>>> {
+    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
         vec![&self.g_2, &self.h_2].into_iter()
     }
 }

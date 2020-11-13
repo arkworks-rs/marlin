@@ -7,8 +7,6 @@ use ark_relations::r1cs::SynthesisError;
 use ark_std::cfg_iter_mut;
 use core::{borrow::Borrow, marker::PhantomData};
 
-use ark_poly::univariate::DensePolynomial;
-use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
@@ -318,16 +316,14 @@ impl<'a, F: Field> EvaluationsProvider<F> for ark_poly_commit::Evaluations<F, F>
     }
 }
 
-impl<F: Field, T: Borrow<LabeledPolynomial<F, DensePolynomial<F>>>> EvaluationsProvider<F>
-    for Vec<T>
-{
+impl<F: Field, T: Borrow<LabeledPolynomial<F>>> EvaluationsProvider<F> for Vec<T> {
     fn get_lc_eval(&self, lc: &LinearCombination<F>, point: F) -> Result<F, Error> {
         let mut eval = F::zero();
         for (coeff, term) in lc.iter() {
             let value = if let LCTerm::PolyLabel(label) = term {
                 self.iter()
                     .find(|p| {
-                        let p: &LabeledPolynomial<F, DensePolynomial<F>> = (*p).borrow();
+                        let p: &LabeledPolynomial<F> = (*p).borrow();
                         p.label() == label
                     })
                     .ok_or_else(|| {

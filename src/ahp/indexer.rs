@@ -13,7 +13,6 @@ use derivative::Derivative;
 use crate::ahp::constraint_systems::{
     balance_matrices, make_matrices_square_for_indexer, num_non_zero,
 };
-use ark_poly::polynomial::univariate::DensePolynomial;
 use core::marker::PhantomData;
 
 /// Information about the index, including the field of definition, the number of
@@ -88,7 +87,7 @@ impl<'a, F: PrimeField> Index<F> {
     }
 
     /// Iterate over the indexed polynomials.
-    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F, DensePolynomial<F>>> {
+    pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
         vec![
             &self.a_star_arith.row,
             &self.a_star_arith.col,
