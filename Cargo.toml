@@ -25,7 +25,7 @@ ark-ff = { git = "https://github.com/arkworks-rs/algebra", default-features = fa
 ark-std = { git = "https://github.com/arkworks-rs/utils", default-features = false }
 ark-poly = { git = "https://github.com/arkworks-rs/algebra", default-features = false }
 ark-relations = { git = "https://github.com/arkworks-rs/snark", default-features = false }
-ark-poly-commit = { git = "https://github.com/arkworks-rs/poly-commit", branch = "constraints", default-features = false }
+ark-poly-commit = { git = "https://github.com/arkworks-rs/poly-commit", branch = "constraints" }
 bench-utils = { git = "https://github.com/arkworks-rs/utils", default-features = false }
 
 rand_core = { version = "0.5" }
