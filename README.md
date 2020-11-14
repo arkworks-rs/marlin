@@ -39,7 +39,7 @@ rustup install stable
 
 After that, use `cargo` (the standard Rust build tool) to build the library:
 ```bash
-git clone https://github.com/scipr-lab/marlin.git
+git clone https://github.com/arkworks-rs/marlin.git
 cd marlin
 cargo build --release
 ```
