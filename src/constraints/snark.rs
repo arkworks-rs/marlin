@@ -468,15 +468,9 @@ mod test {
     >;
 
     use ark_poly::univariate::DensePolynomial;
-    use tracing_subscriber::layer::SubscriberExt;
 
     #[test]
     fn marlin_snark_test() {
-        let mut layer = ConstraintLayer::default();
-        layer.mode = ark_relations::r1cs::TracingMode::OnlyConstraints;
-        let subscriber = tracing_subscriber::Registry::default().with(layer);
-        tracing::subscriber::set_global_default(subscriber).unwrap();
-
         let mut rng = ark_ff::test_rng();
         let a = MNT4Fr::rand(&mut rng);
         let b = MNT4Fr::rand(&mut rng);
