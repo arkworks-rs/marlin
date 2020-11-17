@@ -81,8 +81,6 @@ where
             formatted_public_input.push(elem);
         }
 
-        println!("decision?");
-
         let lc = AHPForR1CS::<F, CF, PC, PCG>::verifier_decision(
             ns!(cs, "ahp").cs(),
             &formatted_public_input,
@@ -90,8 +88,6 @@ where
             verifier_state.clone(),
             &index_pvk.domain_k_size_gadget,
         )?;
-
-        println!("after decision");
 
         let (num_opening_challenges, num_batching_rands, comm, query_set, evaluations) =
             AHPForR1CS::<F, CF, PC, PCG>::verifier_comm_query_eval_set(

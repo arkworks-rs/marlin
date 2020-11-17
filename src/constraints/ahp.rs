@@ -254,9 +254,7 @@ where
             .get("vanishing_poly_h_alpha")
             .ok_or_else(|| Error::MissingEval("vanishing_poly_h_alpha".to_string()))?;
 
-        println!("neq?");
         v_h_at_alpha.enforce_not_equal(&zero)?;
-        println!("neq done");
 
         let v_h_at_beta = evals
             .get("vanishing_poly_h_beta")
