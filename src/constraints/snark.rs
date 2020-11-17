@@ -399,7 +399,6 @@ mod test {
     use ark_mnt6_298::MNT6_298;
     use ark_poly_commit::marlin_pc::{MarlinKZG10, MarlinKZG10Gadget};
     use ark_r1cs_std::{alloc::AllocVar, bits::boolean::Boolean, eq::EqGadget};
-    use ark_relations::r1cs::ConstraintLayer;
     use ark_relations::{
         lc, ns,
         r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError},
