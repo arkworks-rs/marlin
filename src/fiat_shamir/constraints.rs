@@ -15,54 +15,55 @@ use ark_relations::lc;
 use ark_relations::r1cs::{ConstraintSystemRef, LinearCombination, SynthesisError};
 use core::marker::PhantomData;
 
-/// Vars for a RNG for Fiat-Shamir purposes
+/// Vars for a RNG for use in a Fiat-Shamir transform.
 pub trait FiatShamirRngVar<F: PrimeField, CF: PrimeField, PFS: FiatShamirRng<F, CF>>:
     Clone
 {
-    /// create a new RNG
+    /// Create a new RNG.
     fn new(cs: ConstraintSystemRef<CF>) -> Self;
 
-    // instantiate from a plaintext fs_rng
+    // Instantiate from a plaintext fs_rng.
     fn constant(cs: ConstraintSystemRef<CF>, pfs: &PFS) -> Self;
 
-    /// take in field elements
+    /// Take in field elements.
     fn absorb_nonnative_field_elements(
         &mut self,
         elems: &[NonNativeFieldVar<F, CF>],
     ) -> Result<(), SynthesisError>;
 
-    /// take in field elements
+    /// Take in field elements.
     fn absorb_native_field_elements(&mut self, elems: &[FpVar<CF>]) -> Result<(), SynthesisError>;
 
-    /// take in bytes
+    /// Take in bytes.
     fn absorb_bytes(&mut self, elems: &[UInt8<CF>]) -> Result<(), SynthesisError>;
 
-    /// take in field elements
+    /// Output field elements.
     fn squeeze_native_field_elements(
         &mut self,
         num: usize,
     ) -> Result<Vec<FpVar<CF>>, SynthesisError>;
 
-    /// take out field elements
+    /// Output field elements.
     fn squeeze_field_elements(
         &mut self,
         num: usize,
     ) -> Result<Vec<NonNativeFieldVar<F, CF>>, SynthesisError>;
 
-    /// take out field elements and the bits (this can reduce repeated computation)
+    /// Output field elements and the corresponding bits (this can reduce repeated computation).
     #[allow(clippy::type_complexity)]
     fn squeeze_field_elements_and_bits(
         &mut self,
         num: usize,
     ) -> Result<(Vec<NonNativeFieldVar<F, CF>>, Vec<Vec<Boolean<CF>>>), SynthesisError>;
 
-    /// take out field elements with only 128 bits
+    /// Output field elements with only 128 bits.
     fn squeeze_128_bits_field_elements(
         &mut self,
         num: usize,
     ) -> Result<Vec<NonNativeFieldVar<F, CF>>, SynthesisError>;
 
-    /// take out field elements with only 128 bits and the bits (this can reduce repeated computation)
+    /// Output field elements with only 128 bits, and the corresponding bits (this can reduce
+    /// repeated computation).
     #[allow(clippy::type_complexity)]
     fn squeeze_128_bits_field_elements_and_bits(
         &mut self,
@@ -70,25 +71,25 @@ pub trait FiatShamirRngVar<F: PrimeField, CF: PrimeField, PFS: FiatShamirRng<F, 
     ) -> Result<(Vec<NonNativeFieldVar<F, CF>>, Vec<Vec<Boolean<CF>>>), SynthesisError>;
 }
 
-/// Trait for algebraic sponge such as Poseidon
+/// Trait for an algebraic sponge such as Poseidon.
 pub trait AlgebraicSpongeVar<CF: PrimeField, PS: AlgebraicSponge<CF>>: Clone {
-    /// create the new sponge
+    /// Create the new sponge.
     fn new(cs: ConstraintSystemRef<CF>) -> Self;
 
-    /// instantiate from a plaintext sponge
+    /// Instantiate from a plaintext sponge.
     fn constant(cs: ConstraintSystemRef<CF>, ps: &PS) -> Self;
 
-    /// Obtain the constraint system
+    /// Obtain the constraint system.
     fn cs(&self) -> ConstraintSystemRef<CF>;
 
-    /// take in field elements
+    /// Take in field elements.
     fn absorb(&mut self, elems: &[FpVar<CF>]) -> Result<(), SynthesisError>;
 
-    /// take out field elements
+    /// Output field elements.
     fn squeeze(&mut self, num: usize) -> Result<Vec<FpVar<CF>>, SynthesisError>;
 }
 
-/// Building the Fiat-Shamir sponge's gadget from any algebraic sponge's gadget
+/// Building the Fiat-Shamir sponge's gadget from any algebraic sponge's gadget.
 #[derive(Clone)]
 pub struct FiatShamirAlgebraicSpongeRngVar<
     F: PrimeField,
@@ -107,7 +108,8 @@ pub struct FiatShamirAlgebraicSpongeRngVar<
 impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeVar<CF, PS>>
     FiatShamirAlgebraicSpongeRngVar<F, CF, PS, S>
 {
-    /// compress every two elements if possible. Provides a vector of (limb, num_of_additions), both of which are CF.
+    /// Compress every two elements if possible. Provides a vector of (limb, num_of_additions),
+    /// both of which are CF.
     #[tracing::instrument(target = "r1cs")]
     pub fn compress_gadgets(
         src_limbs: &[(FpVar<CF>, CF)],
@@ -164,7 +166,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
         Ok(dest_limbs)
     }
 
-    /// Push gadgets to sponge
+    /// Push gadgets to sponge.
     #[tracing::instrument(target = "r1cs", skip(sponge))]
     pub fn push_gadgets_to_sponge(
         sponge: &mut S,
@@ -206,8 +208,8 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
         Ok(())
     }
 
-    /// obtain random bits from hashchain gadget.
-    /// not guaranteed to be uniformly distributed, should only be used in certain situations.
+    /// Obtain random bits from hashchain gadget. (Not guaranteed to be uniformly distributed,
+    /// should only be used in certain situations.)
     #[tracing::instrument(target = "r1cs", skip(sponge))]
     pub fn get_booleans_from_sponge(
         sponge: &mut S,
@@ -228,8 +230,8 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
         Ok(dest_bits)
     }
 
-    /// obtain random elements from hashchain gadget.
-    /// not guaranteed to be uniformly distributed, should only be used in certain situations.
+    /// Obtain random elements from hashchain gadget. (Not guaranteed to be uniformly distributed,
+    /// should only be used in certain situations.)
     #[tracing::instrument(target = "r1cs", skip(sponge))]
     pub fn get_gadgets_from_sponge(
         sponge: &mut S,
@@ -242,8 +244,8 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
         Ok(dest_gadgets)
     }
 
-    /// obtain random elements from hashchain gadget.
-    /// not guaranteed to be uniformly distributed, should only be used in certain situations.
+    /// Obtain random elements, and the corresponding bits, from hashchain gadget. (Not guaranteed
+    /// to be uniformly distributed, should only be used in certain situations.)
     #[tracing::instrument(target = "r1cs", skip(sponge))]
     #[allow(clippy::type_complexity)]
     pub fn get_gadgets_and_bits_from_sponge(
