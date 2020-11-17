@@ -184,8 +184,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
                             } else {
                                 v.num_of_additions_over_normal_form
                             };
-                        src_limbs
-                            .push((limb.clone(), num_of_additions_over_normal_form));
+                        src_limbs.push((limb.clone(), num_of_additions_over_normal_form));
                     }
                 }
                 NonNativeFieldVar::Var(v) => {
@@ -196,8 +195,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
                             } else {
                                 v.num_of_additions_over_normal_form
                             };
-                        src_limbs
-                            .push((limb.clone(), num_of_additions_over_normal_form));
+                        src_limbs.push((limb.clone(), num_of_additions_over_normal_form));
                     }
                 }
             }
