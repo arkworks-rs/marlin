@@ -1,6 +1,6 @@
 use crate::Vec;
 use ark_ff::{BigInteger, FpParameters, PrimeField, ToConstraintField};
-use ark_nonnative_field::params::gen_params;
+use ark_nonnative_field::params::get_params;
 use ark_nonnative_field::AllocatedNonNativeFieldVar;
 use core::marker::PhantomData;
 use digest::Digest;
@@ -195,7 +195,7 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> FiatShamirAlgebraicS
         let capacity = CF::size_in_bits() - 1;
         let mut dest_limbs = Vec::<CF>::new();
 
-        let params = gen_params(F::size_in_bits(), CF::size_in_bits());
+        let params = get_params(F::size_in_bits(), CF::size_in_bits());
 
         let adjustment_factor_lookup_table = {
             let mut table = Vec::<CF>::new();
@@ -252,7 +252,7 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> FiatShamirAlgebraicS
 
         for elem in src.iter() {
             let limbs =
-                AllocatedNonNativeFieldVar::<F, CF>::get_limbs_representations(elem, None).unwrap();
+                AllocatedNonNativeFieldVar::<F, CF>::get_limbs_representations(elem).unwrap();
             for limb in limbs.iter() {
                 src_limbs.push((*limb, CF::one()));
                 // specifically set to one, since most gadgets in the constraint world would not have zero noise (due to the relatively weak normal form testing in `alloc`)

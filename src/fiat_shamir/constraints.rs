@@ -119,7 +119,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
             return Ok(vec![]);
         }
 
-        let params = get_params::<F, CF>(&src_limbs[0].0.cs());
+        let params = get_params(F::size_in_bits(), CF::size_in_bits());
 
         let adjustment_factor_lookup_table = {
             let mut table = Vec::<CF>::new();
@@ -185,7 +185,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
                                 v.num_of_additions_over_normal_form
                             };
                         src_limbs
-                            .push((FpVar::from(limb.clone()), num_of_additions_over_normal_form));
+                            .push((limb.clone(), num_of_additions_over_normal_form));
                     }
                 }
                 NonNativeFieldVar::Var(v) => {
@@ -197,7 +197,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
                                 v.num_of_additions_over_normal_form
                             };
                         src_limbs
-                            .push((FpVar::from(limb.clone()), num_of_additions_over_normal_form));
+                            .push((limb.clone(), num_of_additions_over_normal_form));
                     }
                 }
             }
@@ -255,7 +255,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     ) -> Result<(Vec<NonNativeFieldVar<F, CF>>, Vec<Vec<Boolean<CF>>>), SynthesisError> {
         let cs = sponge.cs();
 
-        let params = get_params::<F, CF>(&cs);
+        let params = get_params(F::size_in_bits(), CF::size_in_bits());
 
         let num_bits_per_nonnative = if outputs_short_elements {
             128
@@ -267,8 +267,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
         let mut lookup_table = Vec::<Vec<CF>>::new();
         let mut cur = F::one();
         for _ in 0..num_bits_per_nonnative {
-            let repr =
-                AllocatedNonNativeFieldVar::<F, CF>::get_limbs_representations(&cur, Some(&cs))?;
+            let repr = AllocatedNonNativeFieldVar::<F, CF>::get_limbs_representations(&cur)?;
             lookup_table.push(repr);
             cur.double_in_place();
         }
@@ -298,23 +297,21 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
                     }
                 }
 
-                let mut limbs = Vec::<AllocatedFp<CF>>::new();
+                let mut limbs = Vec::new();
                 for k in 0..params.num_limbs {
                     let gadget =
                         AllocatedFp::new_witness(ark_relations::ns!(cs, "alloc"), || Ok(val[k]))
                             .unwrap();
                     lc[k] = lc[k].clone() - (CF::one(), gadget.variable);
                     cs.enforce_constraint(lc!(), lc!(), lc[k].clone()).unwrap();
-                    limbs.push(gadget);
+                    limbs.push(FpVar::<CF>::from(gadget));
                 }
 
                 dest_gadgets.push(NonNativeFieldVar::<F, CF>::Var(
                     AllocatedNonNativeFieldVar::<F, CF> {
-                        cs: cs.clone(),
                         limbs,
                         num_of_additions_over_normal_form: CF::zero(),
                         is_in_the_normal_form: true,
-                        is_constant: false,
                         target_phantom: Default::default(),
                     },
                 ));
