@@ -110,7 +110,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, D: Digest> 
 
         let coeff_support = AHPForR1CS::get_degree_bounds::<C>(&index.index_info);
         // Marlin only needs degree 2 random polynomials
-        let supported_hiding_bound = 1;
+        let supported_hiding_bound = 1 + 1;
         let (committer_key, verifier_key) = PC::trim(
             &srs,
             index.max_degree(),

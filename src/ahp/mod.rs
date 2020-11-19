@@ -42,9 +42,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
     /// The labels for the polynomials output by the AHP prover.
     #[rustfmt::skip]
-    pub const PROVER_POLYNOMIALS: [&'static str; 9] = [
+    pub const PROVER_POLYNOMIALS: [&'static str; 10] = [
         // First sumcheck
-        "w", "z_a", "z_b", "mask_poly", "t", "g_1", "h_1",
+        "x", "w", "z_a", "z_b", "mask_poly", "t", "g_1", "h_1",
         // Second sumcheck
         "g_2", "h_2",
     ];
@@ -157,13 +157,6 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let t_at_beta = evals.get_lc_eval(&t, beta)?;
         let g_1_at_beta = evals.get_lc_eval(&g_1, beta)?;
 
-        let x_at_beta = x_domain
-            .evaluate_all_lagrange_coefficients(beta)
-            .into_iter()
-            .zip(public_input)
-            .map(|(l, x)| l * &x)
-            .fold(F::zero(), |x, y| x + &y);
-
         #[rustfmt::skip]
         let outer_sumcheck = LinearCombination::new(
             "outer_sumcheck",
@@ -174,7 +167,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
                 (r_alpha_at_beta * eta_b * z_b_at_beta, LCTerm::One),
 
                 (-t_at_beta * v_X_at_beta, "w".into()),
-                (-t_at_beta * x_at_beta, LCTerm::One),
+                (-t_at_beta, "x".into()),
 
                 (-v_H_at_beta, "h_1".into()),
                 (-beta * g_1_at_beta, LCTerm::One),
