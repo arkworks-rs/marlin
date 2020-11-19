@@ -6,7 +6,7 @@ use crate::ahp::*;
 
 use crate::ahp::constraint_systems::{make_matrices_square_for_prover, unformat_public_input};
 use crate::{ToString, Vec};
-use ark_ff::{Field, PrimeField};
+use ark_ff::{Field, PrimeField, Zero};
 use ark_poly::{
     univariate::DensePolynomial, EvaluationDomain, Evaluations as EvaluationsOnDomain,
     GeneralEvaluationDomain, Polynomial, UVPolynomial,
