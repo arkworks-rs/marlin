@@ -174,7 +174,7 @@ impl<F: PrimeField> AlgebraicSpongeVar<F, PoseidonSponge<F>> for PoseidonSpongeV
     fn new(cs: ConstraintSystemRef<F>) -> Self {
         // Requires F to be Alt_Bn128Fr
         let full_rounds = 8;
-        let partial_rounds = 29;
+        let partial_rounds = 31;
         let alpha = 17;
 
         let mds = vec![
