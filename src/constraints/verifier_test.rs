@@ -2,7 +2,6 @@
 mod tests {
     use crate::ahp::prover::ProverMsg;
     use crate::{
-        ahp::indexer::IndexInfo,
         constraints::{
             data_structures::{IndexVerifierKeyVar, ProofVar, ProverMsgVar},
             verifier::Marlin,
@@ -11,7 +10,7 @@ mod tests {
             constraints::FiatShamirAlgebraicSpongeRngVar, poseidon::constraints::PoseidonSpongeVar,
             poseidon::PoseidonSponge, FiatShamirAlgebraicSpongeRng,
         },
-        IndexVerifierKey, Marlin as MarlinNative, MarlinRecursiveConfig, PhantomData, Proof,
+        Marlin as MarlinNative, MarlinRecursiveConfig, Proof,
     };
     use ark_ec::CycleEngine;
     use ark_ff::{Field, UniformRand};
@@ -116,18 +115,8 @@ mod tests {
         let cs = ConstraintSystemRef::new(cs_sys);
 
         // BEGIN: ivk to ivk_gadget
-        let ivk: IndexVerifierKey<Fr, MultiPC> = IndexVerifierKey {
-            index_info: IndexInfo {
-                num_variables: index_vk.index_info.num_variables,
-                num_constraints: index_vk.index_info.num_constraints,
-                num_non_zero: index_vk.index_info.num_non_zero,
-                f: PhantomData,
-            },
-            index_comms: index_vk.index_comms,
-            verifier_key: index_vk.verifier_key,
-        };
         let ivk_gadget: IndexVerifierKeyVar<Fr, Fq, MultiPC, MultiPCVar> =
-            IndexVerifierKeyVar::new_witness(ns!(cs, "alloc#index vk"), || Ok(ivk)).unwrap();
+            IndexVerifierKeyVar::new_witness(ns!(cs, "alloc#index vk"), || Ok(index_vk)).unwrap();
         // END: ivk to ivk_gadget
 
         // BEGIN: public input to public_input_gadget

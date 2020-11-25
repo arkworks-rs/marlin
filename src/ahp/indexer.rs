@@ -27,6 +27,8 @@ pub struct IndexInfo<F> {
     pub num_constraints: usize,
     /// The maximum number of non-zero entries in any constraint matrix.
     pub num_non_zero: usize,
+    /// The number of input elements.
+    pub num_instance_variables: usize,
 
     #[doc(hidden)]
     pub f: PhantomData<F>,
@@ -156,6 +158,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             num_constraints,
             num_non_zero,
 
+            num_instance_variables: num_formatted_input_variables,
             f: PhantomData,
         };
 

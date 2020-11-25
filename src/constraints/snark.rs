@@ -203,14 +203,12 @@ where
     type InputVar = NonNativeFieldInputVar<F, FSF>;
     type ProofVar = ProofVar<F, FSF, PC, PCG>;
 
-    type VerifierSize = MarlinBound;
+    type VerifierSize = usize;
 
     fn verifier_size(
         circuit_vk: &<MarlinSNARK<F, FSF, PC, FS, MC> as SNARK<F>>::VerifyingKey,
     ) -> Self::VerifierSize {
-        Self::VerifierSize {
-            max_degree: circuit_vk.index_info.max_degree(),
-        }
+        circuit_vk.index_info.num_instance_variables
     }
 
     #[tracing::instrument(target = "r1cs", skip(circuit_pvk, x, proof))]
