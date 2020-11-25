@@ -323,11 +323,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, D: Digest> 
             let domain_x = GeneralEvaluationDomain::<F>::new(public_input.len() + 1).unwrap();
 
             let mut unpadded_input = public_input.to_vec();
-            let padded_size = domain_x.size();
-
-            if padded_size - 1 > unpadded_input.len() {
-                unpadded_input.resize(padded_size - 1, F::zero());
-            }
+            unpadded_input.resize(core::cmp::max(public_input.len(), domain_x.size() - 1), F::zero());
 
             unpadded_input
         };
