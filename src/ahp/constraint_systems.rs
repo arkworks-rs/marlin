@@ -66,6 +66,21 @@ pub(crate) fn padded_matrix_dim(num_formatted_variables: usize, num_constraints:
     core::cmp::max(num_formatted_variables, num_constraints)
 }
 
+pub(crate) fn pad_input_for_indexer_and_prover<F: PrimeField>(cs: ConstraintSystemRef<F>) {
+    let formatted_input_size = cs.num_instance_variables();
+
+    let domain_x = GeneralEvaluationDomain::<F>::new(formatted_input_size);
+    assert!(domain_x.is_some());
+
+    let padded_size = domain_x.unwrap().size();
+
+    if padded_size > formatted_input_size {
+        for _ in 0..(padded_size - formatted_input_size) {
+            cs.new_input_variable(|| Ok(F::zero())).unwrap();
+        }
+    }
+}
+
 pub(crate) fn make_matrices_square<F: Field>(
     cs: ConstraintSystemRef<F>,
     num_formatted_variables: usize,

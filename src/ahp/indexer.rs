@@ -12,6 +12,7 @@ use derivative::Derivative;
 
 use crate::ahp::constraint_systems::{
     balance_matrices, make_matrices_square_for_indexer, num_non_zero,
+    pad_input_for_indexer_and_prover,
 };
 use core::marker::PhantomData;
 
@@ -120,6 +121,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         end_timer!(constraint_time);
 
         let padding_time = start_timer!(|| "Padding matrices to make them square");
+        pad_input_for_indexer_and_prover(ics.clone());
         make_matrices_square_for_indexer(ics.clone());
         end_timer!(padding_time);
         let matrix_processing_time = start_timer!(|| "Processing matrices");

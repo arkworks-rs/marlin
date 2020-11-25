@@ -19,7 +19,7 @@
 extern crate bench_utils;
 
 use ark_ff::{to_bytes, PrimeField, UniformRand};
-use ark_poly::univariate::DensePolynomial;
+use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::Evaluations;
 use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
 use ark_relations::r1cs::ConstraintSynthesizer;
@@ -318,6 +318,19 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, D: Digest> 
         rng: &mut R,
     ) -> Result<bool, Error<PC::Error>> {
         let verifier_time = start_timer!(|| "Marlin::Verify");
+
+        let public_input = {
+            let domain_x = GeneralEvaluationDomain::<F>::new(public_input.len() + 1).unwrap();
+
+            let mut unpadded_input = public_input.to_vec();
+            let padded_size = domain_x.size();
+
+            if padded_size - 1 > unpadded_input.len() {
+                unpadded_input.resize(padded_size - 1, F::zero());
+            }
+
+            unpadded_input
+        };
 
         let mut fs_rng = FiatShamirRng::<D>::from_seed(
             &to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap(),

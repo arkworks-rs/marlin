@@ -4,7 +4,9 @@ use crate::ahp::indexer::*;
 use crate::ahp::verifier::*;
 use crate::ahp::*;
 
-use crate::ahp::constraint_systems::{make_matrices_square_for_prover, unformat_public_input};
+use crate::ahp::constraint_systems::{
+    make_matrices_square_for_prover, pad_input_for_indexer_and_prover, unformat_public_input,
+};
 use crate::{ToString, Vec};
 use ark_ff::{Field, PrimeField, Zero};
 use ark_poly::{
@@ -145,6 +147,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         end_timer!(constraint_time);
 
         let padding_time = start_timer!(|| "Padding matrices to make them square");
+        pad_input_for_indexer_and_prover(pcs.clone());
         make_matrices_square_for_prover(pcs.clone());
         end_timer!(padding_time);
 

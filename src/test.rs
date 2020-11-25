@@ -26,14 +26,24 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for Circuit<Constrai
             a.mul_assign(&b);
             Ok(a)
         })?;
+        let d = cs.new_input_variable(|| {
+            let mut a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
+            let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
+
+            a.mul_assign(&b);
+            a.mul_assign(&b);
+            Ok(a)
+        })?;
 
         for _ in 0..(self.num_variables - 3) {
             let _ = cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;
         }
 
-        for _ in 0..self.num_constraints {
+        for _ in 0..(self.num_constraints - 1) {
             cs.enforce_constraint(lc!() + a, lc!() + b, lc!() + c)?;
         }
+        cs.enforce_constraint(lc!() + c, lc!() + b, lc!() + d)?;
+
         Ok(())
     }
 }
@@ -62,6 +72,8 @@ mod marlin {
             let b = Fr::rand(rng);
             let mut c = a;
             c.mul_assign(&b);
+            let mut d = c;
+            d.mul_assign(&b);
 
             let circ = Circuit {
                 a: Some(a),
@@ -76,10 +88,10 @@ mod marlin {
             let proof = MarlinInst::prove(&index_pk, circ, rng).unwrap();
             println!("Called prover");
 
-            assert!(MarlinInst::verify(&index_vk, &[c], &proof, rng).unwrap());
+            assert!(MarlinInst::verify(&index_vk, &[c, d], &proof, rng).unwrap());
             println!("Called verifier");
             println!("\nShould not verify (i.e. verifier messages should print below):");
-            assert!(!MarlinInst::verify(&index_vk, &[a], &proof, rng).unwrap());
+            assert!(!MarlinInst::verify(&index_vk, &[a, a], &proof, rng).unwrap());
         }
     }
 
