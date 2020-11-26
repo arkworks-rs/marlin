@@ -7,18 +7,18 @@
 
 use ark_bls12_381::{Bls12_381, Fr as BlsFr};
 use ark_ff::{PrimeField, UniformRand};
+use ark_marlin::Marlin;
 use ark_mnt4_298::{Fr as MNT4Fr, MNT4_298};
 use ark_mnt4_753::{Fr as MNT4BigFr, MNT4_753};
 use ark_mnt6_298::{Fr as MNT6Fr, MNT6_298};
 use ark_mnt6_753::{Fr as MNT6BigFr, MNT6_753};
+use ark_poly::univariate::DensePolynomial;
+use ark_poly_commit::marlin_pc::MarlinKZG10;
 use ark_relations::{
     lc,
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
 };
 use ark_std::ops::Mul;
-use ark_marlin::Marlin;
-use ark_poly::univariate::DensePolynomial;
-use ark_poly_commit::marlin_pc::MarlinKZG10;
 use blake2::Blake2s;
 
 const NUM_PROVE_REPEATITIONS: usize = 10;
@@ -78,13 +78,28 @@ macro_rules! marlin_prove_bench {
             num_constraints: 65536,
         };
 
-        let srs = Marlin::<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>::universal_setup(65536, 65536, 65536, rng).unwrap();
-        let (pk, _) = Marlin::<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>::index(&srs, c).unwrap();
+        let srs = Marlin::<
+            $bench_field,
+            MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
+            Blake2s,
+        >::universal_setup(65536, 65536, 65536, rng)
+        .unwrap();
+        let (pk, _) = Marlin::<
+            $bench_field,
+            MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
+            Blake2s,
+        >::index(&srs, c)
+        .unwrap();
 
         let start = ark_std::time::Instant::now();
 
         for _ in 0..NUM_PROVE_REPEATITIONS {
-            let _ = Marlin::<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>::prove(&pk, c.clone(), rng).unwrap();
+            let _ = Marlin::<
+                $bench_field,
+                MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
+                Blake2s,
+            >::prove(&pk, c.clone(), rng)
+            .unwrap();
         }
 
         println!(
@@ -105,16 +120,36 @@ macro_rules! marlin_verify_bench {
             num_constraints: 65536,
         };
 
-        let srs = Marlin::<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>::universal_setup(65536, 65536, 65536, rng).unwrap();
-        let (pk, vk) = Marlin::<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>::index(&srs, c).unwrap();
-        let proof = Marlin::<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>::prove(&pk, c.clone(), rng).unwrap();
+        let srs = Marlin::<
+            $bench_field,
+            MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
+            Blake2s,
+        >::universal_setup(65536, 65536, 65536, rng)
+        .unwrap();
+        let (pk, vk) = Marlin::<
+            $bench_field,
+            MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
+            Blake2s,
+        >::index(&srs, c)
+        .unwrap();
+        let proof = Marlin::<
+            $bench_field,
+            MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
+            Blake2s,
+        >::prove(&pk, c.clone(), rng)
+        .unwrap();
 
         let v = c.a.unwrap().mul(c.b.unwrap());
 
         let start = ark_std::time::Instant::now();
 
         for _ in 0..NUM_VERIFY_REPEATITIONS {
-            let _ = Marlin::<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>::verify(&vk, &vec![v], &proof, rng).unwrap();
+            let _ = Marlin::<
+                $bench_field,
+                MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
+                Blake2s,
+            >::verify(&vk, &vec![v], &proof, rng)
+            .unwrap();
         }
 
         println!(
