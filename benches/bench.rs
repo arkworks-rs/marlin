@@ -1,9 +1,8 @@
-// Needs to run with
+// For single-thread benchmark, run:
 //      cargo bench --no-default-features --features std -- --nocapture
-// because
-// - Otherwise, the default parallel feature would provide a number with parallel execution.
-// - The std crate is needed for obtaining the time.
-// - The nocapture is needed to display the result.
+// For multi-thread benchmark, run:
+//      RAYON_NUM_THREADS=N cargo bench --no-default-features --features "std parallel" -- --nocapture
+// where N is the number of threads you want to use.
 
 use ark_bls12_381::{Bls12_381, Fr as BlsFr};
 use ark_ff::{PrimeField, UniformRand};
