@@ -1,8 +1,6 @@
-// For single-thread benchmark, run:
-//      cargo bench --no-default-features --features std -- --nocapture
-// For multi-thread benchmark, run:
-//      RAYON_NUM_THREADS=N cargo bench --no-default-features --features "std parallel" -- --nocapture
-// where N is the number of threads you want to use.
+// For benchmark, run:
+//     RAYON_NUM_THREADS=N cargo bench --no-default-features --features "std parallel" -- --nocapture
+// where N is the number of threads you want to use (N = 1 for single-thread).
 
 use ark_bls12_381::{Bls12_381, Fr as BlsFr};
 use ark_ff::{PrimeField, UniformRand};
