@@ -37,7 +37,10 @@ derivative = { version = "2", features = ["use_core"] }
 [dev-dependencies]
 blake2 = { version = "0.8", default-features = false }
 ark-bls12-381 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = [ "curve" ] }
-
+ark-mnt4-298 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs", "curve"] }
+ark-mnt6-298 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs"] }
+ark-mnt4-753 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs", "curve"] }
+ark-mnt6-753 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs"] }
 
 [profile.release]
 opt-level = 3
@@ -56,3 +59,9 @@ default = ["std", "parallel"]
 std = [ "ark-ff/std", "ark-poly/std", "ark-relations/std", "ark-std/std", "ark-serialize/std", "ark-poly-commit/std" ]
 print-trace = [ "bench-utils/print-trace" ]
 parallel = [ "std", "ark-ff/parallel", "ark-poly/parallel", "ark-std/parallel", "ark-poly-commit/parallel", "rayon" ]
+
+[[bench]]
+name = "marlin-benches"
+path = "benches/bench.rs"
+harness = false
+required-features = ["std"]
