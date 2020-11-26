@@ -78,16 +78,13 @@ macro_rules! marlin_prove_bench {
             num_constraints: 65536,
         };
 
-
-        type MarlinInst = Marlin<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>;
-
-        let srs = MarlinInst::universal_setup(65536, 65536, 65536, rng).unwrap();
-        let (pk, _) = MarlinInst::index(&srs, c).unwrap();
+        let srs = Marlin::<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>::universal_setup(65536, 65536, 65536, rng).unwrap();
+        let (pk, _) = Marlin::<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>::index(&srs, c).unwrap();
 
         let start = ark_std::time::Instant::now();
 
         for _ in 0..NUM_PROVE_REPEATITIONS {
-            let _ = MarlinInst::prove(&pk, c.clone(), rng).unwrap();
+            let _ = Marlin::<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>::prove(&pk, c.clone(), rng).unwrap();
         }
 
         println!(
@@ -108,18 +105,16 @@ macro_rules! marlin_verify_bench {
             num_constraints: 65536,
         };
 
-        type MarlinInst = Marlin<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>;
-
-        let srs = MarlinInst::universal_setup(65536, 65536, 65536, rng).unwrap();
-        let (pk, vk) = MarlinInst::index(&srs, c).unwrap();
-        let proof = MarlinInst::prove(&pk, c.clone(), rng).unwrap();
+        let srs = Marlin::<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>::universal_setup(65536, 65536, 65536, rng).unwrap();
+        let (pk, vk) = Marlin::<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>::index(&srs, c).unwrap();
+        let proof = Marlin::<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>::prove(&pk, c.clone(), rng).unwrap();
 
         let v = c.a.unwrap().mul(c.b.unwrap());
 
         let start = ark_std::time::Instant::now();
 
         for _ in 0..NUM_VERIFY_REPEATITIONS {
-            let _ = MarlinInst::verify(&vk, &vec![v], &proof, rng).unwrap();
+            let _ = Marlin::<$bench_field, MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>, Blake2s>::verify(&vk, &vec![v], &proof, rng).unwrap();
         }
 
         println!(
