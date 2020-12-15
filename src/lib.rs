@@ -310,7 +310,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, D: Digest> 
 
     /// Verify that a proof for the constrain system defined by `C` asserts that
     /// all constraints are satisfied.
-    pub fn verify<C: ConstraintSynthesizer<F>, R: RngCore>(
+    pub fn verify<R: RngCore>(
         index_vk: &IndexVerifierKey<F, PC>,
         public_input: &[F],
         proof: &Proof<F, PC>,
