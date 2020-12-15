@@ -3,7 +3,7 @@ on:
   pull_request:
   push:
     branches:
-      - master
+      - commit-and-prove
 env:
   RUST_BACKTRACE: 1
 
