@@ -134,7 +134,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, D: Digest> 
         };
 
         let index_pk = IndexProverKey {
-            index: index.clone(),
+            index,
             index_comm_rands,
             index_vk: index_vk.clone(),
             committer_key,
