@@ -56,14 +56,14 @@ mod marlin {
     use ark_ff::UniformRand;
     use ark_poly::univariate::DensePolynomial;
     use ark_poly_commit::marlin_pc::MarlinKZG10;
+    use ark_std::ops::MulAssign;
     use blake2::Blake2s;
-    use core::ops::MulAssign;
 
     type MultiPC = MarlinKZG10<Bls12_381, DensePolynomial<Fr>>;
     type MarlinInst = Marlin<Fr, MultiPC, Blake2s>;
 
     fn test_circuit(num_constraints: usize, num_variables: usize) {
-        let rng = &mut ark_ff::test_rng();
+        let rng = &mut ark_std::test_rng();
 
         let universal_srs = MarlinInst::universal_setup(100, 25, 100, rng).unwrap();
 

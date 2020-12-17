@@ -4,7 +4,11 @@ use crate::Vec;
 use ark_ff::PrimeField;
 use ark_poly::univariate::DensePolynomial;
 use ark_poly_commit::{BatchLCProof, PolynomialCommitment};
-use ark_std::format;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
+use ark_std::{
+    format,
+    io::{Read, Write},
+};
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -31,7 +35,7 @@ pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F, DensePoly
 impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> ark_ff::ToBytes
     for IndexVerifierKey<F, PC>
 {
-    fn write<W: ark_std::io::Write>(&self, mut w: W) -> ark_std::io::Result<()> {
+    fn write<W: Write>(&self, mut w: W) -> ark_std::io::Result<()> {
         self.index_info.write(&mut w)?;
         self.index_comms.write(&mut w)
     }
@@ -91,6 +95,7 @@ where
 /* ************************************************************************* */
 
 /// A zkSNARK proof.
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> {
     /// Commitments to the polynomials produced by the AHP prover.
     pub commitments: Vec<Vec<PC::Commitment>>,

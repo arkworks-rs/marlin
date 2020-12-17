@@ -14,7 +14,11 @@ use ark_poly::{
     GeneralEvaluationDomain, Polynomial, UVPolynomial,
 };
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
-use ark_std::{cfg_into_iter, cfg_iter, cfg_iter_mut};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
+use ark_std::{
+    cfg_into_iter, cfg_iter, cfg_iter_mut,
+    io::{Read, Write},
+};
 use rand_core::RngCore;
 
 /// State for the AHP prover.
@@ -67,10 +71,40 @@ pub enum ProverMsg<F: Field> {
 }
 
 impl<F: Field> ark_ff::ToBytes for ProverMsg<F> {
-    fn write<W: ark_std::io::Write>(&self, w: W) -> ark_std::io::Result<()> {
+    fn write<W: Write>(&self, w: W) -> ark_std::io::Result<()> {
         match self {
             ProverMsg::EmptyMessage => Ok(()),
             ProverMsg::FieldElements(field_elems) => field_elems.write(w),
+        }
+    }
+}
+
+impl<F: Field> CanonicalSerialize for ProverMsg<F> {
+    fn serialize<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+        let res: Option<Vec<F>> = match self {
+            ProverMsg::EmptyMessage => None,
+            ProverMsg::FieldElements(v) => Some(v.clone()),
+        };
+        res.serialize(&mut writer)
+    }
+
+    fn serialized_size(&self) -> usize {
+        let res: Option<Vec<F>> = match self {
+            ProverMsg::EmptyMessage => None,
+            ProverMsg::FieldElements(v) => Some(v.clone()),
+        };
+        res.serialized_size()
+    }
+}
+
+impl<F: Field> CanonicalDeserialize for ProverMsg<F> {
+    fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let res = Option::<Vec<F>>::deserialize(&mut reader)?;
+
+        if let Some(res) = res {
+            Ok(ProverMsg::FieldElements(res))
+        } else {
+            Ok(ProverMsg::EmptyMessage)
         }
     }
 }
