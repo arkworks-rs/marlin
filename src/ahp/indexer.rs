@@ -8,18 +8,22 @@ use crate::Vec;
 use ark_ff::PrimeField;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError, SynthesisMode};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
+use ark_std::{
+    io::{Read, Write},
+    marker::PhantomData,
+};
 use derivative::Derivative;
 
 use crate::ahp::constraint_systems::{
     balance_matrices, make_matrices_square_for_indexer, num_non_zero,
     pad_input_for_indexer_and_prover,
 };
-use core::marker::PhantomData;
 
 /// Information about the index, including the field of definition, the number of
 /// variables, the number of constraints, and the maximum number of non-zero
 /// entries in any of the constraint matrices.
-#[derive(Derivative)]
+#[derive(Derivative, CanonicalSerialize, CanonicalDeserialize)]
 #[derivative(Clone(bound = ""), Copy(bound = ""))]
 pub struct IndexInfo<F> {
     /// The total number of variables in the constraint system.
@@ -36,7 +40,7 @@ pub struct IndexInfo<F> {
 }
 
 impl<F: PrimeField> ark_ff::ToBytes for IndexInfo<F> {
-    fn write<W: ark_std::io::Write>(&self, mut w: W) -> ark_std::io::Result<()> {
+    fn write<W: Write>(&self, mut w: W) -> ark_std::io::Result<()> {
         (self.num_variables as u64).write(&mut w)?;
         (self.num_constraints as u64).write(&mut w)?;
         (self.num_non_zero as u64).write(&mut w)
@@ -64,6 +68,7 @@ pub type Matrix<F> = Vec<Vec<(F, usize)>>;
 /// 2) `{a,b,c}` are the matrices defining the R1CS instance
 /// 3) `{a,b,c}_star_arith` are structs containing information about A^*, B^*, and C^*,
 /// which are matrices defined as `M^*(i, j) = M(j, i) * u_H(j, j)`.
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct Index<F: PrimeField> {
     /// Information about the index.
     pub index_info: IndexInfo<F>,
