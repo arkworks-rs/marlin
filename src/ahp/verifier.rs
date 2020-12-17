@@ -2,7 +2,6 @@
 
 use crate::ahp::indexer::IndexInfo;
 use crate::ahp::*;
-use ark_relations::r1cs::ConstraintSynthesizer;
 use rand_core::RngCore;
 
 use ark_ff::PrimeField;
@@ -10,7 +9,7 @@ use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::QuerySet;
 
 /// State of the AHP verifier
-pub struct VerifierState<F: PrimeField, C> {
+pub struct VerifierState<F: PrimeField> {
     pub(crate) domain_h: GeneralEvaluationDomain<F>,
     pub(crate) domain_k: GeneralEvaluationDomain<F>,
 
@@ -18,7 +17,6 @@ pub struct VerifierState<F: PrimeField, C> {
     pub(crate) second_round_msg: Option<VerifierSecondMsg<F>>,
 
     pub(crate) gamma: Option<F>,
-    _cs: PhantomData<fn() -> C>,
 }
 
 /// First message of the verifier.
@@ -43,10 +41,10 @@ pub struct VerifierSecondMsg<F> {
 
 impl<F: PrimeField> AHPForR1CS<F> {
     /// Output the first message and next round state.
-    pub fn verifier_first_round<R: RngCore, C: ConstraintSynthesizer<F>>(
-        index_info: IndexInfo<F, C>,
+    pub fn verifier_first_round<R: RngCore>(
+        index_info: IndexInfo<F>,
         rng: &mut R,
-    ) -> Result<(VerifierFirstMsg<F>, VerifierState<F, C>), Error> {
+    ) -> Result<(VerifierFirstMsg<F>, VerifierState<F>), Error> {
         if index_info.num_constraints != index_info.num_variables {
             return Err(Error::NonSquareMatrix);
         }
@@ -75,17 +73,16 @@ impl<F: PrimeField> AHPForR1CS<F> {
             first_round_msg: Some(msg),
             second_round_msg: None,
             gamma: None,
-            _cs: PhantomData,
         };
 
         Ok((msg, new_state))
     }
 
     /// Output the second message and next round state.
-    pub fn verifier_second_round<R: RngCore, C: ConstraintSynthesizer<F>>(
-        mut state: VerifierState<F, C>,
+    pub fn verifier_second_round<R: RngCore>(
+        mut state: VerifierState<F>,
         rng: &mut R,
-    ) -> (VerifierSecondMsg<F>, VerifierState<F, C>) {
+    ) -> (VerifierSecondMsg<F>, VerifierState<F>) {
         let beta = state.domain_h.sample_element_outside_domain(rng);
         let msg = VerifierSecondMsg { beta };
         state.second_round_msg = Some(msg);
@@ -94,19 +91,19 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the third message and next round state.
-    pub fn verifier_third_round<R: RngCore, C: ConstraintSynthesizer<F>>(
-        mut state: VerifierState<F, C>,
+    pub fn verifier_third_round<R: RngCore>(
+        mut state: VerifierState<F>,
         rng: &mut R,
-    ) -> VerifierState<F, C> {
+    ) -> VerifierState<F> {
         state.gamma = Some(F::rand(rng));
         state
     }
 
     /// Output the query state and next round state.
-    pub fn verifier_query_set<'a, R: RngCore, C: ConstraintSynthesizer<F>>(
-        state: VerifierState<F, C>,
+    pub fn verifier_query_set<'a, R: RngCore>(
+        state: VerifierState<F>,
         _: &'a mut R,
-    ) -> (QuerySet<F>, VerifierState<F, C>) {
+    ) -> (QuerySet<F>, VerifierState<F>) {
         let beta = state.second_round_msg.unwrap().beta;
 
         let gamma = state.gamma.unwrap();

@@ -15,11 +15,10 @@ use ark_poly::{
 };
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use ark_std::{cfg_into_iter, cfg_iter, cfg_iter_mut};
-use core::marker::PhantomData;
 use rand_core::RngCore;
 
 /// State for the AHP prover.
-pub struct ProverState<'a, F: PrimeField, C> {
+pub struct ProverState<'a, F: PrimeField> {
     formatted_input_assignment: Vec<F>,
     witness_assignment: Vec<F>,
     /// Az
@@ -33,7 +32,7 @@ pub struct ProverState<'a, F: PrimeField, C> {
     w_poly: Option<LabeledPolynomial<F>>,
     mz_polys: Option<(LabeledPolynomial<F>, LabeledPolynomial<F>)>,
 
-    index: &'a Index<'a, F, C>,
+    index: &'a Index<F>,
 
     /// the random values sent by the verifier in the first round
     verifier_first_msg: Option<VerifierFirstMsg<F>>,
@@ -49,13 +48,9 @@ pub struct ProverState<'a, F: PrimeField, C> {
 
     /// domain K, sized for matrix nonzero elements
     domain_k: GeneralEvaluationDomain<F>,
-
-    #[doc(hidden)]
-    _field: PhantomData<C>,
-    _cs: PhantomData<C>,
 }
 
-impl<'a, 'b, F: PrimeField, C> ProverState<'a, F, C> {
+impl<'a, F: PrimeField> ProverState<'a, F> {
     /// Get the public input.
     pub fn public_input(&self) -> Vec<F> {
         unformat_public_input(&self.formatted_input_assignment)
@@ -63,6 +58,7 @@ impl<'a, 'b, F: PrimeField, C> ProverState<'a, F, C> {
 }
 
 /// Each prover message that is not a list of oracles is a list of field elements.
+#[derive(Clone)]
 pub enum ProverMsg<F: Field> {
     /// Some rounds, the prover sends only oracles. (This is actually the case for all
     /// rounds in Marlin.)
@@ -94,7 +90,7 @@ pub struct ProverFirstOracles<F: Field> {
     pub mask_poly: LabeledPolynomial<F>,
 }
 
-impl<'b, F: Field> ProverFirstOracles<F> {
+impl<F: Field> ProverFirstOracles<F> {
     /// Iterate over the polynomials output by the prover in the first round.
     pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
         vec![&self.x, &self.w, &self.z_a, &self.z_b, &self.mask_poly].into_iter()
@@ -111,7 +107,7 @@ pub struct ProverSecondOracles<F: Field> {
     pub h_1: LabeledPolynomial<F>,
 }
 
-impl<'b, F: Field> ProverSecondOracles<F> {
+impl<F: Field> ProverSecondOracles<F> {
     /// Iterate over the polynomials output by the prover in the second round.
     pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
         vec![&self.t, &self.g_1, &self.h_1].into_iter()
@@ -126,7 +122,7 @@ pub struct ProverThirdOracles<F: Field> {
     pub h_2: LabeledPolynomial<F>,
 }
 
-impl<'b, F: Field> ProverThirdOracles<F> {
+impl<F: Field> ProverThirdOracles<F> {
     /// Iterate over the polynomials output by the prover in the third round.
     pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
         vec![&self.g_2, &self.h_2].into_iter()
@@ -135,10 +131,10 @@ impl<'b, F: Field> ProverThirdOracles<F> {
 
 impl<F: PrimeField> AHPForR1CS<F> {
     /// Initialize the AHP prover.
-    pub fn prover_init<'a, 'b, C: ConstraintSynthesizer<F>>(
-        index: &'a Index<F, C>,
+    pub fn prover_init<'a, C: ConstraintSynthesizer<F>>(
+        index: &'a Index<F>,
         c: C,
-    ) -> Result<ProverState<'a, F, C>, Error> {
+    ) -> Result<ProverState<'a, F>, Error> {
         let init_time = start_timer!(|| "AHP::Prover::Init");
 
         let constraint_time = start_timer!(|| "Generating constraints and witnesses");
@@ -170,11 +166,11 @@ impl<F: PrimeField> AHPForR1CS<F> {
         if index.index_info.num_constraints != num_constraints
             || num_input_variables + num_witness_variables != index.index_info.num_variables
         {
-            Err(Error::InstanceDoesNotMatchIndex)?;
+            return Err(Error::InstanceDoesNotMatchIndex);
         }
 
         if !Self::formatted_public_input_is_admissible(&formatted_input_assignment) {
-            Err(Error::InvalidPublicInputLength)?
+            return Err(Error::InvalidPublicInputLength);
         }
 
         // Perform matrix multiplications
@@ -228,16 +224,14 @@ impl<F: PrimeField> AHPForR1CS<F> {
             domain_h,
             domain_k,
             domain_x,
-            _field: PhantomData,
-            _cs: PhantomData,
         })
     }
 
     /// Output the first round message and the next state.
-    pub fn prover_first_round<'a, 'b, R: RngCore, C: ConstraintSynthesizer<F>>(
-        mut state: ProverState<'a, F, C>,
+    pub fn prover_first_round<'a, R: RngCore>(
+        mut state: ProverState<'a, F>,
         rng: &mut R,
-    ) -> Result<(ProverMsg<F>, ProverFirstOracles<F>, ProverState<'a, F, C>), Error> {
+    ) -> Result<(ProverMsg<F>, ProverFirstOracles<F>, ProverState<'a, F>), Error> {
         let round_time = start_timer!(|| "AHP::Prover::FirstRound");
         let domain_h = state.domain_h;
         let zk_bound = state.zk_bound;
@@ -303,9 +297,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let msg = ProverMsg::EmptyMessage;
 
-        assert!(w_poly.degree() <= domain_h.size() - domain_x.size() + zk_bound - 1);
-        assert!(z_a_poly.degree() <= domain_h.size() + zk_bound - 1);
-        assert!(z_b_poly.degree() <= domain_h.size() + zk_bound - 1);
+        assert!(w_poly.degree() < domain_h.size() - domain_x.size() + zk_bound);
+        assert!(z_a_poly.degree() < domain_h.size() + zk_bound);
+        assert!(z_b_poly.degree() < domain_h.size() + zk_bound);
         assert!(mask_poly.degree() <= 3 * domain_h.size() + 2 * zk_bound - 3);
 
         let x = LabeledPolynomial::new("x".to_string(), x_poly, None, Some(2));
@@ -357,18 +351,18 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the degree bounds of oracles in the first round.
-    pub fn prover_first_round_degree_bounds<C: ConstraintSynthesizer<F>>(
-        _info: &IndexInfo<F, C>,
+    pub fn prover_first_round_degree_bounds(
+        _info: &IndexInfo<F>,
     ) -> impl Iterator<Item = Option<usize>> {
         vec![None; 5].into_iter()
     }
 
     /// Output the second round message and the next state.
-    pub fn prover_second_round<'a, 'b, R: RngCore, C: ConstraintSynthesizer<F>>(
+    pub fn prover_second_round<'a, R: RngCore>(
         ver_message: &VerifierFirstMsg<F>,
-        mut state: ProverState<'a, F, C>,
+        mut state: ProverState<'a, F>,
         _r: &mut R,
-    ) -> (ProverMsg<F>, ProverSecondOracles<F>, ProverState<'a, F, C>) {
+    ) -> (ProverMsg<F>, ProverSecondOracles<F>, ProverState<'a, F>) {
         let round_time = start_timer!(|| "AHP::Prover::SecondRound");
 
         let domain_h = state.domain_h;
@@ -418,7 +412,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             &[eta_a, eta_b, eta_c],
             state.domain_x,
             state.domain_h,
-            r_alpha_x_evals,
+            r_alpha_x_evals.to_vec(),
         );
         end_timer!(t_poly_time);
 
@@ -434,7 +428,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         cfg_iter_mut!(z_poly.coeffs)
             .zip(&x_poly.coeffs)
             .for_each(|(z, x)| *z += x);
-        assert!(z_poly.degree() <= domain_h.size() + zk_bound - 1);
+        assert!(z_poly.degree() < domain_h.size() + zk_bound);
 
         end_timer!(z_poly_time);
 
@@ -496,8 +490,8 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the degree bounds of oracles in the second round.
-    pub fn prover_second_round_degree_bounds<C: ConstraintSynthesizer<F>>(
-        info: &IndexInfo<F, C>,
+    pub fn prover_second_round_degree_bounds(
+        info: &IndexInfo<F>,
     ) -> impl Iterator<Item = Option<usize>> {
         let h_domain_size =
             GeneralEvaluationDomain::<F>::compute_size_of_domain(info.num_constraints).unwrap();
@@ -506,9 +500,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the third round message and the next state.
-    pub fn prover_third_round<'a, 'b, R: RngCore, C: ConstraintSynthesizer<F>>(
+    pub fn prover_third_round<'a, R: RngCore>(
         ver_message: &VerifierSecondMsg<F>,
-        prover_state: ProverState<'a, F, C>,
+        prover_state: ProverState<'a, F>,
         _r: &mut R,
     ) -> Result<(ProverMsg<F>, ProverThirdOracles<F>), Error> {
         let round_time = start_timer!(|| "AHP::Prover::ThirdRound");
@@ -595,19 +589,17 @@ impl<F: PrimeField> AHPForR1CS<F> {
         end_timer!(denom_eval_time);
 
         let a_evals_time = start_timer!(|| "Computing a evals on B");
-        let a_poly_on_B = {
-            let a_star_evals_on_B = &a_star.evals_on_B.val.evals;
-            let b_star_evals_on_B = &b_star.evals_on_B.val.evals;
-            let c_star_evals_on_B = &c_star.evals_on_B.val.evals;
-            cfg_into_iter!(0..domain_b.size())
-                .map(|i| {
-                    let t = eta_a * a_star_evals_on_B[i] * b_denom[i] * c_denom[i]
-                        + eta_b * b_star_evals_on_B[i] * a_denom[i] * c_denom[i]
-                        + eta_c * c_star_evals_on_B[i] * a_denom[i] * b_denom[i];
-                    v_H_at_beta * v_H_at_alpha * t
-                })
-                .collect()
-        };
+        let a_star_evals_on_B = &a_star.evals_on_B;
+        let b_star_evals_on_B = &b_star.evals_on_B;
+        let c_star_evals_on_B = &c_star.evals_on_B;
+        let a_poly_on_B = cfg_into_iter!(0..domain_b.size())
+            .map(|i| {
+                let t = eta_a * a_star_evals_on_B.val.evals[i] * b_denom[i] * c_denom[i]
+                    + eta_b * b_star_evals_on_B.val.evals[i] * a_denom[i] * c_denom[i]
+                    + eta_c * c_star_evals_on_B.val.evals[i] * a_denom[i] * b_denom[i];
+                v_H_at_beta * v_H_at_alpha * t
+            })
+            .collect();
         end_timer!(a_evals_time);
 
         let a_poly_time = start_timer!(|| "Computing a poly");
@@ -649,8 +641,8 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the degree bounds of oracles in the third round.
-    pub fn prover_third_round_degree_bounds<C: ConstraintSynthesizer<F>>(
-        info: &IndexInfo<F, C>,
+    pub fn prover_third_round_degree_bounds(
+        info: &IndexInfo<F>,
     ) -> impl Iterator<Item = Option<usize>> {
         let num_non_zero = info.num_non_zero;
         let k_size = GeneralEvaluationDomain::<F>::compute_size_of_domain(num_non_zero).unwrap();

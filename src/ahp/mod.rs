@@ -98,7 +98,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Get all the strict degree bounds enforced in the AHP.
-    pub fn get_degree_bounds<C>(info: &indexer::IndexInfo<F, C>) -> [usize; 2] {
+    pub fn get_degree_bounds(info: &indexer::IndexInfo<F>) -> [usize; 2] {
         let mut degree_bounds = [0usize; 2];
         let num_constraints = info.num_constraints;
         let num_non_zero = info.num_non_zero;
@@ -112,13 +112,12 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
     /// Construct the linear combinations that are checked by the AHP.
     #[allow(non_snake_case)]
-    pub fn construct_linear_combinations<C, E>(
+    pub fn construct_linear_combinations<E>(
         public_input: &[F],
         evals: &E,
-        state: &verifier::VerifierState<F, C>,
+        state: &verifier::VerifierState<F>,
     ) -> Result<Vec<LinearCombination<F>>, Error>
     where
-        C: ark_relations::r1cs::ConstraintSynthesizer<F>,
         E: EvaluationsProvider<F>,
     {
         let domain_h = state.domain_h;
@@ -127,7 +126,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let public_input = constraint_systems::format_public_input(public_input);
         if !Self::formatted_public_input_is_admissible(&public_input) {
-            Err(Error::InvalidPublicInputLength)?
+            return Err(Error::InvalidPublicInputLength);
         }
         let x_domain = GeneralEvaluationDomain::new(public_input.len())
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
