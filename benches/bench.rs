@@ -67,7 +67,7 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for DummyCircuit<F> {
 
 macro_rules! marlin_prove_bench {
     ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty) => {
-        let rng = &mut ark_ff::test_rng();
+        let rng = &mut ark_std::test_rng();
         let c = DummyCircuit::<$bench_field> {
             a: Some(<$bench_field>::rand(rng)),
             b: Some(<$bench_field>::rand(rng)),
