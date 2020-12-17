@@ -95,11 +95,29 @@ impl<F: Field> CanonicalSerialize for ProverMsg<F> {
         };
         res.serialized_size()
     }
+
+    fn serialize_unchecked<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+        let res: Option<Vec<F>> = match self {
+            ProverMsg::EmptyMessage => None,
+            ProverMsg::FieldElements(v) => Some(v.clone()),
+        };
+        res.serialize_unchecked(&mut writer)
+    }
 }
 
 impl<F: Field> CanonicalDeserialize for ProverMsg<F> {
     fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
         let res = Option::<Vec<F>>::deserialize(&mut reader)?;
+
+        if let Some(res) = res {
+            Ok(ProverMsg::FieldElements(res))
+        } else {
+            Ok(ProverMsg::EmptyMessage)
+        }
+    }
+
+    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let res = Option::<Vec<F>>::deserialize_unchecked(&mut reader)?;
 
         if let Some(res) = res {
             Ok(ProverMsg::FieldElements(res))
