@@ -9,7 +9,11 @@ use ark_relations::{
     lc,
     r1cs::{ConstraintMatrices, ConstraintSystemRef},
 };
-use ark_std::cfg_iter_mut;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
+use ark_std::{
+    cfg_iter_mut,
+    io::{Read, Write},
+};
 use derivative::Derivative;
 
 /* ************************************************************************* */
@@ -104,7 +108,7 @@ pub(crate) fn make_matrices_square<F: Field>(
     }
 }
 
-#[derive(Derivative)]
+#[derive(Derivative, CanonicalSerialize, CanonicalDeserialize)]
 #[derivative(Clone(bound = "F: PrimeField"))]
 pub struct MatrixEvals<F: PrimeField> {
     /// Evaluations of the LDE of row.
@@ -117,7 +121,7 @@ pub struct MatrixEvals<F: PrimeField> {
 
 /// Contains information about the arithmetization of the matrix M^*.
 /// Here `M^*(i, j) := M(j, i) * u_H(j, j)`. For more details, see [COS19].
-#[derive(Derivative)]
+#[derive(Derivative, CanonicalSerialize, CanonicalDeserialize)]
 #[derivative(Clone(bound = "F: PrimeField"))]
 pub struct MatrixArithmetization<F: PrimeField> {
     /// LDE of the row indices of M^*.
