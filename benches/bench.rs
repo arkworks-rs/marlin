@@ -3,7 +3,7 @@
 // where N is the number of threads you want to use (N = 1 for single-thread).
 
 use ark_bls12_381::{Bls12_381, Fr as BlsFr};
-use ark_ff::{PrimeField, UniformRand};
+use ark_ff::PrimeField;
 use ark_marlin::Marlin;
 use ark_mnt4_298::{Fr as MNT4Fr, MNT4_298};
 use ark_mnt4_753::{Fr as MNT4BigFr, MNT4_753};
@@ -15,7 +15,7 @@ use ark_relations::{
     lc,
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
 };
-use ark_std::ops::Mul;
+use ark_std::{ops::Mul, UniformRand};
 use blake2::Blake2s;
 
 const NUM_PROVE_REPEATITIONS: usize = 10;
@@ -67,7 +67,7 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for DummyCircuit<F> {
 
 macro_rules! marlin_prove_bench {
     ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty) => {
-        let rng = &mut ark_ff::test_rng();
+        let rng = &mut ark_std::test_rng();
         let c = DummyCircuit::<$bench_field> {
             a: Some(<$bench_field>::rand(rng)),
             b: Some(<$bench_field>::rand(rng)),
@@ -109,7 +109,7 @@ macro_rules! marlin_prove_bench {
 
 macro_rules! marlin_verify_bench {
     ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty) => {
-        let rng = &mut ark_ff::test_rng();
+        let rng = &mut ark_std::test_rng();
         let c = DummyCircuit::<$bench_field> {
             a: Some(<$bench_field>::rand(rng)),
             b: Some(<$bench_field>::rand(rng)),

@@ -1,6 +1,6 @@
 use crate::Vec;
 use ark_ff::{FromBytes, ToBytes};
-use core::marker::PhantomData;
+use ark_std::marker::PhantomData;
 use digest::{generic_array::GenericArray, Digest};
 use rand_chacha::ChaChaRng;
 use rand_core::{RngCore, SeedableRng};
