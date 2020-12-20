@@ -74,7 +74,6 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
             command: test
-            args: --release
 
   check_no_std:
     name: Check no_std
