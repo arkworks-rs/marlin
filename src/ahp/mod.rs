@@ -178,7 +178,10 @@ impl<F: PrimeField> AHPForR1CS<F> {
                 (-beta * g_1_at_beta, LCTerm::One),
             ],
         );
-        debug_assert!(evals.get_lc_eval(&outer_sumcheck, beta)?.is_zero());
+
+        if !evals.get_lc_eval(&outer_sumcheck, beta)?.is_zero() {
+            return Err(Error::ConstraintSystemError(SynthesisError::Unsatisfiable));
+        }
 
         linear_combinations.push(z_b);
         linear_combinations.push(g_1);
@@ -244,7 +247,10 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         a.label = "inner_sumcheck".into();
         let inner_sumcheck = a;
-        debug_assert!(evals.get_lc_eval(&inner_sumcheck, gamma)?.is_zero());
+
+        if !evals.get_lc_eval(&inner_sumcheck, gamma)?.is_zero() {
+            return Err(Error::ConstraintSystemError(SynthesisError::Unsatisfiable));
+        }
 
         linear_combinations.push(g_2);
         linear_combinations.push(a_denom);
