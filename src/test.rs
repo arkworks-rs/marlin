@@ -196,10 +196,18 @@ mod marlin {
             field_phantom: PhantomData,
         };
 
-        let (index_pk, _) = MarlinInst::index(&universal_srs, circ.clone()).unwrap();
+        let (index_pk, index_vk) = MarlinInst::index(&universal_srs, circ.clone()).unwrap();
         println!("Called index");
 
-        let _ = MarlinInst::prove(&index_pk, circ, rng).unwrap();
+        let proof = MarlinInst::prove(&index_pk, circ, rng).unwrap();
         println!("Called prover");
+
+        let mut inputs = Vec::new();
+        for i in 0..5 {
+            inputs.push(Fr::from(i as u128));
+        }
+
+        assert!(MarlinInst::verify(&index_vk, &inputs, &proof, rng).unwrap());
+        println!("Called verifier");
     }
 }
