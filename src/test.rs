@@ -3,6 +3,7 @@ use ark_relations::{
     lc,
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
 };
+use ark_std::marker::PhantomData;
 
 #[derive(Copy, Clone)]
 struct Circuit<F: Field> {
@@ -43,6 +44,56 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for Circuit<Constrai
             cs.enforce_constraint(lc!() + a, lc!() + b, lc!() + c)?;
         }
         cs.enforce_constraint(lc!() + c, lc!() + b, lc!() + d)?;
+
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+struct OutlineTestCircuit<F: Field> {
+    field_phantom: PhantomData<F>,
+}
+
+impl<F: Field> ConstraintSynthesizer<F> for OutlineTestCircuit<F> {
+    fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
+        let mut inputs = Vec::new();
+
+        for i in 0..5 {
+            inputs.push(cs.new_input_variable(|| Ok(F::from(i as u128)))?);
+        }
+
+        for i in 0..5 {
+            let mut check = cs.new_lc(lc!()).unwrap();
+
+            for t in 0..10 {
+                let cur_check = cs.new_witness_variable(|| {
+                    Ok({
+                        if i == t {
+                            F::one()
+                        } else {
+                            F::zero()
+                        }
+                    })
+                })?;
+
+                check = cs
+                    .new_lc(lc!() + (F::one(), check) + (F::one(), cur_check.clone()))
+                    .unwrap();
+
+                cs.enforce_constraint(
+                    lc!() + (F::one(), inputs[i].clone())
+                        - (F::from(t as u128), ark_relations::r1cs::Variable::One),
+                    lc!() + (F::one(), cur_check),
+                    lc!(),
+                )?;
+            }
+
+            cs.enforce_constraint(
+                lc!() + (F::one(), check.clone()) - (F::one(), ark_relations::r1cs::Variable::One),
+                lc!() + (F::one(), ark_relations::r1cs::Variable::One),
+                lc!(),
+            )?;
+        }
 
         Ok(())
     }
@@ -133,5 +184,22 @@ mod marlin {
         let num_variables = 25;
 
         test_circuit(num_constraints, num_variables);
+    }
+
+    #[test]
+    fn prove_and_test_outlining() {
+        let rng = &mut ark_std::test_rng();
+
+        let universal_srs = MarlinInst::universal_setup(200, 200, 200, rng).unwrap();
+
+        let circ = OutlineTestCircuit {
+            field_phantom: PhantomData,
+        };
+
+        let (index_pk, _) = MarlinInst::index(&universal_srs, circ.clone()).unwrap();
+        println!("Called index");
+
+        let _ = MarlinInst::prove(&index_pk, circ, rng).unwrap();
+        println!("Called prover");
     }
 }
