@@ -190,7 +190,7 @@ mod marlin {
     fn prove_and_test_outlining() {
         let rng = &mut ark_std::test_rng();
 
-        let universal_srs = MarlinInst::universal_setup(100, 100, 100, rng).unwrap();
+        let universal_srs = MarlinInst::universal_setup(200, 200, 200, rng).unwrap();
 
         let circ = OutlineTestCircuit {
             field_phantom: PhantomData,
