@@ -66,15 +66,7 @@ impl<F: Field> ConstraintSynthesizer<F> for OutlineTestCircuit<F> {
             let mut check = cs.new_lc(lc!()).unwrap();
 
             for t in 0..10 {
-                let cur_check = cs.new_witness_variable(|| {
-                    Ok({
-                        if i == t {
-                            F::one()
-                        } else {
-                            F::zero()
-                        }
-                    })
-                })?;
+                let cur_check = cs.new_witness_variable(|| Ok(F::from(i == t)))?;
 
                 check = cs
                     .new_lc(lc!() + (F::one(), check) + (F::one(), cur_check.clone()))
