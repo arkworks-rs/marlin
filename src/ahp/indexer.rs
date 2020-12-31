@@ -129,7 +129,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         pad_input_for_indexer_and_prover(ics.clone());
         end_timer!(padding_time);
         let matrix_processing_time = start_timer!(|| "Processing matrices");
-        ics.outline_lcs();
+        ics.reduce_constraint_weight();
         make_matrices_square_for_indexer(ics.clone());
         let matrices = ics.to_matrices().expect("should not be `None`");
         let num_non_zero_val = num_non_zero::<F>(&matrices);

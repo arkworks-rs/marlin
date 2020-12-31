@@ -3,6 +3,7 @@ use ark_relations::{
     lc,
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
 };
+use ark_std::marker::PhantomData;
 
 #[derive(Copy, Clone)]
 struct Circuit<F: Field> {
@@ -43,6 +44,70 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for Circuit<Constrai
             cs.enforce_constraint(lc!() + a, lc!() + b, lc!() + c)?;
         }
         cs.enforce_constraint(lc!() + c, lc!() + b, lc!() + d)?;
+
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+/// Define a constraint system that would trigger outlining.
+struct OutlineTestCircuit<F: Field> {
+    field_phantom: PhantomData<F>,
+}
+
+impl<F: Field> ConstraintSynthesizer<F> for OutlineTestCircuit<F> {
+    fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
+        // This program checks if the input elements are between 0 and 9.
+        //
+        // Note that this constraint system is neither the most intuitive way nor
+        // the most efficient way for such a task. It is for testing purposes,
+        // as we want to trigger the outlining.
+        //
+        let mut inputs = Vec::new();
+        for i in 0..5 {
+            inputs.push(cs.new_input_variable(|| Ok(F::from(i as u128)))?);
+        }
+
+        for i in 0..5 {
+            let mut total_count_for_this_input = cs.new_lc(lc!()).unwrap();
+
+            for bucket in 0..10 {
+                let count_increment_for_this_bucket =
+                    cs.new_witness_variable(|| Ok(F::from(i == bucket)))?;
+
+                total_count_for_this_input = cs
+                    .new_lc(
+                        lc!()
+                            + (F::one(), total_count_for_this_input)
+                            + (F::one(), count_increment_for_this_bucket.clone()),
+                    )
+                    .unwrap();
+
+                // Only when `input[i]` equals `bucket` can `count_increment_for_this_bucket` be nonzero.
+                //
+                // A malicious prover can make `count_increment_for_this_bucket` neither 0 nor 1.
+                // But the constraint on `total_count_for_this_input` will reject such case.
+                //
+                // At a high level, only one of the `count_increment_for_this_bucket` among all the buckets
+                // could be nonzero, which equals `total_count_for_this_input`. Thus, by checking whether
+                // `total_count_for_this_input` is 1, we know this input number is in the range.
+                //
+                cs.enforce_constraint(
+                    lc!() + (F::one(), inputs[i].clone())
+                        - (F::from(bucket as u128), ark_relations::r1cs::Variable::One),
+                    lc!() + (F::one(), count_increment_for_this_bucket),
+                    lc!(),
+                )?;
+            }
+
+            // Enforce `total_count_for_this_input` to be one.
+            cs.enforce_constraint(
+                lc!(),
+                lc!(),
+                lc!() + (F::one(), total_count_for_this_input.clone())
+                    - (F::one(), ark_relations::r1cs::Variable::One),
+            )?;
+        }
 
         Ok(())
     }
@@ -133,5 +198,31 @@ mod marlin {
         let num_variables = 25;
 
         test_circuit(num_constraints, num_variables);
+    }
+
+    #[test]
+    /// Test on a constraint system that will trigger outlining.
+    fn prove_and_test_outlining() {
+        let rng = &mut ark_std::test_rng();
+
+        let universal_srs = MarlinInst::universal_setup(150, 150, 150, rng).unwrap();
+
+        let circ = OutlineTestCircuit {
+            field_phantom: PhantomData,
+        };
+
+        let (index_pk, index_vk) = MarlinInst::index(&universal_srs, circ.clone()).unwrap();
+        println!("Called index");
+
+        let proof = MarlinInst::prove(&index_pk, circ, rng).unwrap();
+        println!("Called prover");
+
+        let mut inputs = Vec::new();
+        for i in 0..5 {
+            inputs.push(Fr::from(i as u128));
+        }
+
+        assert!(MarlinInst::verify(&index_vk, &inputs, &proof, rng).unwrap());
+        println!("Called verifier");
     }
 }
