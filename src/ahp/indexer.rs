@@ -7,7 +7,9 @@ use crate::ahp::{
 use crate::Vec;
 use ark_ff::PrimeField;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError, SynthesisMode};
+use ark_relations::r1cs::{
+    ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError, SynthesisMode,
+};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
 use ark_std::{
     io::{Read, Write},
@@ -121,6 +123,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let constraint_time = start_timer!(|| "Generating constraints");
         let ics = ConstraintSystem::new_ref();
+        ics.set_optimization_goal(OptimizationGoal::Weight);
         ics.set_mode(SynthesisMode::Setup);
         c.generate_constraints(ics.clone())?;
         end_timer!(constraint_time);
@@ -129,7 +132,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         pad_input_for_indexer_and_prover(ics.clone());
         end_timer!(padding_time);
         let matrix_processing_time = start_timer!(|| "Processing matrices");
-        ics.reduce_constraint_weight();
+        ics.finalize();
         make_matrices_square_for_indexer(ics.clone());
         let matrices = ics.to_matrices().expect("should not be `None`");
         let num_non_zero_val = num_non_zero::<F>(&matrices);
