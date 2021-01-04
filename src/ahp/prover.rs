@@ -13,7 +13,9 @@ use ark_poly::{
     univariate::DensePolynomial, EvaluationDomain, Evaluations as EvaluationsOnDomain,
     GeneralEvaluationDomain, Polynomial, UVPolynomial,
 };
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use ark_relations::r1cs::{
+    ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError,
+};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
 use ark_std::{
     cfg_into_iter, cfg_iter, cfg_iter_mut,
@@ -217,6 +219,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let constraint_time = start_timer!(|| "Generating constraints and witnesses");
         let pcs = ConstraintSystem::new_ref();
+        pcs.set_optimization_goal(OptimizationGoal::Weight);
         pcs.set_mode(ark_relations::r1cs::SynthesisMode::Prove {
             construct_matrices: true,
         });
@@ -225,7 +228,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let padding_time = start_timer!(|| "Padding matrices to make them square");
         pad_input_for_indexer_and_prover(pcs.clone());
-        pcs.reduce_constraint_weight();
+        pcs.finalize();
         make_matrices_square_for_prover(pcs.clone());
         end_timer!(padding_time);
 
