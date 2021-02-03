@@ -47,12 +47,17 @@ opt-level = 3
 lto = "thin"
 incremental = true
 debug = true
+panic = 'abort'
 
 [profile.test]
 opt-level = 3
 debug-assertions = true
 incremental = true
 debug = true
+
+[profile.dev]
+opt-level = 0
+panic = 'abort'
 
 [features]
 default = ["std", "parallel"]
