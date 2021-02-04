@@ -31,11 +31,11 @@ bench-utils = { git = "https://github.com/arkworks-rs/utils", default-features =
 rand_core = { version = "0.5" }
 rand_chacha = { version = "0.2.1", default-features = false }
 rayon = { version = "1", optional = true }
-digest = { version = "0.8" }
+digest = { version = "0.9" }
 derivative = { version = "2", features = ["use_core"] }
 
 [dev-dependencies]
-blake2 = { version = "0.8", default-features = false }
+blake2 = { version = "0.9", default-features = false }
 ark-bls12-381 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = [ "curve" ] }
 ark-mnt4-298 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs", "curve"] }
 ark-mnt6-298 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs"] }
