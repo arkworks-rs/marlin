@@ -7,18 +7,25 @@ use crate::ahp::{
 use crate::Vec;
 use ark_ff::PrimeField;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError, SynthesisMode};
+use ark_relations::r1cs::{
+    ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError, SynthesisMode,
+};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
+use ark_std::{
+    io::{Read, Write},
+    marker::PhantomData,
+};
 use derivative::Derivative;
 
 use crate::ahp::constraint_systems::{
     balance_matrices, make_matrices_square_for_indexer, num_non_zero,
+    pad_input_for_indexer_and_prover,
 };
-use core::marker::PhantomData;
 
 /// Information about the index, including the field of definition, the number of
 /// variables, the number of constraints, and the maximum number of non-zero
 /// entries in any of the constraint matrices.
-#[derive(Derivative)]
+#[derive(Derivative, CanonicalSerialize, CanonicalDeserialize)]
 #[derivative(Clone(bound = ""), Copy(bound = ""))]
 pub struct IndexInfo<F> {
     /// The total number of variables in the constraint system.
@@ -63,6 +70,7 @@ pub type Matrix<F> = Vec<Vec<(F, usize)>>;
 /// 2) `{a,b,c}` are the matrices defining the R1CS instance
 /// 3) `{a,b,c}_star_arith` are structs containing information about A^*, B^*, and C^*,
 /// which are matrices defined as `M^*(i, j) = M(j, i) * u_H(j, j)`.
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct Index<F: PrimeField> {
     /// Information about the index.
     pub index_info: IndexInfo<F>,
@@ -82,7 +90,7 @@ pub struct Index<F: PrimeField> {
     pub c_star_arith: MatrixArithmetization<F>,
 }
 
-impl<'a, F: PrimeField> Index<F> {
+impl<F: PrimeField> Index<F> {
     /// The maximum degree required to represent polynomials of this index.
     pub fn max_degree(&self) -> usize {
         self.index_info.max_degree()
@@ -115,14 +123,17 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let constraint_time = start_timer!(|| "Generating constraints");
         let ics = ConstraintSystem::new_ref();
+        ics.set_optimization_goal(OptimizationGoal::Weight);
         ics.set_mode(SynthesisMode::Setup);
         c.generate_constraints(ics.clone())?;
         end_timer!(constraint_time);
 
         let padding_time = start_timer!(|| "Padding matrices to make them square");
+        pad_input_for_indexer_and_prover(ics.clone());
         end_timer!(padding_time);
         let matrix_processing_time = start_timer!(|| "Processing matrices");
-        ics.outline_lcs();
+        ics.finalize();
+      
         make_matrices_square_for_indexer(ics.clone());
         let matrices = ics.to_matrices().expect("should not be `None`");
         let num_non_zero_val = num_non_zero::<F>(&matrices);
@@ -157,6 +168,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             num_variables,
             num_constraints,
             num_non_zero,
+            num_instance_variables: num_formatted_input_variables,
 
             num_instance_variables: num_formatted_input_variables,
             f: PhantomData,

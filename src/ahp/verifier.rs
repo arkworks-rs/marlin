@@ -2,6 +2,7 @@
 
 use crate::ahp::indexer::IndexInfo;
 use crate::ahp::*;
+use rand_core::RngCore;
 
 use crate::fiat_shamir::FiatShamirRng;
 use ark_ff::PrimeField;

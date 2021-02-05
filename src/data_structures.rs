@@ -9,6 +9,11 @@ use ark_poly_commit::{
     BatchLCProof, PolynomialCommitment,
 };
 use ark_relations::r1cs::SynthesisError;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
+use ark_std::{
+    format,
+    io::{Read, Write},
+};
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -22,6 +27,7 @@ pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F, DensePolynomial<F>
 /* ************************************************************************* */
 
 /// Verification key for a specific index (i.e., R1CS matrices).
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> {
     /// Stores information about the size of the index, as well as its field of
     /// definition.
@@ -35,7 +41,7 @@ pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F, DensePoly
 impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> ark_ff::ToBytes
     for IndexVerifierKey<F, PC>
 {
-    fn write<W: ark_std::io::Write>(&self, mut w: W) -> ark_std::io::Result<()> {
+    fn write<W: Write>(&self, mut w: W) -> ark_std::io::Result<()> {
         self.index_info.write(&mut w)?;
         self.index_comms.write(&mut w)
     }
@@ -135,6 +141,7 @@ where
 /* ************************************************************************* */
 
 /// Proving key for a specific index (i.e., R1CS matrices).
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct IndexProverKey<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> {
     /// The index verifier key.
     pub index_vk: IndexVerifierKey<F, PC>,
@@ -165,6 +172,7 @@ where
 /* ************************************************************************* */
 
 /// A zkSNARK proof.
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> {
     /// Commitments to the polynomials produced by the AHP prover.
     pub commitments: Vec<Vec<PC::Commitment>>,

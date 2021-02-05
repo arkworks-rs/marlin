@@ -4,8 +4,7 @@ use ark_poly::univariate::DensePolynomial;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::{LCTerm, LinearCombination};
 use ark_relations::r1cs::SynthesisError;
-use ark_std::cfg_iter_mut;
-use core::{borrow::Borrow, marker::PhantomData};
+use ark_std::{borrow::Borrow, cfg_iter_mut, format, marker::PhantomData, vec};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -426,7 +425,7 @@ mod tests {
 
     #[test]
     fn domain_unnormalized_bivariate_lagrange_poly_diff_inputs() {
-        let rng = &mut ark_ff::test_rng();
+        let rng = &mut ark_std::test_rng();
         for domain_size in 1..10 {
             let domain = GeneralEvaluationDomain::<Fr>::new(1 << domain_size).unwrap();
             let x = Fr::rand(rng);
@@ -441,7 +440,7 @@ mod tests {
 
     #[test]
     fn test_summation() {
-        let rng = &mut ark_ff::test_rng();
+        let rng = &mut ark_std::test_rng();
         let size = 1 << 4;
         let domain = GeneralEvaluationDomain::<Fr>::new(1 << 4).unwrap();
         let size_as_fe = domain.size_as_field_element();

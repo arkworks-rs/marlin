@@ -2,7 +2,7 @@
 
 use crate::ahp::indexer::Matrix;
 use crate::ahp::*;
-use crate::ToString;
+use crate::{BTreeMap, ToString};
 use ark_ff::{Field, PrimeField};
 use ark_poly::{EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain};
 use ark_poly_commit::LabeledPolynomial;
@@ -10,7 +10,11 @@ use ark_relations::{
     lc,
     r1cs::{ConstraintMatrices, ConstraintSystemRef},
 };
-use ark_std::cfg_iter_mut;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
+use ark_std::{
+    cfg_iter_mut,
+    io::{Read, Write},
+};
 use derivative::Derivative;
 use hashbrown::HashMap;
 
@@ -68,6 +72,21 @@ pub(crate) fn padded_matrix_dim(num_formatted_variables: usize, num_constraints:
     core::cmp::max(num_formatted_variables, num_constraints)
 }
 
+pub(crate) fn pad_input_for_indexer_and_prover<F: PrimeField>(cs: ConstraintSystemRef<F>) {
+    let formatted_input_size = cs.num_instance_variables();
+
+    let domain_x = GeneralEvaluationDomain::<F>::new(formatted_input_size);
+    assert!(domain_x.is_some());
+
+    let padded_size = domain_x.unwrap().size();
+
+    if padded_size > formatted_input_size {
+        for _ in 0..(padded_size - formatted_input_size) {
+            cs.new_input_variable(|| Ok(F::zero())).unwrap();
+        }
+    }
+}
+
 pub(crate) fn make_matrices_square<F: Field>(
     cs: ConstraintSystemRef<F>,
     num_formatted_variables: usize,
@@ -91,7 +110,7 @@ pub(crate) fn make_matrices_square<F: Field>(
     }
 }
 
-#[derive(Derivative)]
+#[derive(Derivative, CanonicalSerialize, CanonicalDeserialize)]
 #[derivative(Clone(bound = "F: PrimeField"))]
 pub struct MatrixEvals<F: PrimeField> {
     /// Evaluations of the LDE of row.
@@ -104,7 +123,7 @@ pub struct MatrixEvals<F: PrimeField> {
 
 /// Contains information about the arithmetization of the matrix M^*.
 /// Here `M^*(i, j) := M(j, i) * u_H(j, j)`. For more details, see [COS19].
-#[derive(Derivative)]
+#[derive(Derivative, CanonicalSerialize, CanonicalDeserialize)]
 #[derivative(Clone(bound = "F: PrimeField"))]
 pub struct MatrixArithmetization<F: PrimeField> {
     /// LDE of the row indices of M^*.

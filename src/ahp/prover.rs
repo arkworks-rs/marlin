@@ -4,19 +4,26 @@ use crate::ahp::indexer::*;
 use crate::ahp::verifier::*;
 use crate::ahp::*;
 
-use crate::ahp::constraint_systems::{make_matrices_square_for_prover, unformat_public_input};
+use crate::ahp::constraint_systems::{
+    make_matrices_square_for_prover, pad_input_for_indexer_and_prover, unformat_public_input,
+};
 use crate::{ToString, Vec};
 use ark_ff::{Field, PrimeField, Zero};
 use ark_poly::{
     univariate::DensePolynomial, EvaluationDomain, Evaluations as EvaluationsOnDomain,
     GeneralEvaluationDomain, Polynomial, UVPolynomial,
 };
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
-use ark_std::{cfg_into_iter, cfg_iter, cfg_iter_mut};
+use ark_relations::r1cs::{
+    ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError,
+};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
+use ark_std::{
+    cfg_into_iter, cfg_iter, cfg_iter_mut,
+    io::{Read, Write},
+};
 use rand_core::RngCore;
 
 /// State for the AHP prover.
-#[allow(clippy::type_complexity)]
 pub struct ProverState<'a, F: PrimeField> {
     formatted_input_assignment: Vec<F>,
     witness_assignment: Vec<F>,
@@ -66,10 +73,84 @@ pub enum ProverMsg<F: Field> {
 }
 
 impl<F: Field> ark_ff::ToBytes for ProverMsg<F> {
-    fn write<W: ark_std::io::Write>(&self, w: W) -> ark_std::io::Result<()> {
+    fn write<W: Write>(&self, w: W) -> ark_std::io::Result<()> {
         match self {
             ProverMsg::EmptyMessage => Ok(()),
             ProverMsg::FieldElements(field_elems) => field_elems.write(w),
+        }
+    }
+}
+
+impl<F: Field> CanonicalSerialize for ProverMsg<F> {
+    fn serialize<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+        let res: Option<Vec<F>> = match self {
+            ProverMsg::EmptyMessage => None,
+            ProverMsg::FieldElements(v) => Some(v.clone()),
+        };
+        res.serialize(&mut writer)
+    }
+
+    fn serialized_size(&self) -> usize {
+        let res: Option<Vec<F>> = match self {
+            ProverMsg::EmptyMessage => None,
+            ProverMsg::FieldElements(v) => Some(v.clone()),
+        };
+        res.serialized_size()
+    }
+
+    fn serialize_unchecked<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+        let res: Option<Vec<F>> = match self {
+            ProverMsg::EmptyMessage => None,
+            ProverMsg::FieldElements(v) => Some(v.clone()),
+        };
+        res.serialize_unchecked(&mut writer)
+    }
+
+    fn serialize_uncompressed<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+        let res: Option<Vec<F>> = match self {
+            ProverMsg::EmptyMessage => None,
+            ProverMsg::FieldElements(v) => Some(v.clone()),
+        };
+        res.serialize_uncompressed(&mut writer)
+    }
+
+    fn uncompressed_size(&self) -> usize {
+        let res: Option<Vec<F>> = match self {
+            ProverMsg::EmptyMessage => None,
+            ProverMsg::FieldElements(v) => Some(v.clone()),
+        };
+        res.uncompressed_size()
+    }
+}
+
+impl<F: Field> CanonicalDeserialize for ProverMsg<F> {
+    fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let res = Option::<Vec<F>>::deserialize(&mut reader)?;
+
+        if let Some(res) = res {
+            Ok(ProverMsg::FieldElements(res))
+        } else {
+            Ok(ProverMsg::EmptyMessage)
+        }
+    }
+
+    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let res = Option::<Vec<F>>::deserialize_unchecked(&mut reader)?;
+
+        if let Some(res) = res {
+            Ok(ProverMsg::FieldElements(res))
+        } else {
+            Ok(ProverMsg::EmptyMessage)
+        }
+    }
+
+    fn deserialize_uncompressed<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+        let res = Option::<Vec<F>>::deserialize_uncompressed(&mut reader)?;
+
+        if let Some(res) = res {
+            Ok(ProverMsg::FieldElements(res))
+        } else {
+            Ok(ProverMsg::EmptyMessage)
         }
     }
 }
@@ -135,6 +216,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let constraint_time = start_timer!(|| "Generating constraints and witnesses");
         let pcs = ConstraintSystem::new_ref();
+        pcs.set_optimization_goal(OptimizationGoal::Weight);
         pcs.set_mode(ark_relations::r1cs::SynthesisMode::Prove {
             construct_matrices: true,
         });
@@ -146,6 +228,8 @@ impl<F: PrimeField> AHPForR1CS<F> {
         pcs.outline_lcs();
 
         let padding_time = start_timer!(|| "Padding matrices to make them square");
+        pad_input_for_indexer_and_prover(pcs.clone());
+        pcs.finalize();
         make_matrices_square_for_prover(pcs.clone());
         end_timer!(padding_time);
 
@@ -226,7 +310,6 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the first round message and the next state.
-    #[allow(clippy::type_complexity)]
     pub fn prover_first_round<'a, R: RngCore>(
         mut state: ProverState<'a, F>,
         rng: &mut R,

@@ -19,7 +19,8 @@
 #[macro_use]
 extern crate bench_utils;
 
-use ark_ff::{to_bytes, PrimeField, ToConstraintField};
+use ark_ff::{to_bytes, PrimeField, ToConstraintField, UniformRand};
+use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::Evaluations;
 use ark_poly_commit::LabeledPolynomial;
 use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
@@ -32,6 +33,9 @@ extern crate ark_std;
 
 use ark_std::{
     boxed::Box,
+    collections::BTreeMap,
+    format,
+    marker::PhantomData,
     string::{String, ToString},
     vec::Vec,
 };
