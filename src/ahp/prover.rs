@@ -17,11 +17,11 @@ use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError,
 };
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
+use ark_std::rand::RngCore;
 use ark_std::{
     cfg_into_iter, cfg_iter, cfg_iter_mut,
     io::{Read, Write},
 };
-use rand_core::RngCore;
 
 /// State for the AHP prover.
 pub struct ProverState<'a, F: PrimeField> {
@@ -222,7 +222,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         });
         c.generate_constraints(pcs.clone())?;
         end_timer!(constraint_time);
-
+        assert!(pcs.is_satisfied().unwrap());
         let padding_time = start_timer!(|| "Padding matrices to make them square");
         pad_input_for_indexer_and_prover(pcs.clone());
         pcs.finalize();
@@ -309,6 +309,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     pub fn prover_first_round<'a, R: RngCore>(
         mut state: ProverState<'a, F>,
         rng: &mut R,
+        hiding: bool,
     ) -> Result<(ProverMsg<F>, ProverFirstOracles<F>, ProverState<'a, F>), Error> {
         let round_time = start_timer!(|| "AHP::Prover::FirstRound");
         let domain_h = state.domain_h;
@@ -380,11 +381,21 @@ impl<F: PrimeField> AHPForR1CS<F> {
         assert!(z_b_poly.degree() < domain_h.size() + zk_bound);
         assert!(mask_poly.degree() <= 3 * domain_h.size() + 2 * zk_bound - 3);
 
-        let w = LabeledPolynomial::new("w".to_string(), w_poly, None, Some(1));
-        let z_a = LabeledPolynomial::new("z_a".to_string(), z_a_poly, None, Some(1));
-        let z_b = LabeledPolynomial::new("z_b".to_string(), z_b_poly, None, Some(1));
-        let mask_poly =
-            LabeledPolynomial::new("mask_poly".to_string(), mask_poly.clone(), None, None);
+        let (w, z_a, z_b) = if hiding {
+            (
+                LabeledPolynomial::new("w".to_string(), w_poly, None, Some(1)),
+                LabeledPolynomial::new("z_a".to_string(), z_a_poly, None, Some(1)),
+                LabeledPolynomial::new("z_b".to_string(), z_b_poly, None, Some(1)),
+            )
+        } else {
+            (
+                LabeledPolynomial::new("w".to_string(), w_poly, None, None),
+                LabeledPolynomial::new("z_a".to_string(), z_a_poly, None, None),
+                LabeledPolynomial::new("z_b".to_string(), z_b_poly, None, None),
+            )
+        };
+
+        let mask_poly = LabeledPolynomial::new("mask_poly".to_string(), mask_poly, None, None);
 
         let oracles = ProverFirstOracles {
             w: w.clone(),
@@ -437,6 +448,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         ver_message: &VerifierFirstMsg<F>,
         mut state: ProverState<'a, F>,
         _r: &mut R,
+        hiding: bool,
     ) -> (ProverMsg<F>, ProverSecondOracles<F>, ProverState<'a, F>) {
         let round_time = start_timer!(|| "AHP::Prover::SecondRound");
 
@@ -549,10 +561,18 @@ impl<F: PrimeField> AHPForR1CS<F> {
         assert!(g_1.degree() <= domain_h.size() - 2);
         assert!(h_1.degree() <= 2 * domain_h.size() + 2 * zk_bound - 2);
 
-        let oracles = ProverSecondOracles {
-            t: LabeledPolynomial::new("t".into(), t_poly, None, None),
-            g_1: LabeledPolynomial::new("g_1".into(), g_1, Some(domain_h.size() - 2), Some(1)),
-            h_1: LabeledPolynomial::new("h_1".into(), h_1, None, None),
+        let oracles = if hiding {
+            ProverSecondOracles {
+                t: LabeledPolynomial::new("t".into(), t_poly, None, None),
+                g_1: LabeledPolynomial::new("g_1".into(), g_1, Some(domain_h.size() - 2), Some(1)),
+                h_1: LabeledPolynomial::new("h_1".into(), h_1, None, None),
+            }
+        } else {
+            ProverSecondOracles {
+                t: LabeledPolynomial::new("t".into(), t_poly, None, None),
+                g_1: LabeledPolynomial::new("g_1".into(), g_1, Some(domain_h.size() - 2), None),
+                h_1: LabeledPolynomial::new("h_1".into(), h_1, None, None),
+            }
         };
 
         state.w_poly = None;

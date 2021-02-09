@@ -39,6 +39,18 @@ impl<F: PrimeField> AHPForR1CS<F> {
         "c_row", "c_col", "c_val", "c_row_col",
     ];
 
+    #[rustfmt::skip]
+    pub const INDEXER_POLYNOMIALS_WITH_VANISHING: [&'static str; 14] = [
+        // Polynomials for A
+        "a_row", "a_col", "a_val", "a_row_col",
+        // Polynomials for B
+        "b_row", "b_col", "b_val", "b_row_col",
+        // Polynomials for C
+        "c_row", "c_col", "c_val", "c_row_col",
+        // Vanishing polynomials
+        "vanishing_poly_h", "vanishing_poly_k"
+    ];
+
     /// The labels for the polynomials output by the AHP prover.
     #[rustfmt::skip]
     pub const PROVER_POLYNOMIALS: [&'static str; 9] = [
@@ -53,6 +65,13 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
     pub(crate) fn polynomial_labels() -> impl Iterator<Item = String> {
         Self::INDEXER_POLYNOMIALS
+            .iter()
+            .chain(&Self::PROVER_POLYNOMIALS)
+            .map(|s| s.to_string())
+    }
+
+    pub(crate) fn polynomial_labels_with_vanishing() -> impl Iterator<Item = String> {
+        Self::INDEXER_POLYNOMIALS_WITH_VANISHING
             .iter()
             .chain(&Self::PROVER_POLYNOMIALS)
             .map(|s| s.to_string())
@@ -115,6 +134,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         public_input: &[F],
         evals: &E,
         state: &verifier::VerifierState<F>,
+        with_vanishing: bool,
     ) -> Result<Vec<LinearCombination<F>>, Error>
     where
         E: EvaluationsProvider<F>,
@@ -178,6 +198,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
                 (-beta * g_1_at_beta, LCTerm::One),
             ],
         );
+
         debug_assert!(evals.get_lc_eval(&outer_sumcheck, beta)?.is_zero());
 
         linear_combinations.push(z_b);
@@ -252,6 +273,25 @@ impl<F: PrimeField> AHPForR1CS<F> {
         linear_combinations.push(c_denom);
         linear_combinations.push(inner_sumcheck);
 
+        if with_vanishing {
+            let vanishing_poly_h_alpha = LinearCombination::new(
+                "vanishing_poly_h_alpha",
+                vec![(F::one(), "vanishing_poly_h")],
+            );
+            let vanishing_poly_h_beta = LinearCombination::new(
+                "vanishing_poly_h_beta",
+                vec![(F::one(), "vanishing_poly_h")],
+            );
+            let vanishing_poly_k_gamma = LinearCombination::new(
+                "vanishing_poly_k_gamma",
+                vec![(F::one(), "vanishing_poly_k")],
+            );
+
+            linear_combinations.push(vanishing_poly_h_alpha);
+            linear_combinations.push(vanishing_poly_h_beta);
+            linear_combinations.push(vanishing_poly_k_gamma);
+        }
+
         linear_combinations.sort_by(|a, b| a.label.cmp(&b.label));
         Ok(linear_combinations)
     }
@@ -285,10 +325,9 @@ impl<F: Field, T: Borrow<LabeledPolynomial<F>>> EvaluationsProvider<F> for Vec<T
                         let p: &LabeledPolynomial<F> = (*p).borrow();
                         p.label() == label
                     })
-                    .ok_or(Error::MissingEval(format!(
-                        "Missing {} for {}",
-                        label, lc.label
-                    )))?
+                    .ok_or_else(|| {
+                        Error::MissingEval(format!("Missing {} for {}", label, lc.label))
+                    })?
                     .borrow()
                     .evaluate(&point)
             } else {

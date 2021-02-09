@@ -2,9 +2,10 @@
 
 use crate::ahp::indexer::IndexInfo;
 use crate::ahp::*;
-use rand_core::RngCore;
 
+use crate::fiat_shamir::FiatShamirRng;
 use ark_ff::PrimeField;
+use ark_nonnative_field::params::OptimizationType;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::QuerySet;
 
@@ -41,9 +42,9 @@ pub struct VerifierSecondMsg<F> {
 
 impl<F: PrimeField> AHPForR1CS<F> {
     /// Output the first message and next round state.
-    pub fn verifier_first_round<R: RngCore>(
+    pub fn verifier_first_round<FSF: PrimeField, R: FiatShamirRng<F, FSF>>(
         index_info: IndexInfo<F>,
-        rng: &mut R,
+        fs_rng: &mut R,
     ) -> Result<(VerifierFirstMsg<F>, VerifierState<F>), Error> {
         if index_info.num_constraints != index_info.num_variables {
             return Err(Error::NonSquareMatrix);
@@ -55,10 +56,12 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let domain_k = GeneralEvaluationDomain::new(index_info.num_non_zero)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
-        let alpha = domain_h.sample_element_outside_domain(rng);
-        let eta_a = F::rand(rng);
-        let eta_b = F::rand(rng);
-        let eta_c = F::rand(rng);
+        let elems = fs_rng.squeeze_nonnative_field_elements(4, OptimizationType::Weight);
+        let alpha = elems[0];
+        let eta_a = elems[1];
+        let eta_b = elems[2];
+        let eta_c = elems[3];
+        assert!(!domain_h.evaluate_vanishing_polynomial(alpha).is_zero());
 
         let msg = VerifierFirstMsg {
             alpha,
@@ -79,11 +82,14 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the second message and next round state.
-    pub fn verifier_second_round<R: RngCore>(
+    pub fn verifier_second_round<FSF: PrimeField, R: FiatShamirRng<F, FSF>>(
         mut state: VerifierState<F>,
-        rng: &mut R,
+        fs_rng: &mut R,
     ) -> (VerifierSecondMsg<F>, VerifierState<F>) {
-        let beta = state.domain_h.sample_element_outside_domain(rng);
+        let elems = fs_rng.squeeze_nonnative_field_elements(1, OptimizationType::Weight);
+        let beta = elems[0];
+        assert!(!state.domain_h.evaluate_vanishing_polynomial(beta).is_zero());
+
         let msg = VerifierSecondMsg { beta };
         state.second_round_msg = Some(msg);
 
@@ -91,21 +97,25 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the third message and next round state.
-    pub fn verifier_third_round<R: RngCore>(
+    pub fn verifier_third_round<FSF: PrimeField, R: FiatShamirRng<F, FSF>>(
         mut state: VerifierState<F>,
-        rng: &mut R,
+        fs_rng: &mut R,
     ) -> VerifierState<F> {
-        state.gamma = Some(F::rand(rng));
+        let elems = fs_rng.squeeze_nonnative_field_elements(1, OptimizationType::Weight);
+        let gamma = elems[0];
+
+        state.gamma = Some(gamma);
         state
     }
 
     /// Output the query state and next round state.
-    pub fn verifier_query_set<'a, R: RngCore>(
+    pub fn verifier_query_set<'a, FSF: PrimeField, R: FiatShamirRng<F, FSF>>(
         state: VerifierState<F>,
         _: &'a mut R,
+        with_vanishing: bool,
     ) -> (QuerySet<F>, VerifierState<F>) {
+        let alpha = state.first_round_msg.unwrap().alpha;
         let beta = state.second_round_msg.unwrap().beta;
-
         let gamma = state.gamma.unwrap();
 
         let mut query_set = QuerySet::new();
@@ -204,6 +214,12 @@ impl<F: PrimeField> AHPForR1CS<F> {
         query_set.insert(("b_denom".into(), ("gamma".into(), gamma)));
         query_set.insert(("c_denom".into(), ("gamma".into(), gamma)));
         query_set.insert(("inner_sumcheck".into(), ("gamma".into(), gamma)));
+
+        if with_vanishing {
+            query_set.insert(("vanishing_poly_h_alpha".into(), ("alpha".into(), alpha)));
+            query_set.insert(("vanishing_poly_h_beta".into(), ("beta".into(), beta)));
+            query_set.insert(("vanishing_poly_k_gamma".into(), ("gamma".into(), gamma)));
+        }
 
         (query_set, state)
     }

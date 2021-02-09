@@ -2,13 +2,15 @@
 //     RAYON_NUM_THREADS=N cargo bench --no-default-features --features "std parallel" -- --nocapture
 // where N is the number of threads you want to use (N = 1 for single-thread).
 
-use ark_bls12_381::{Bls12_381, Fr as BlsFr};
+use ark_bls12_381::{Bls12_381, Fq as BlsFq, Fr as BlsFr};
 use ark_ff::PrimeField;
+use ark_marlin::fiat_shamir::FiatShamirChaChaRng;
 use ark_marlin::Marlin;
-use ark_mnt4_298::{Fr as MNT4Fr, MNT4_298};
-use ark_mnt4_753::{Fr as MNT4BigFr, MNT4_753};
-use ark_mnt6_298::{Fr as MNT6Fr, MNT6_298};
-use ark_mnt6_753::{Fr as MNT6BigFr, MNT6_753};
+use ark_marlin::MarlinDefaultConfig;
+use ark_mnt4_298::{Fq as MNT4Fq, Fr as MNT4Fr, MNT4_298};
+use ark_mnt4_753::{Fq as MNT4BigFq, Fr as MNT4BigFr, MNT4_753};
+use ark_mnt6_298::{Fq as MNT6Fq, Fr as MNT6Fr, MNT6_298};
+use ark_mnt6_753::{Fq as MNT6BigFq, Fr as MNT6BigFr, MNT6_753};
 use ark_poly::univariate::DensePolynomial;
 use ark_poly_commit::marlin_pc::MarlinKZG10;
 use ark_relations::{
@@ -66,7 +68,7 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for DummyCircuit<F> {
 }
 
 macro_rules! marlin_prove_bench {
-    ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty) => {
+    ($bench_name:ident, $bench_field:ty, $base_field:ty, $bench_pairing_engine:ty) => {
         let rng = &mut ark_std::test_rng();
         let c = DummyCircuit::<$bench_field> {
             a: Some(<$bench_field>::rand(rng)),
@@ -77,14 +79,18 @@ macro_rules! marlin_prove_bench {
 
         let srs = Marlin::<
             $bench_field,
+            $base_field,
             MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
-            Blake2s,
+            FiatShamirChaChaRng<$bench_field, $base_field, Blake2s>,
+            MarlinDefaultConfig,
         >::universal_setup(65536, 65536, 65536, rng)
         .unwrap();
         let (pk, _) = Marlin::<
             $bench_field,
+            $base_field,
             MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
-            Blake2s,
+            FiatShamirChaChaRng<$bench_field, $base_field, Blake2s>,
+            MarlinDefaultConfig,
         >::index(&srs, c)
         .unwrap();
 
@@ -93,8 +99,10 @@ macro_rules! marlin_prove_bench {
         for _ in 0..NUM_PROVE_REPEATITIONS {
             let _ = Marlin::<
                 $bench_field,
+                $base_field,
                 MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
-                Blake2s,
+                FiatShamirChaChaRng<$bench_field, $base_field, Blake2s>,
+                MarlinDefaultConfig,
             >::prove(&pk, c.clone(), rng)
             .unwrap();
         }
@@ -108,7 +116,7 @@ macro_rules! marlin_prove_bench {
 }
 
 macro_rules! marlin_verify_bench {
-    ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty) => {
+    ($bench_name:ident, $bench_field:ty, $base_field:ty, $bench_pairing_engine:ty) => {
         let rng = &mut ark_std::test_rng();
         let c = DummyCircuit::<$bench_field> {
             a: Some(<$bench_field>::rand(rng)),
@@ -119,20 +127,26 @@ macro_rules! marlin_verify_bench {
 
         let srs = Marlin::<
             $bench_field,
+            $base_field,
             MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
-            Blake2s,
+            FiatShamirChaChaRng<$bench_field, $base_field, Blake2s>,
+            MarlinDefaultConfig,
         >::universal_setup(65536, 65536, 65536, rng)
         .unwrap();
         let (pk, vk) = Marlin::<
             $bench_field,
+            $base_field,
             MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
-            Blake2s,
+            FiatShamirChaChaRng<$bench_field, $base_field, Blake2s>,
+            MarlinDefaultConfig,
         >::index(&srs, c)
         .unwrap();
         let proof = Marlin::<
             $bench_field,
+            $base_field,
             MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
-            Blake2s,
+            FiatShamirChaChaRng<$bench_field, $base_field, Blake2s>,
+            MarlinDefaultConfig,
         >::prove(&pk, c.clone(), rng)
         .unwrap();
 
@@ -143,9 +157,11 @@ macro_rules! marlin_verify_bench {
         for _ in 0..NUM_VERIFY_REPEATITIONS {
             let _ = Marlin::<
                 $bench_field,
+                $base_field,
                 MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
-                Blake2s,
-            >::verify(&vk, &vec![v], &proof, rng)
+                FiatShamirChaChaRng<$bench_field, $base_field, Blake2s>,
+                MarlinDefaultConfig,
+            >::verify(&vk, &vec![v], &proof)
             .unwrap();
         }
 
@@ -158,19 +174,19 @@ macro_rules! marlin_verify_bench {
 }
 
 fn bench_prove() {
-    marlin_prove_bench!(bls, BlsFr, Bls12_381);
-    marlin_prove_bench!(mnt4, MNT4Fr, MNT4_298);
-    marlin_prove_bench!(mnt6, MNT6Fr, MNT6_298);
-    marlin_prove_bench!(mnt4big, MNT4BigFr, MNT4_753);
-    marlin_prove_bench!(mnt6big, MNT6BigFr, MNT6_753);
+    marlin_prove_bench!(bls, BlsFr, BlsFq, Bls12_381);
+    marlin_prove_bench!(mnt4, MNT4Fr, MNT4Fq, MNT4_298);
+    marlin_prove_bench!(mnt6, MNT6Fr, MNT6Fq, MNT6_298);
+    marlin_prove_bench!(mnt4big, MNT4BigFr, MNT4BigFq, MNT4_753);
+    marlin_prove_bench!(mnt6big, MNT6BigFr, MNT6BigFq, MNT6_753);
 }
 
 fn bench_verify() {
-    marlin_verify_bench!(bls, BlsFr, Bls12_381);
-    marlin_verify_bench!(mnt4, MNT4Fr, MNT4_298);
-    marlin_verify_bench!(mnt6, MNT6Fr, MNT6_298);
-    marlin_verify_bench!(mnt4big, MNT4BigFr, MNT4_753);
-    marlin_verify_bench!(mnt6big, MNT6BigFr, MNT6_753);
+    marlin_verify_bench!(bls, BlsFr, BlsFq, Bls12_381);
+    marlin_verify_bench!(mnt4, MNT4Fr, MNT4Fq, MNT4_298);
+    marlin_verify_bench!(mnt6, MNT6Fr, MNT6Fq, MNT6_298);
+    marlin_verify_bench!(mnt4big, MNT4BigFr, MNT4BigFq, MNT4_753);
+    marlin_verify_bench!(mnt6big, MNT6BigFr, MNT6BigFq, MNT6_753);
 }
 
 fn main() {

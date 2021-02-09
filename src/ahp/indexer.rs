@@ -38,7 +38,7 @@ pub struct IndexInfo<F> {
     pub num_instance_variables: usize,
 
     #[doc(hidden)]
-    f: PhantomData<F>,
+    pub f: PhantomData<F>,
 }
 
 impl<F: PrimeField> ark_ff::ToBytes for IndexInfo<F> {
@@ -168,7 +168,6 @@ impl<F: PrimeField> AHPForR1CS<F> {
             num_constraints,
             num_non_zero,
             num_instance_variables: num_formatted_input_variables,
-
             f: PhantomData,
         };
 
