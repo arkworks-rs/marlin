@@ -11,8 +11,8 @@ use crate::{
 use ark_nonnative_field::NonNativeFieldVar;
 use ark_poly::univariate::DensePolynomial;
 use ark_poly_commit::{
-    EvaluationsVar, LCTerm, LinearCombinationVar, PCCheckVar, PolynomialCommitment, PrepareVar,
-    QuerySetVar,
+    EvaluationsVar, LCTerm, LabeledPointVar, LinearCombinationCoeffVar, LinearCombinationVar,
+    PCCheckVar, PolynomialCommitment, PrepareGadget, QuerySetVar,
 };
 use ark_r1cs_std::{
     alloc::AllocVar,
@@ -307,17 +307,17 @@ where
         // Outer sumcheck
         let z_b_lc_gadget = LinearCombinationVar::<F, CF> {
             label: "z_b".to_string(),
-            terms: vec![(None, "z_b".into(), false)],
+            terms: vec![(LinearCombinationCoeffVar::One, "z_b".into())],
         };
 
         let g_1_lc_gadget = LinearCombinationVar::<F, CF> {
             label: "g_1".to_string(),
-            terms: vec![(None, "g_1".into(), false)],
+            terms: vec![(LinearCombinationCoeffVar::One, "g_1".into())],
         };
 
         let t_lc_gadget = LinearCombinationVar::<F, CF> {
             label: "t".to_string(),
-            terms: vec![(None, "t".into(), false)],
+            terms: vec![(LinearCombinationCoeffVar::One, "t".into())],
         };
 
         let eta_c_mul_z_b_at_beta = &eta_c * z_b_at_beta;
@@ -326,21 +326,31 @@ where
         let outer_sumcheck_lc_gadget = LinearCombinationVar::<F, CF> {
             label: "outer_sumcheck".to_string(),
             terms: vec![
-                (None, "mask_poly".into(), false),
+                (LinearCombinationCoeffVar::One, "mask_poly".into()),
                 (
-                    Some(&r_alpha_at_beta * &eta_a_add_above),
+                    LinearCombinationCoeffVar::Var(&r_alpha_at_beta * &eta_a_add_above),
                     "z_a".into(),
-                    false,
                 ),
                 (
-                    Some(&r_alpha_at_beta * &eta_b * z_b_at_beta),
+                    LinearCombinationCoeffVar::Var(&r_alpha_at_beta * &eta_b * z_b_at_beta),
                     LCTerm::One,
-                    false,
                 ),
-                (Some(t_at_beta * &v_x_at_beta), "w".into(), true),
-                (Some(t_at_beta * &f_x_at_beta), LCTerm::One, true),
-                (Some(v_h_at_beta.clone()), "h_1".into(), true),
-                (Some(&beta * g_1_at_beta), LCTerm::One, true),
+                (
+                    LinearCombinationCoeffVar::Var((t_at_beta * &v_x_at_beta).negate()?),
+                    "w".into(),
+                ),
+                (
+                    LinearCombinationCoeffVar::Var((t_at_beta * &f_x_at_beta).negate()?),
+                    LCTerm::One,
+                ),
+                (
+                    LinearCombinationCoeffVar::Var(v_h_at_beta.negate()?),
+                    "h_1".into(),
+                ),
+                (
+                    LinearCombinationCoeffVar::Var((&beta * g_1_at_beta).negate()?),
+                    LCTerm::One,
+                ),
             ],
         };
 
@@ -352,7 +362,7 @@ where
         // Inner sumcheck
         let g_2_lc_gadget = LinearCombinationVar::<F, CF> {
             label: "g_2".to_string(),
-            terms: vec![(None, "g_2".into(), false)],
+            terms: vec![(LinearCombinationCoeffVar::One, "g_2".into())],
         };
 
         let beta_alpha = &beta * &alpha;
@@ -360,30 +370,57 @@ where
         let a_denom_lc_gadget = LinearCombinationVar::<F, CF> {
             label: "a_denom".to_string(),
             terms: vec![
-                (Some(beta_alpha.clone()), LCTerm::One, false),
-                (Some(alpha.clone()), "a_row".into(), true),
-                (Some(beta.clone()), "a_col".into(), true),
-                (None, "a_row_col".into(), false),
+                (
+                    LinearCombinationCoeffVar::Var(beta_alpha.clone()),
+                    LCTerm::One,
+                ),
+                (
+                    LinearCombinationCoeffVar::Var(alpha.negate()?),
+                    "a_row".into(),
+                ),
+                (
+                    LinearCombinationCoeffVar::Var(beta.negate()?),
+                    "a_col".into(),
+                ),
+                (LinearCombinationCoeffVar::One, "a_row_col".into()),
             ],
         };
 
         let b_denom_lc_gadget = LinearCombinationVar::<F, CF> {
             label: "b_denom".to_string(),
             terms: vec![
-                (Some(beta_alpha.clone()), LCTerm::One, false),
-                (Some(alpha.clone()), "b_row".into(), true),
-                (Some(beta.clone()), "b_col".into(), true),
-                (None, "b_row_col".into(), false),
+                (
+                    LinearCombinationCoeffVar::Var(beta_alpha.clone()),
+                    LCTerm::One,
+                ),
+                (
+                    LinearCombinationCoeffVar::Var(alpha.negate()?),
+                    "b_row".into(),
+                ),
+                (
+                    LinearCombinationCoeffVar::Var(beta.negate()?),
+                    "b_col".into(),
+                ),
+                (LinearCombinationCoeffVar::One, "b_row_col".into()),
             ],
         };
 
         let c_denom_lc_gadget = LinearCombinationVar::<F, CF> {
             label: "c_denom".to_string(),
             terms: vec![
-                (Some(beta_alpha), LCTerm::One, false),
-                (Some(alpha), "c_row".into(), true),
-                (Some(beta), "c_col".into(), true),
-                (None, "c_row_col".into(), false),
+                (
+                    LinearCombinationCoeffVar::Var(beta_alpha.clone()),
+                    LCTerm::One,
+                ),
+                (
+                    LinearCombinationCoeffVar::Var(alpha.negate()?),
+                    "c_row".into(),
+                ),
+                (
+                    LinearCombinationCoeffVar::Var(beta.negate()?),
+                    "c_col".into(),
+                ),
+                (LinearCombinationCoeffVar::One, "c_row_col".into()),
             ],
         };
 
@@ -427,26 +464,34 @@ where
             label: "inner_sumcheck".to_string(),
             terms: vec![
                 (
-                    Some(&eta_a * b_denom_at_gamma * c_denom_at_gamma * &v_h_at_alpha_beta),
+                    LinearCombinationCoeffVar::Var(
+                        &eta_a * b_denom_at_gamma * c_denom_at_gamma * &v_h_at_alpha_beta,
+                    ),
                     "a_val".into(),
-                    false,
                 ),
                 (
-                    Some(&eta_b * a_denom_at_gamma * c_denom_at_gamma * &v_h_at_alpha_beta),
+                    LinearCombinationCoeffVar::Var(
+                        &eta_b * a_denom_at_gamma * c_denom_at_gamma * &v_h_at_alpha_beta,
+                    ),
                     "b_val".into(),
-                    false,
                 ),
                 (
-                    Some(&eta_c * &ab_denom_at_gamma * &v_h_at_alpha_beta),
+                    LinearCombinationCoeffVar::Var(
+                        &eta_c * &ab_denom_at_gamma * &v_h_at_alpha_beta,
+                    ),
                     "c_val".into(),
-                    false,
                 ),
                 (
-                    Some(ab_denom_at_gamma * c_denom_at_gamma * &b_expr_at_gamma_last_term),
+                    LinearCombinationCoeffVar::Var(
+                        (ab_denom_at_gamma * c_denom_at_gamma * &b_expr_at_gamma_last_term)
+                            .negate()?,
+                    ),
                     LCTerm::One,
-                    true,
                 ),
-                (Some(v_k_at_gamma.clone()), "h_2".into(), true),
+                (
+                    LinearCombinationCoeffVar::Var(v_k_at_gamma.negate()?),
+                    "h_2".into(),
+                ),
             ],
         };
 
@@ -458,15 +503,15 @@ where
 
         let vanishing_poly_h_alpha_lc_gadget = LinearCombinationVar::<F, CF> {
             label: "vanishing_poly_h_alpha".to_string(),
-            terms: vec![(None, "vanishing_poly_h".into(), false)],
+            terms: vec![(LinearCombinationCoeffVar::One, "vanishing_poly_h".into())],
         };
         let vanishing_poly_h_beta_lc_gadget = LinearCombinationVar::<F, CF> {
             label: "vanishing_poly_h_beta".to_string(),
-            terms: vec![(None, "vanishing_poly_h".into(), false)],
+            terms: vec![(LinearCombinationCoeffVar::One, "vanishing_poly_h".into())],
         };
         let vanishing_poly_k_gamma_lc_gadget = LinearCombinationVar::<F, CF> {
             label: "vanishing_poly_k_gamma".to_string(),
-            terms: vec![(None, "vanishing_poly_k".into(), false)],
+            terms: vec![(LinearCombinationCoeffVar::One, "vanishing_poly_k".into())],
         };
         linear_combinations.push(vanishing_poly_h_alpha_lc_gadget);
         linear_combinations.push(vanishing_poly_h_beta_lc_gadget);
@@ -524,47 +569,89 @@ where
 
         let mut query_set_gadget = QuerySetVar::<F, CF> { 0: HashSet::new() };
 
-        query_set_gadget
-            .0
-            .insert(("g_1".to_string(), ("beta".to_string(), beta.clone())));
-        query_set_gadget
-            .0
-            .insert(("z_b".to_string(), ("beta".to_string(), beta.clone())));
-        query_set_gadget
-            .0
-            .insert(("t".to_string(), ("beta".to_string(), beta.clone())));
+        query_set_gadget.0.insert((
+            "g_1".to_string(),
+            LabeledPointVar {
+                name: "beta".to_string(),
+                value: beta.clone(),
+            },
+        ));
+        query_set_gadget.0.insert((
+            "z_b".to_string(),
+            LabeledPointVar {
+                name: "beta".to_string(),
+                value: beta.clone(),
+            },
+        ));
+        query_set_gadget.0.insert((
+            "t".to_string(),
+            LabeledPointVar {
+                name: "beta".to_string(),
+                value: beta.clone(),
+            },
+        ));
         query_set_gadget.0.insert((
             "outer_sumcheck".to_string(),
-            ("beta".to_string(), beta.clone()),
+            LabeledPointVar {
+                name: "beta".to_string(),
+                value: beta.clone(),
+            },
         ));
-        query_set_gadget
-            .0
-            .insert(("g_2".to_string(), ("gamma".to_string(), gamma.clone())));
-        query_set_gadget
-            .0
-            .insert(("a_denom".to_string(), ("gamma".to_string(), gamma.clone())));
-        query_set_gadget
-            .0
-            .insert(("b_denom".to_string(), ("gamma".to_string(), gamma.clone())));
-        query_set_gadget
-            .0
-            .insert(("c_denom".to_string(), ("gamma".to_string(), gamma.clone())));
+        query_set_gadget.0.insert((
+            "g_2".to_string(),
+            LabeledPointVar {
+                name: "gamma".to_string(),
+                value: gamma.clone(),
+            },
+        ));
+        query_set_gadget.0.insert((
+            "a_denom".to_string(),
+            LabeledPointVar {
+                name: "gamma".to_string(),
+                value: gamma.clone(),
+            },
+        ));
+        query_set_gadget.0.insert((
+            "b_denom".to_string(),
+            LabeledPointVar {
+                name: "gamma".to_string(),
+                value: gamma.clone(),
+            },
+        ));
+        query_set_gadget.0.insert((
+            "c_denom".to_string(),
+            LabeledPointVar {
+                name: "gamma".to_string(),
+                value: gamma.clone(),
+            },
+        ));
         query_set_gadget.0.insert((
             "inner_sumcheck".to_string(),
-            ("gamma".to_string(), gamma.clone()),
+            LabeledPointVar {
+                name: "gamma".to_string(),
+                value: gamma.clone(),
+            },
         ));
-
         query_set_gadget.0.insert((
             "vanishing_poly_h_alpha".to_string(),
-            ("alpha".to_string(), alpha.clone()),
+            LabeledPointVar {
+                name: "alpha".to_string(),
+                value: alpha.clone(),
+            },
         ));
         query_set_gadget.0.insert((
             "vanishing_poly_h_beta".to_string(),
-            ("beta".to_string(), beta.clone()),
+            LabeledPointVar {
+                name: "beta".to_string(),
+                value: beta.clone(),
+            },
         ));
         query_set_gadget.0.insert((
             "vanishing_poly_k_gamma".to_string(),
-            ("gamma".to_string(), gamma.clone()),
+            LabeledPointVar {
+                name: "gamma".to_string(),
+                value: gamma.clone(),
+            },
         ));
 
         let mut evaluations_gadget = EvaluationsVar::<F, CF> { 0: HashMap::new() };
@@ -572,49 +659,87 @@ where
         let zero = NonNativeFieldVar::<F, CF>::zero();
 
         evaluations_gadget.0.insert(
-            ("g_1".to_string(), beta.clone()),
+            LabeledPointVar {
+                name: "g_1".to_string(),
+                value: beta.clone(),
+            },
             (*proof.evaluations.get("g_1").unwrap()).clone(),
         );
         evaluations_gadget.0.insert(
-            ("z_b".to_string(), beta.clone()),
+            LabeledPointVar {
+                name: "z_b".to_string(),
+                value: beta.clone(),
+            },
             (*proof.evaluations.get("z_b").unwrap()).clone(),
         );
         evaluations_gadget.0.insert(
-            ("t".to_string(), beta.clone()),
+            LabeledPointVar {
+                name: "t".to_string(),
+                value: beta.clone(),
+            },
             (*proof.evaluations.get("t").unwrap()).clone(),
         );
-        evaluations_gadget
-            .0
-            .insert(("outer_sumcheck".to_string(), beta.clone()), zero.clone());
         evaluations_gadget.0.insert(
-            ("g_2".to_string(), gamma.clone()),
+            LabeledPointVar {
+                name: "outer_sumcheck".to_string(),
+                value: beta.clone(),
+            },
+            zero.clone(),
+        );
+        evaluations_gadget.0.insert(
+            LabeledPointVar {
+                name: "g_2".to_string(),
+                value: gamma.clone(),
+            },
             (*proof.evaluations.get("g_2").unwrap()).clone(),
         );
         evaluations_gadget.0.insert(
-            ("a_denom".to_string(), gamma.clone()),
+            LabeledPointVar {
+                name: "a_denom".to_string(),
+                value: gamma.clone(),
+            },
             (*proof.evaluations.get("a_denom").unwrap()).clone(),
         );
         evaluations_gadget.0.insert(
-            ("b_denom".to_string(), gamma.clone()),
+            LabeledPointVar {
+                name: "b_denom".to_string(),
+                value: gamma.clone(),
+            },
             (*proof.evaluations.get("b_denom").unwrap()).clone(),
         );
         evaluations_gadget.0.insert(
-            ("c_denom".to_string(), gamma.clone()),
+            LabeledPointVar {
+                name: "c_denom".to_string(),
+                value: gamma.clone(),
+            },
             (*proof.evaluations.get("c_denom").unwrap()).clone(),
         );
-        evaluations_gadget
-            .0
-            .insert(("inner_sumcheck".to_string(), gamma.clone()), zero);
         evaluations_gadget.0.insert(
-            ("vanishing_poly_h_alpha".to_string(), alpha),
+            LabeledPointVar {
+                name: "inner_sumcheck".to_string(),
+                value: gamma.clone(),
+            },
+            zero,
+        );
+        evaluations_gadget.0.insert(
+            LabeledPointVar {
+                name: "vanishing_poly_h_alpha".to_string(),
+                value: alpha.clone(),
+            },
             (*proof.evaluations.get("vanishing_poly_h_alpha").unwrap()).clone(),
         );
         evaluations_gadget.0.insert(
-            ("vanishing_poly_h_beta".to_string(), beta),
+            LabeledPointVar {
+                name: "vanishing_poly_h_beta".to_string(),
+                value: beta.clone(),
+            },
             (*proof.evaluations.get("vanishing_poly_h_beta").unwrap()).clone(),
         );
         evaluations_gadget.0.insert(
-            ("vanishing_poly_k_gamma".to_string(), gamma),
+            LabeledPointVar {
+                name: "vanishing_poly_k_gamma".to_string(),
+                value: gamma.clone(),
+            },
             (*proof.evaluations.get("vanishing_poly_k_gamma").unwrap()).clone(),
         );
 
@@ -643,7 +768,7 @@ where
             .iter()
             .zip(INDEX_LABELS.iter())
         {
-            comms.push(PCG::create_prepared_labeled_commitment_gadget(
+            comms.push(PCG::create_prepared_labeled_commitment(
                 label.to_string(),
                 comm.clone(),
                 None,
@@ -653,12 +778,8 @@ where
         // 4 comms for beta from the round 1
         const PROOF_1_LABELS: [&str; 4] = ["w", "z_a", "z_b", "mask_poly"];
         for (comm, label) in proof.commitments[0].iter().zip(PROOF_1_LABELS.iter()) {
-            let prepared_comm = if label.eq(&"z_b") {
-                PCG::PreparedCommitmentVar::prepare_small(comm)?
-            } else {
-                PCG::PreparedCommitmentVar::prepare(comm)?
-            };
-            comms.push(PCG::create_prepared_labeled_commitment_gadget(
+            let prepared_comm = PCG::PreparedCommitmentVar::prepare(comm)?;
+            comms.push(PCG::create_prepared_labeled_commitment(
                 label.to_string(),
                 prepared_comm,
                 None,
@@ -675,12 +796,8 @@ where
             .zip(PROOF_2_LABELS.iter())
             .zip(proof_2_bounds.iter())
         {
-            let prepared_comm = if label.eq(&"t") || label.eq(&"g_1") {
-                PCG::PreparedCommitmentVar::prepare_small(comm)?
-            } else {
-                PCG::PreparedCommitmentVar::prepare(comm)?
-            };
-            comms.push(PCG::create_prepared_labeled_commitment_gadget(
+            let prepared_comm = PCG::PreparedCommitmentVar::prepare(comm)?;
+            comms.push(PCG::create_prepared_labeled_commitment(
                 label.to_string(),
                 prepared_comm,
                 (*bound).clone(),
@@ -697,12 +814,8 @@ where
             .zip(PROOF_3_LABELS.iter())
             .zip(proof_3_bounds.iter())
         {
-            let prepared_comm = if label.eq(&"g_2") {
-                PCG::PreparedCommitmentVar::prepare_small(comm)?
-            } else {
-                PCG::PreparedCommitmentVar::prepare(comm)?
-            };
-            comms.push(PCG::create_prepared_labeled_commitment_gadget(
+            let prepared_comm = PCG::PreparedCommitmentVar::prepare(comm)?;
+            comms.push(PCG::create_prepared_labeled_commitment(
                 label.to_string(),
                 prepared_comm,
                 (*bound).clone(),

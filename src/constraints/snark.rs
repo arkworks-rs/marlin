@@ -12,7 +12,7 @@ use ark_crypto_primitives::snark::{
     constraints::{SNARKGadget, UniversalSetupSNARKGadget},
     NonNativeFieldInputVar, UniversalSetupIndexError, SNARK,
 };
-use ark_ff::{test_rng, PrimeField, ToConstraintField};
+use ark_ff::{PrimeField, ToConstraintField};
 use ark_poly::univariate::DensePolynomial;
 use ark_poly_commit::{PCCheckVar, PolynomialCommitment};
 use ark_r1cs_std::{bits::boolean::Boolean, ToConstraintFieldGadget};
@@ -21,10 +21,13 @@ use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystemRef, LinearCombination, SynthesisError, Variable,
 };
 use ark_snark::UniversalSetupSNARK;
-use core::cmp::min;
-use core::fmt::{Debug, Formatter};
-use core::marker::PhantomData;
-use rand_core::{CryptoRng, RngCore};
+use ark_std::cmp::min;
+use ark_std::fmt::{Debug, Formatter};
+use ark_std::marker::PhantomData;
+use ark_std::{
+    rand::{CryptoRng, RngCore},
+    test_rng,
+};
 
 #[derive(Clone, PartialEq, PartialOrd)]
 pub struct MarlinBound {
@@ -378,9 +381,13 @@ mod test {
 
     #[derive(Copy, Clone, Debug)]
     struct Mnt64298cycle;
-    impl CycleEngine for Mnt64298cycle {
-        type E1 = MNT6_298;
-        type E2 = MNT4_298;
+    impl CurveCycle for Mnt64298cycle {
+        type E1 = <MNT6_298 as PairingEngine>::G1Affine;
+        type E2 = <MNT4_298 as PairingEngine>::G1Affine;
+    }
+    impl PairingFriendlyCycle for Mnt64298cycle {
+        type Engine1 = MNT6_298;
+        type Engine2 = MNT4_298;
     }
 
     use crate::constraints::snark::{MarlinSNARK, MarlinSNARKGadget};
@@ -389,7 +396,7 @@ mod test {
     use crate::fiat_shamir::poseidon::PoseidonSponge;
     use crate::fiat_shamir::FiatShamirAlgebraicSpongeRng;
     use ark_crypto_primitives::snark::{SNARKGadget, SNARK};
-    use ark_ec::{CycleEngine, PairingEngine};
+    use ark_ec::{CurveCycle, PairingEngine, PairingFriendlyCycle};
     use ark_ff::{Field, UniformRand};
     use ark_mnt4_298::{
         constraints::PairingVar as MNT4PairingVar, Fq as MNT4Fq, Fr as MNT4Fr, MNT4_298,
@@ -468,7 +475,7 @@ mod test {
 
     #[test]
     fn marlin_snark_test() {
-        let mut rng = ark_ff::test_rng();
+        let mut rng = ark_std::test_rng();
         let a = MNT4Fr::rand(&mut rng);
         let b = MNT4Fr::rand(&mut rng);
         let mut c = a;

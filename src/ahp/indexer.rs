@@ -42,7 +42,7 @@ pub struct IndexInfo<F> {
 }
 
 impl<F: PrimeField> ark_ff::ToBytes for IndexInfo<F> {
-    fn write<W: ark_std::io::Write>(&self, mut w: W) -> ark_std::io::Result<()> {
+    fn write<W: Write>(&self, mut w: W) -> ark_std::io::Result<()> {
         (self.num_variables as u64).write(&mut w)?;
         (self.num_constraints as u64).write(&mut w)?;
         (self.num_non_zero as u64).write(&mut w)
@@ -98,7 +98,7 @@ impl<F: PrimeField> Index<F> {
 
     /// Iterate over the indexed polynomials.
     pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
-        vec![
+        ark_std::vec![
             &self.a_star_arith.row,
             &self.a_star_arith.col,
             &self.a_star_arith.val,
@@ -133,7 +133,6 @@ impl<F: PrimeField> AHPForR1CS<F> {
         end_timer!(padding_time);
         let matrix_processing_time = start_timer!(|| "Processing matrices");
         ics.finalize();
-      
         make_matrices_square_for_indexer(ics.clone());
         let matrices = ics.to_matrices().expect("should not be `None`");
         let num_non_zero_val = num_non_zero::<F>(&matrices);
@@ -168,8 +167,6 @@ impl<F: PrimeField> AHPForR1CS<F> {
             num_variables,
             num_constraints,
             num_non_zero,
-            num_instance_variables: num_formatted_input_variables,
-
             num_instance_variables: num_formatted_input_variables,
             f: PhantomData,
         };

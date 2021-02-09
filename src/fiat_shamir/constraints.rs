@@ -1,7 +1,7 @@
 use crate::fiat_shamir::{AlgebraicSponge, FiatShamirAlgebraicSpongeRng, FiatShamirRng};
 use crate::{overhead, Vec};
-use ark_ff::{BigInteger, PrimeField};
-use ark_nonnative_field::params::get_params;
+use ark_ff::PrimeField;
+use ark_nonnative_field::params::{get_params, OptimizationType};
 use ark_nonnative_field::{AllocatedNonNativeFieldVar, NonNativeFieldVar};
 use ark_r1cs_std::{
     alloc::AllocVar,
@@ -12,7 +12,9 @@ use ark_r1cs_std::{
     R1CSVar,
 };
 use ark_relations::lc;
-use ark_relations::r1cs::{ConstraintSystemRef, LinearCombination, SynthesisError};
+use ark_relations::r1cs::{
+    ConstraintSystemRef, LinearCombination, OptimizationGoal, SynthesisError,
+};
 use core::marker::PhantomData;
 
 /// Vars for a RNG for use in a Fiat-Shamir transform.
@@ -121,7 +123,21 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
             return Ok(vec![]);
         }
 
-        let params = get_params(F::size_in_bits(), CF::size_in_bits());
+        let cs = {
+            let mut limbs = Vec::new();
+            for (v, _) in src_limbs.iter() {
+                limbs.push(v.clone());
+            }
+            limbs.cs()
+        };
+
+        let optimization_type = match cs.optimization_goal() {
+            OptimizationGoal::None => OptimizationType::Constraints,
+            OptimizationGoal::Constraints => OptimizationType::Constraints,
+            OptimizationGoal::Weight => OptimizationType::Weight,
+        };
+
+        let params = get_params(F::size_in_bits(), CF::size_in_bits(), optimization_type);
 
         let adjustment_factor_lookup_table = {
             let mut table = Vec::<CF>::new();
@@ -222,8 +238,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
         let mut dest_bits = Vec::<Boolean<CF>>::new();
 
         for elem in src_elements.iter() {
-            let mut elem_bits = elem.to_bits_le()?;
-            elem_bits.reverse();
+            let elem_bits = elem.to_bits_be()?;
             dest_bits.extend_from_slice(&elem_bits[1..]); // discard the highest bit
         }
 
@@ -255,7 +270,15 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     ) -> Result<(Vec<NonNativeFieldVar<F, CF>>, Vec<Vec<Boolean<CF>>>), SynthesisError> {
         let cs = sponge.cs();
 
-        let params = get_params(F::size_in_bits(), CF::size_in_bits());
+        let optimization_type = match cs.optimization_goal() {
+            OptimizationGoal::None => OptimizationType::Constraints,
+            OptimizationGoal::Constraints => OptimizationType::Constraints,
+            OptimizationGoal::Weight => OptimizationType::Weight,
+        };
+
+        println!("{:?}", optimization_type);
+
+        let params = get_params(F::size_in_bits(), CF::size_in_bits(), optimization_type);
 
         let num_bits_per_nonnative = if outputs_short_elements {
             128
@@ -267,7 +290,10 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
         let mut lookup_table = Vec::<Vec<CF>>::new();
         let mut cur = F::one();
         for _ in 0..num_bits_per_nonnative {
-            let repr = AllocatedNonNativeFieldVar::<F, CF>::get_limbs_representations(&cur)?;
+            let repr = AllocatedNonNativeFieldVar::<F, CF>::get_limbs_representations(
+                &cur,
+                optimization_type,
+            )?;
             lookup_table.push(repr);
             cur.double_in_place();
         }

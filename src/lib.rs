@@ -19,14 +19,13 @@
 #[macro_use]
 extern crate bench_utils;
 
-use ark_ff::{to_bytes, PrimeField, ToConstraintField, UniformRand};
+use ark_ff::{to_bytes, PrimeField, ToConstraintField};
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::Evaluations;
 use ark_poly_commit::LabeledPolynomial;
 use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
 use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError};
-use core::marker::PhantomData;
-use rand_core::RngCore;
+use ark_std::rand::RngCore;
 
 #[macro_use]
 extern crate ark_std;
@@ -64,8 +63,7 @@ pub mod ahp;
 use crate::ahp::prover::ProverMsg;
 pub use ahp::AHPForR1CS;
 use ahp::EvaluationsProvider;
-use ark_poly::univariate::DensePolynomial;
-use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
+use ark_nonnative_field::params::OptimizationType;
 
 #[cfg(test)]
 mod test;
@@ -340,7 +338,7 @@ where
             fs_rng.absorb_native_field_elements(&compute_vk_hash::<F, FSF, PC, FS>(
                 &index_pk.index_vk,
             ));
-            fs_rng.absorb_nonnative_field_elements(&public_input);
+            fs_rng.absorb_nonnative_field_elements(&public_input, OptimizationType::Weight);
         } else {
             fs_rng.absorb_bytes(
                 &to_bytes![&Self::PROTOCOL_NAME, &index_pk.index_vk, &public_input].unwrap(),
@@ -366,7 +364,9 @@ where
             fs_rng.absorb_native_field_elements(&first_comms);
             match prover_first_msg.clone() {
                 ProverMsg::EmptyMessage => (),
-                ProverMsg::FieldElements(v) => fs_rng.absorb_nonnative_field_elements(&v),
+                ProverMsg::FieldElements(v) => {
+                    fs_rng.absorb_nonnative_field_elements(&v, OptimizationType::Weight)
+                }
             }
         } else {
             fs_rng.absorb_bytes(&to_bytes![first_comms, prover_first_msg].unwrap());
@@ -395,7 +395,9 @@ where
             fs_rng.absorb_native_field_elements(&second_comms);
             match prover_second_msg.clone() {
                 ProverMsg::EmptyMessage => (),
-                ProverMsg::FieldElements(v) => fs_rng.absorb_nonnative_field_elements(&v),
+                ProverMsg::FieldElements(v) => {
+                    fs_rng.absorb_nonnative_field_elements(&v, OptimizationType::Weight)
+                }
             }
         } else {
             fs_rng.absorb_bytes(&to_bytes![second_comms, prover_second_msg].unwrap());
@@ -423,7 +425,9 @@ where
             fs_rng.absorb_native_field_elements(&third_comms);
             match prover_third_msg.clone() {
                 ProverMsg::EmptyMessage => (),
-                ProverMsg::FieldElements(v) => fs_rng.absorb_nonnative_field_elements(&v),
+                ProverMsg::FieldElements(v) => {
+                    fs_rng.absorb_nonnative_field_elements(&v, OptimizationType::Weight)
+                }
             }
         } else {
             fs_rng.absorb_bytes(&to_bytes![third_comms, prover_third_msg].unwrap());
@@ -531,7 +535,7 @@ where
         end_timer!(eval_time);
 
         if for_recursion {
-            fs_rng.absorb_nonnative_field_elements(&evaluations);
+            fs_rng.absorb_nonnative_field_elements(&evaluations, OptimizationType::Weight);
         } else {
             fs_rng.absorb_bytes(&to_bytes![&evaluations].unwrap());
         }
@@ -590,6 +594,18 @@ where
     ) -> Result<bool, Error<PC::Error>> {
         let verifier_time = start_timer!(|| "Marlin::Verify");
 
+        let public_input = {
+            let domain_x = GeneralEvaluationDomain::<F>::new(public_input.len() + 1).unwrap();
+
+            let mut unpadded_input = public_input.to_vec();
+            unpadded_input.resize(
+                core::cmp::max(public_input.len(), domain_x.size() - 1),
+                F::zero(),
+            );
+
+            unpadded_input
+        };
+
         let for_recursion = MC::FOR_RECURSION;
 
         let mut fs_rng = FS::new();
@@ -597,7 +613,7 @@ where
         if for_recursion {
             fs_rng.absorb_bytes(&to_bytes![&Self::PROTOCOL_NAME].unwrap());
             fs_rng.absorb_native_field_elements(&compute_vk_hash::<F, FSF, PC, FS>(index_vk));
-            fs_rng.absorb_nonnative_field_elements(&public_input);
+            fs_rng.absorb_nonnative_field_elements(&public_input, OptimizationType::Weight);
         } else {
             fs_rng
                 .absorb_bytes(&to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap());
@@ -610,7 +626,9 @@ where
             fs_rng.absorb_native_field_elements(&first_comms);
             match proof.prover_messages[0].clone() {
                 ProverMsg::EmptyMessage => (),
-                ProverMsg::FieldElements(v) => fs_rng.absorb_nonnative_field_elements(&v),
+                ProverMsg::FieldElements(v) => {
+                    fs_rng.absorb_nonnative_field_elements(&v, OptimizationType::Weight)
+                }
             };
         } else {
             fs_rng.absorb_bytes(&to_bytes![first_comms, proof.prover_messages[0]].unwrap());
@@ -628,7 +646,9 @@ where
             fs_rng.absorb_native_field_elements(&second_comms);
             match proof.prover_messages[1].clone() {
                 ProverMsg::EmptyMessage => (),
-                ProverMsg::FieldElements(v) => fs_rng.absorb_nonnative_field_elements(&v),
+                ProverMsg::FieldElements(v) => {
+                    fs_rng.absorb_nonnative_field_elements(&v, OptimizationType::Weight)
+                }
             };
         } else {
             fs_rng.absorb_bytes(&to_bytes![second_comms, proof.prover_messages[1]].unwrap());
@@ -645,7 +665,9 @@ where
             fs_rng.absorb_native_field_elements(&third_comms);
             match proof.prover_messages[2].clone() {
                 ProverMsg::EmptyMessage => (),
-                ProverMsg::FieldElements(v) => fs_rng.absorb_nonnative_field_elements(&v),
+                ProverMsg::FieldElements(v) => {
+                    fs_rng.absorb_nonnative_field_elements(&v, OptimizationType::Weight)
+                }
             };
         } else {
             fs_rng.absorb_bytes(&to_bytes![third_comms, proof.prover_messages[2]].unwrap());
@@ -687,7 +709,7 @@ where
             AHPForR1CS::verifier_query_set(verifier_state, &mut fs_rng, for_recursion);
 
         if for_recursion {
-            fs_rng.absorb_nonnative_field_elements(&proof.evaluations);
+            fs_rng.absorb_nonnative_field_elements(&proof.evaluations, OptimizationType::Weight);
         } else {
             fs_rng.absorb_bytes(&to_bytes![&proof.evaluations].unwrap());
         }

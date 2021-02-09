@@ -9,7 +9,7 @@ use ark_ff::{to_bytes, ToConstraintField};
 use ark_nonnative_field::NonNativeFieldVar;
 use ark_poly::univariate::DensePolynomial;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
-use ark_poly_commit::{PCCheckVar, PolynomialCommitment, PrepareVar};
+use ark_poly_commit::{PCCheckVar, PolynomialCommitment, PrepareGadget};
 use ark_r1cs_std::{
     alloc::{AllocVar, AllocationMode},
     fields::fp::FpVar,
@@ -17,7 +17,7 @@ use ark_r1cs_std::{
     R1CSVar, ToBytesGadget, ToConstraintFieldGadget,
 };
 use ark_relations::r1cs::{ConstraintSystemRef, Namespace};
-use core::borrow::Borrow;
+use ark_std::borrow::Borrow;
 use hashbrown::HashMap;
 
 pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F, DensePolynomial<F>>>::UniversalParams;

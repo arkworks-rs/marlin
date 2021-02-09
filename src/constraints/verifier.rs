@@ -8,7 +8,7 @@ use crate::{
 };
 use ark_nonnative_field::NonNativeFieldVar;
 use ark_poly::univariate::DensePolynomial;
-use ark_poly_commit::{PCCheckVar, PolynomialCommitment};
+use ark_poly_commit::{PCCheckRandomDataVar, PCCheckVar, PolynomialCommitment};
 use ark_r1cs_std::{bits::boolean::Boolean, fields::FieldVar, R1CSVar, ToConstraintFieldGadget};
 use ark_relations::ns;
 
@@ -98,7 +98,7 @@ where
 
         let mut evaluations_labels = Vec::<(String, NonNativeFieldVar<F, CF>)>::new();
         for q in query_set.0.iter().cloned() {
-            evaluations_labels.push((q.0.clone(), (q.1).1.clone()));
+            evaluations_labels.push((q.0.clone(), (q.1).value.clone()));
         }
         evaluations_labels.sort_by(|a, b| a.0.cmp(&b.0));
 
@@ -118,6 +118,13 @@ where
 
         eprintln!("before PC checks: constraints: {}", cs.num_constraints());
 
+        let rand_data = PCCheckRandomDataVar::<F, CF> {
+            opening_challenges: opening_challenges,
+            opening_challenges_bits: opening_challenges_bits,
+            batching_rands: batching_rands,
+            batching_rands_bits: batching_rands_bits,
+        };
+
         Ok(PCG::prepared_check_combinations(
             ns!(cs, "pc_check").cs(),
             &index_pvk.prepared_verifier_key,
@@ -126,10 +133,7 @@ where
             &query_set,
             &evaluations,
             &proof.pc_batch_proof,
-            &opening_challenges,
-            &opening_challenges_bits,
-            &batching_rands,
-            &batching_rands_bits,
+            &rand_data,
         )?)
     }
 

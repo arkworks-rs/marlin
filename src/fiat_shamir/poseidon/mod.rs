@@ -8,7 +8,7 @@
 use crate::fiat_shamir::AlgebraicSponge;
 use crate::Vec;
 use ark_ff::PrimeField;
-use rand_core::SeedableRng;
+use ark_std::rand::SeedableRng;
 
 /// constraints for Poseidon
 pub mod constraints;

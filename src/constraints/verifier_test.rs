@@ -12,7 +12,7 @@ mod tests {
         },
         Marlin as MarlinNative, MarlinRecursiveConfig, Proof,
     };
-    use ark_ec::CycleEngine;
+    use ark_ec::{CurveCycle, PairingEngine, PairingFriendlyCycle};
     use ark_ff::{Field, UniformRand};
     use ark_mnt4_298::{constraints::PairingVar as MNT4PairingVar, Fq, Fr, MNT4_298};
     use ark_mnt6_298::MNT6_298;
@@ -31,9 +31,13 @@ mod tests {
 
     #[derive(Copy, Clone, Debug)]
     struct MNT298Cycle;
-    impl CycleEngine for MNT298Cycle {
-        type E1 = MNT6_298;
-        type E2 = MNT4_298;
+    impl CurveCycle for MNT298Cycle {
+        type E1 = <MNT6_298 as PairingEngine>::G1Affine;
+        type E2 = <MNT4_298 as PairingEngine>::G1Affine;
+    }
+    impl PairingFriendlyCycle for MNT298Cycle {
+        type Engine1 = MNT6_298;
+        type Engine2 = MNT4_298;
     }
 
     type FS = FiatShamirAlgebraicSpongeRng<Fr, Fq, PoseidonSponge<Fq>>;
@@ -79,7 +83,7 @@ mod tests {
 
     #[test]
     fn verifier_test() {
-        let rng = &mut ark_ff::test_rng();
+        let rng = &mut ark_std::test_rng();
 
         let universal_srs = MarlinNativeInst::universal_setup(10000, 25, 10000, rng).unwrap();
 

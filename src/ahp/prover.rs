@@ -17,11 +17,11 @@ use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError,
 };
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
+use ark_std::rand::RngCore;
 use ark_std::{
     cfg_into_iter, cfg_iter, cfg_iter_mut,
     io::{Read, Write},
 };
-use rand_core::RngCore;
 
 /// State for the AHP prover.
 pub struct ProverState<'a, F: PrimeField> {
@@ -222,11 +222,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         });
         c.generate_constraints(pcs.clone())?;
         end_timer!(constraint_time);
-
         assert!(pcs.is_satisfied().unwrap());
-
-        pcs.outline_lcs();
-
         let padding_time = start_timer!(|| "Padding matrices to make them square");
         pad_input_for_indexer_and_prover(pcs.clone());
         pcs.finalize();

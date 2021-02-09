@@ -1,12 +1,11 @@
 use crate::Vec;
 use ark_ff::{BigInteger, FpParameters, PrimeField, ToConstraintField};
-use ark_nonnative_field::params::get_params;
+use ark_nonnative_field::params::{get_params, OptimizationType};
 use ark_nonnative_field::AllocatedNonNativeFieldVar;
-use core::marker::PhantomData;
+use ark_std::marker::PhantomData;
+use ark_std::rand::{RngCore, SeedableRng};
 use digest::Digest;
 use rand_chacha::ChaChaRng;
-use rand_core::SeedableRng;
-use rand_core::{Error, RngCore};
 
 /// The constraints for Fiat-Shamir
 pub mod constraints;
@@ -18,8 +17,9 @@ pub mod poseidon;
 #[macro_export]
 macro_rules! overhead {
     ($x:expr) => {{
+        use ark_ff::BigInteger;
         let num = $x;
-        let num_bits = num.into_repr().to_bits();
+        let num_bits = num.into_repr().to_bits_be();
         let mut skipped_bits = 0;
         for b in num_bits.iter() {
             if *b == false {
@@ -50,14 +50,14 @@ pub trait FiatShamirRng<F: PrimeField, CF: PrimeField>: RngCore {
     fn new() -> Self;
 
     /// take in field elements
-    fn absorb_nonnative_field_elements(&mut self, elems: &[F]);
+    fn absorb_nonnative_field_elements(&mut self, elems: &[F], ty: OptimizationType);
     /// take in field elements
     fn absorb_native_field_elements<T: ToConstraintField<CF>>(&mut self, elems: &[T]);
     /// take in bytes
     fn absorb_bytes(&mut self, elems: &[u8]);
 
     /// take out field elements
-    fn squeeze_nonnative_field_elements(&mut self, num: usize) -> Vec<F>;
+    fn squeeze_nonnative_field_elements(&mut self, num: usize, ty: OptimizationType) -> Vec<F>;
     /// take in field elements
     fn squeeze_native_field_elements(&mut self, num: usize) -> Vec<CF>;
     /// take out field elements of 128 bits
@@ -98,7 +98,7 @@ impl<F: PrimeField, CF: PrimeField, D: Digest> RngCore for FiatShamirChaChaRng<F
         self.r.fill_bytes(dest)
     }
 
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), ark_std::rand::Error> {
         self.r.try_fill_bytes(dest)
     }
 }
@@ -118,7 +118,7 @@ impl<F: PrimeField, CF: PrimeField, D: Digest> FiatShamirRng<F, CF>
         }
     }
 
-    fn absorb_nonnative_field_elements(&mut self, elems: &[F]) {
+    fn absorb_nonnative_field_elements(&mut self, elems: &[F], _: OptimizationType) {
         let mut bytes = Vec::new();
         for elem in elems {
             elem.write(&mut bytes).expect("failed to convert to bytes");
@@ -154,7 +154,7 @@ impl<F: PrimeField, CF: PrimeField, D: Digest> FiatShamirRng<F, CF>
         self.r = ChaChaRng::from_seed(seed);
     }
 
-    fn squeeze_nonnative_field_elements(&mut self, num: usize) -> Vec<F> {
+    fn squeeze_nonnative_field_elements(&mut self, num: usize, _: OptimizationType) -> Vec<F> {
         let mut res = Vec::<F>::new();
         for _ in 0..num {
             res.push(F::rand(&mut self.r));
@@ -191,11 +191,11 @@ pub struct FiatShamirAlgebraicSpongeRng<F: PrimeField, CF: PrimeField, S: Algebr
 
 impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> FiatShamirAlgebraicSpongeRng<F, CF, S> {
     /// compress every two elements if possible. Provides a vector of (limb, num_of_additions), both of which are P::BaseField.
-    pub fn compress_elements(src_limbs: &[(CF, CF)]) -> Vec<CF> {
+    pub fn compress_elements(src_limbs: &[(CF, CF)], ty: OptimizationType) -> Vec<CF> {
         let capacity = CF::size_in_bits() - 1;
         let mut dest_limbs = Vec::<CF>::new();
 
-        let params = get_params(F::size_in_bits(), CF::size_in_bits());
+        let params = get_params(F::size_in_bits(), CF::size_in_bits(), ty);
 
         let adjustment_factor_lookup_table = {
             let mut table = Vec::<CF>::new();
@@ -247,19 +247,19 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> FiatShamirAlgebraicS
     }
 
     /// push elements to sponge, treated in the non-native field representations.
-    pub fn push_elements_to_sponge(sponge: &mut S, src: &[F]) {
+    pub fn push_elements_to_sponge(sponge: &mut S, src: &[F], ty: OptimizationType) {
         let mut src_limbs = Vec::<(CF, CF)>::new();
 
         for elem in src.iter() {
             let limbs =
-                AllocatedNonNativeFieldVar::<F, CF>::get_limbs_representations(elem).unwrap();
+                AllocatedNonNativeFieldVar::<F, CF>::get_limbs_representations(elem, ty).unwrap();
             for limb in limbs.iter() {
                 src_limbs.push((*limb, CF::one()));
                 // specifically set to one, since most gadgets in the constraint world would not have zero noise (due to the relatively weak normal form testing in `alloc`)
             }
         }
 
-        let dest_limbs = Self::compress_elements(&src_limbs);
+        let dest_limbs = Self::compress_elements(&src_limbs, ty);
         sponge.absorb(&dest_limbs);
     }
 
@@ -275,7 +275,7 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> FiatShamirAlgebraicS
         let skip = (CF::Params::REPR_SHAVE_BITS + 1) as usize;
         for elem in src_elements.iter() {
             // discard the highest bit
-            let elem_bits = elem.into_repr().to_bits();
+            let elem_bits = elem.into_repr().to_bits_be();
             dest_bits.extend_from_slice(&elem_bits[skip..]);
         }
 
@@ -363,7 +363,7 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> RngCore
 
         let mut bits = Vec::<bool>::new();
         for elem in elements.iter() {
-            let mut elem_bits = elem.into_repr().to_bits();
+            let mut elem_bits = elem.into_repr().to_bits_be();
             elem_bits.reverse();
             bits.extend_from_slice(&elem_bits[0..capacity]);
         }
@@ -382,7 +382,7 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> RngCore
             });
     }
 
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), ark_std::rand::Error> {
         assert!(
             CF::size_in_bits() > 128,
             "The native field of the algebraic sponge is too small."
@@ -404,8 +404,8 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> FiatShamirRng<F, CF>
         }
     }
 
-    fn absorb_nonnative_field_elements(&mut self, elems: &[F]) {
-        Self::push_elements_to_sponge(&mut self.s, elems);
+    fn absorb_nonnative_field_elements(&mut self, elems: &[F], ty: OptimizationType) {
+        Self::push_elements_to_sponge(&mut self.s, elems, ty);
     }
 
     fn absorb_native_field_elements<T: ToConstraintField<CF>>(&mut self, src: &[T]) {
@@ -433,13 +433,13 @@ impl<F: PrimeField, CF: PrimeField, S: AlgebraicSponge<CF>> FiatShamirRng<F, CF>
         }
         let elements = bits
             .chunks(capacity)
-            .map(|bits| CF::from_repr(CF::BigInt::from_bits(bits)).unwrap())
+            .map(|bits| CF::from_repr(CF::BigInt::from_bits_be(bits)).unwrap())
             .collect::<Vec<CF>>();
 
         self.s.absorb(&elements);
     }
 
-    fn squeeze_nonnative_field_elements(&mut self, num: usize) -> Vec<F> {
+    fn squeeze_nonnative_field_elements(&mut self, num: usize, _: OptimizationType) -> Vec<F> {
         Self::get_elements_from_sponge(&mut self.s, num, false)
     }
 

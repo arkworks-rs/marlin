@@ -28,7 +28,6 @@ ark-relations = { git = "https://github.com/arkworks-rs/snark", default-features
 ark-poly-commit = { git = "https://github.com/arkworks-rs/poly-commit", branch = "constraints", default-features = false, features = [ "r1cs" ] }
 bench-utils = { git = "https://github.com/arkworks-rs/utils", default-features = false }
 
-rand_core = { version = "0.5" }
 rand_chacha = { version = "0.2.1", default-features = false }
 rayon = { version = "1", optional = true }
 digest = { version = "0.9" }
@@ -73,7 +72,6 @@ default = ["std", "parallel"]
 std = [ "ark-crypto-primitives/std", "tracing-subscriber", "ark-ff/std", "ark-nonnative-field/std", "ark-poly/std", "ark-relations/std", "ark-std/std", "ark-serialize/std", "ark-poly-commit/std" ]
 print-trace = [ "bench-utils/print-trace" ]
 parallel = [ "std", "ark-ff/parallel", "ark-poly/parallel", "ark-std/parallel", "ark-poly-commit/parallel", "rayon" ]
-density-optimized = [ "ark-nonnative-field/density-optimized", "ark-poly-commit/density-optimized" ]
 
 [[bench]]
 name = "marlin-benches"

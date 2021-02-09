@@ -2,10 +2,10 @@
 
 use crate::ahp::indexer::IndexInfo;
 use crate::ahp::*;
-use rand_core::RngCore;
 
 use crate::fiat_shamir::FiatShamirRng;
 use ark_ff::PrimeField;
+use ark_nonnative_field::params::OptimizationType;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::QuerySet;
 
@@ -56,7 +56,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let domain_k = GeneralEvaluationDomain::new(index_info.num_non_zero)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
-        let elems = fs_rng.squeeze_nonnative_field_elements(4);
+        let elems = fs_rng.squeeze_nonnative_field_elements(4, OptimizationType::Weight);
         let alpha = elems[0];
         let eta_a = elems[1];
         let eta_b = elems[2];
@@ -86,7 +86,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         mut state: VerifierState<F>,
         fs_rng: &mut R,
     ) -> (VerifierSecondMsg<F>, VerifierState<F>) {
-        let elems = fs_rng.squeeze_nonnative_field_elements(1);
+        let elems = fs_rng.squeeze_nonnative_field_elements(1, OptimizationType::Weight);
         let beta = elems[0];
         assert!(!state.domain_h.evaluate_vanishing_polynomial(beta).is_zero());
 
@@ -101,7 +101,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         mut state: VerifierState<F>,
         fs_rng: &mut R,
     ) -> VerifierState<F> {
-        let elems = fs_rng.squeeze_nonnative_field_elements(1);
+        let elems = fs_rng.squeeze_nonnative_field_elements(1, OptimizationType::Weight);
         let gamma = elems[0];
 
         state.gamma = Some(gamma);

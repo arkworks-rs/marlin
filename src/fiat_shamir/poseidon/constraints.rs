@@ -12,7 +12,7 @@ use ark_ff::PrimeField;
 use ark_r1cs_std::fields::fp::FpVar;
 use ark_r1cs_std::prelude::*;
 use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
-use rand_core::SeedableRng;
+use ark_std::rand::SeedableRng;
 
 #[derive(Clone)]
 /// the gadget for Poseidon sponge

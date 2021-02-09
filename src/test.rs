@@ -129,7 +129,7 @@ mod marlin {
         Marlin<Fr, Fq, MultiPC, FiatShamirChaChaRng<Fr, Fq, Blake2s>, MarlinDefaultConfig>;
 
     fn test_circuit(num_constraints: usize, num_variables: usize) {
-        let rng = &mut ark_ff::test_rng();
+        let rng = &mut ark_std::test_rng();
 
         let universal_srs = MarlinInst::universal_setup(100, 25, 100, rng).unwrap();
 
@@ -207,7 +207,7 @@ mod marlin_recursion {
         Marlin, MarlinRecursiveConfig,
     };
 
-    use ark_ec::CycleEngine;
+    use ark_ec::{CurveCycle, PairingEngine, PairingFriendlyCycle};
     use ark_ff::UniformRand;
     use ark_mnt4_298::{Fq, Fr, MNT4_298};
     use ark_mnt6_298::MNT6_298;
@@ -226,9 +226,13 @@ mod marlin_recursion {
 
     #[derive(Copy, Clone, Debug)]
     struct MNT298Cycle;
-    impl CycleEngine for MNT298Cycle {
-        type E1 = MNT6_298;
-        type E2 = MNT4_298;
+    impl CurveCycle for MNT298Cycle {
+        type E1 = <MNT6_298 as PairingEngine>::G1Affine;
+        type E2 = <MNT4_298 as PairingEngine>::G1Affine;
+    }
+    impl PairingFriendlyCycle for MNT298Cycle {
+        type Engine1 = MNT6_298;
+        type Engine2 = MNT4_298;
     }
 
     fn test_circuit(num_constraints: usize, num_variables: usize) {
@@ -257,10 +261,10 @@ mod marlin_recursion {
             let proof = MarlinInst::prove(&index_pk, circ, rng).unwrap();
             println!("Called prover");
 
-            assert!(MarlinInst::verify(&index_vk, &[c, d], &proof, rng).unwrap());
+            assert!(MarlinInst::verify(&index_vk, &[c, d], &proof).unwrap());
             println!("Called verifier");
             println!("\nShould not verify (i.e. verifier messages should print below):");
-            assert!(!MarlinInst::verify(&index_vk, &[a, a], &proof, rng).unwrap());
+            assert!(!MarlinInst::verify(&index_vk, &[a, a], &proof).unwrap());
         }
     }
 
@@ -322,11 +326,11 @@ mod marlin_recursion {
         println!("Called prover");
 
         let mut inputs = Vec::new();
-        for i in 0..5 {
-            inputs.push(Fr::from(i as u128));
+        for i in 0u128..5u128 {
+            inputs.push(Fr::from(i));
         }
 
-        assert!(MarlinInst::verify(&index_vk, &inputs, &proof, rng).unwrap());
+        assert!(MarlinInst::verify(&index_vk, &inputs, &proof).unwrap());
         println!("Called verifier");
     }
 }
@@ -338,13 +342,15 @@ mod fiat_shamir {
         poseidon::{constraints::PoseidonSpongeVar, PoseidonSponge},
         FiatShamirAlgebraicSpongeRng, FiatShamirChaChaRng, FiatShamirRng,
     };
-    use ark_ff::{PrimeField, UniformRand};
+    use ark_ff::PrimeField;
     use ark_mnt4_298::{Fq, Fr};
+    use ark_nonnative_field::params::OptimizationType;
     use ark_nonnative_field::NonNativeFieldVar;
     use ark_r1cs_std::alloc::AllocVar;
     use ark_r1cs_std::bits::uint8::UInt8;
     use ark_r1cs_std::R1CSVar;
-    use ark_relations::r1cs::{ConstraintSystem, ConstraintSystemRef};
+    use ark_relations::r1cs::{ConstraintSystem, ConstraintSystemRef, OptimizationGoal};
+    use ark_std::UniformRand;
     use blake2::Blake2s;
 
     const NUM_ABSORBED_RAND_FIELD_ELEMS: usize = 10;
@@ -356,7 +362,7 @@ mod fiat_shamir {
 
     #[test]
     fn test_chacharng() {
-        let rng = &mut ark_ff::test_rng();
+        let rng = &mut ark_std::test_rng();
 
         let mut absorbed_rand_field_elems = Vec::new();
         for _ in 0..NUM_ABSORBED_RAND_FIELD_ELEMS {
@@ -373,20 +379,21 @@ mod fiat_shamir {
         }
 
         let mut fs_rng = FiatShamirChaChaRng::<Fr, Fq, Blake2s>::new();
-        fs_rng.absorb_nonnative_field_elements(&absorbed_rand_field_elems);
+        fs_rng
+            .absorb_nonnative_field_elements(&absorbed_rand_field_elems, OptimizationType::Weight);
         for absorbed_rand_byte_elem in absorbed_rand_byte_elems {
             fs_rng.absorb_bytes(&absorbed_rand_byte_elem);
         }
 
-        let _squeezed_fields_elems =
-            fs_rng.squeeze_nonnative_field_elements(NUM_SQUEEZED_FIELD_ELEMS);
+        let _squeezed_fields_elems = fs_rng
+            .squeeze_nonnative_field_elements(NUM_SQUEEZED_FIELD_ELEMS, OptimizationType::Weight);
         let _squeezed_short_fields_elems =
             fs_rng.squeeze_128_bits_nonnative_field_elements(NUM_SQUEEZED_SHORT_FIELD_ELEMS);
     }
 
     #[test]
     fn test_poseidon() {
-        let rng = &mut ark_ff::test_rng();
+        let rng = &mut ark_std::test_rng();
 
         let mut absorbed_rand_field_elems = Vec::new();
         for _ in 0..NUM_ABSORBED_RAND_FIELD_ELEMS {
@@ -405,20 +412,22 @@ mod fiat_shamir {
         // fs_rng in the plaintext world
         let mut fs_rng = FiatShamirAlgebraicSpongeRng::<Fr, Fq, PoseidonSponge<Fq>>::new();
 
-        fs_rng.absorb_nonnative_field_elements(&absorbed_rand_field_elems);
+        fs_rng
+            .absorb_nonnative_field_elements(&absorbed_rand_field_elems, OptimizationType::Weight);
 
         for absorbed_rand_byte_elem in &absorbed_rand_byte_elems {
             fs_rng.absorb_bytes(absorbed_rand_byte_elem);
         }
 
-        let squeezed_fields_elems =
-            fs_rng.squeeze_nonnative_field_elements(NUM_SQUEEZED_FIELD_ELEMS);
+        let squeezed_fields_elems = fs_rng
+            .squeeze_nonnative_field_elements(NUM_SQUEEZED_FIELD_ELEMS, OptimizationType::Weight);
         let squeezed_short_fields_elems =
             fs_rng.squeeze_128_bits_nonnative_field_elements(NUM_SQUEEZED_SHORT_FIELD_ELEMS);
 
         // fs_rng in the constraint world
         let cs_sys = ConstraintSystem::<Fq>::new();
         let cs = ConstraintSystemRef::new(cs_sys);
+        cs.set_optimization_goal(OptimizationGoal::Weight);
         let mut fs_rng_gadget = FiatShamirAlgebraicSpongeRngVar::<
             Fr,
             Fq,

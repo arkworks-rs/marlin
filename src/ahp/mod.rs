@@ -310,8 +310,8 @@ impl<'a, F: Field> EvaluationsProvider<F> for ark_poly_commit::Evaluations<F, F>
     fn get_lc_eval(&self, lc: &LinearCombination<F>, point: F) -> Result<F, Error> {
         let key = (lc.label.clone(), point);
         self.get(&key)
-            .copied()
-            .ok_or_else(|| Error::MissingEval(lc.label.clone()))
+            .map(|v| *v)
+            .ok_or(Error::MissingEval(lc.label.clone()))
     }
 }
 
@@ -407,8 +407,10 @@ mod tests {
     use super::*;
     use ark_bls12_381::Fr;
     use ark_ff::{One, UniformRand, Zero};
-    use ark_poly::univariate::DenseOrSparsePolynomial;
-    use ark_poly::{Polynomial, UVPolynomial};
+    use ark_poly::{
+        univariate::{DenseOrSparsePolynomial, DensePolynomial},
+        Polynomial, UVPolynomial,
+    };
 
     #[test]
     fn domain_unnormalized_bivariate_lagrange_poly() {

@@ -5,7 +5,6 @@ use crate::ahp::*;
 use crate::{BTreeMap, ToString};
 use ark_ff::{Field, PrimeField};
 use ark_poly::{EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain};
-use ark_poly_commit::LabeledPolynomial;
 use ark_relations::{
     lc,
     r1cs::{ConstraintMatrices, ConstraintSystemRef},
@@ -16,7 +15,6 @@ use ark_std::{
     io::{Read, Write},
 };
 use derivative::Derivative;
-use hashbrown::HashMap;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -127,14 +125,14 @@ pub struct MatrixEvals<F: PrimeField> {
 #[derivative(Clone(bound = "F: PrimeField"))]
 pub struct MatrixArithmetization<F: PrimeField> {
     /// LDE of the row indices of M^*.
-    pub row: LabeledPolynomial<F, DensePolynomial<F>>,
+    pub row: LabeledPolynomial<F>,
     /// LDE of the column indices of M^*.
-    pub col: LabeledPolynomial<F, DensePolynomial<F>>,
+    pub col: LabeledPolynomial<F>,
     /// LDE of the non-zero entries of M^*.
-    pub val: LabeledPolynomial<F, DensePolynomial<F>>,
+    pub val: LabeledPolynomial<F>,
     /// LDE of the vector containing entry-wise products of `row` and `col`,
     /// where `row` and `col` are as above.
-    pub row_col: LabeledPolynomial<F, DensePolynomial<F>>,
+    pub row_col: LabeledPolynomial<F>,
 
     /// Evaluation of `self.row`, `self.col`, and `self.val` on the domain `K`.
     pub evals_on_K: MatrixEvals<F>,
@@ -166,7 +164,7 @@ pub(crate) fn arithmetize_matrix<F: PrimeField>(
     let mut val_vec = Vec::new();
 
     let eq_poly_vals_time = start_timer!(|| "Precomputing eq_poly_vals");
-    let eq_poly_vals: HashMap<F, F> = output_domain
+    let eq_poly_vals: BTreeMap<F, F> = output_domain
         .elements()
         .zip(output_domain.batch_eval_unnormalized_bivariate_lagrange_poly_with_same_inputs())
         .collect();
@@ -179,7 +177,7 @@ pub(crate) fn arithmetize_matrix<F: PrimeField>(
 
     // Recall that we are computing the arithmetization of M^*,
     // where `M^*(i, j) := M(j, i) * u_H(j, j)`.
-    for (r, row) in matrix.iter_mut().enumerate() {
+    for (r, row) in matrix.into_iter().enumerate() {
         if !is_in_ascending_order(&row, |(_, a), (_, b)| a < b) {
             row.sort_by(|(_, a), (_, b)| a.cmp(b));
         };
@@ -257,7 +255,7 @@ pub(crate) fn arithmetize_matrix<F: PrimeField>(
         row_col: LabeledPolynomial::new(m_name + "_row_col", row_col, None, None),
         evals_on_K,
         evals_on_B,
-        row_col_evals_on_B,
+        row_col_evals_on_B: row_col_evals_on_B,
     }
 }
 
