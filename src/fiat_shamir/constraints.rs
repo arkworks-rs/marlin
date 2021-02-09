@@ -31,6 +31,7 @@ pub trait FiatShamirRngVar<F: PrimeField, CF: PrimeField, PFS: FiatShamirRng<F, 
     fn absorb_nonnative_field_elements(
         &mut self,
         elems: &[NonNativeFieldVar<F, CF>],
+        ty: OptimizationType,
     ) -> Result<(), SynthesisError>;
 
     /// Take in field elements.
@@ -115,6 +116,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     #[tracing::instrument(target = "r1cs")]
     pub fn compress_gadgets(
         src_limbs: &[(FpVar<CF>, CF)],
+        ty: OptimizationType,
     ) -> Result<Vec<FpVar<CF>>, SynthesisError> {
         let capacity = CF::size_in_bits() - 1;
         let mut dest_limbs = Vec::<FpVar<CF>>::new();
@@ -123,21 +125,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
             return Ok(vec![]);
         }
 
-        let cs = {
-            let mut limbs = Vec::new();
-            for (v, _) in src_limbs.iter() {
-                limbs.push(v.clone());
-            }
-            limbs.cs()
-        };
-
-        let optimization_type = match cs.optimization_goal() {
-            OptimizationGoal::None => OptimizationType::Constraints,
-            OptimizationGoal::Constraints => OptimizationType::Constraints,
-            OptimizationGoal::Weight => OptimizationType::Weight,
-        };
-
-        let params = get_params(F::size_in_bits(), CF::size_in_bits(), optimization_type);
+        let params = get_params(F::size_in_bits(), CF::size_in_bits(), ty);
 
         let adjustment_factor_lookup_table = {
             let mut table = Vec::<CF>::new();
@@ -187,6 +175,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     pub fn push_gadgets_to_sponge(
         sponge: &mut S,
         src: &[NonNativeFieldVar<F, CF>],
+        ty: OptimizationType,
     ) -> Result<(), SynthesisError> {
         let mut src_limbs: Vec<(FpVar<CF>, CF)> = Vec::new();
 
@@ -219,7 +208,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
             }
         }
 
-        let dest_limbs = Self::compress_gadgets(&src_limbs)?;
+        let dest_limbs = Self::compress_gadgets(&src_limbs, ty)?;
         sponge.absorb(&dest_limbs)?;
         Ok(())
     }
@@ -275,8 +264,6 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
             OptimizationGoal::Constraints => OptimizationType::Constraints,
             OptimizationGoal::Weight => OptimizationType::Weight,
         };
-
-        println!("{:?}", optimization_type);
 
         let params = get_params(F::size_in_bits(), CF::size_in_bits(), optimization_type);
 
@@ -378,8 +365,9 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     fn absorb_nonnative_field_elements(
         &mut self,
         elems: &[NonNativeFieldVar<F, CF>],
+        ty: OptimizationType,
     ) -> Result<(), SynthesisError> {
-        Self::push_gadgets_to_sponge(&mut self.s, &elems.to_vec())
+        Self::push_gadgets_to_sponge(&mut self.s, &elems.to_vec(), ty)
     }
 
     #[tracing::instrument(target = "r1cs", skip(self))]

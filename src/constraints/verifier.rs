@@ -6,6 +6,7 @@ use crate::{
     fiat_shamir::{constraints::FiatShamirRngVar, FiatShamirRng},
     Error, PhantomData, PrimeField, String, Vec,
 };
+use ark_nonnative_field::params::OptimizationType;
 use ark_nonnative_field::NonNativeFieldVar;
 use ark_poly::univariate::DensePolynomial;
 use ark_poly_commit::{PCCheckRandomDataVar, PCCheckVar, PolynomialCommitment};
@@ -52,7 +53,7 @@ where
 
         eprintln!("before AHP: constraints: {}", cs.num_constraints());
 
-        fs_rng.absorb_nonnative_field_elements(&public_input)?;
+        fs_rng.absorb_nonnative_field_elements(&public_input, OptimizationType::Weight)?;
 
         let (_, verifier_state) = AHPForR1CS::<F, CF, PC, PCG>::verifier_first_round(
             index_pvk.domain_h_size,
@@ -109,7 +110,7 @@ where
             }
         }
 
-        fs_rng.absorb_nonnative_field_elements(&evals_vec)?;
+        fs_rng.absorb_nonnative_field_elements(&evals_vec, OptimizationType::Weight)?;
 
         let (opening_challenges, opening_challenges_bits) =
             fs_rng.squeeze_128_bits_field_elements_and_bits(num_opening_challenges)?;

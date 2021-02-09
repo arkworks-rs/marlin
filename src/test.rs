@@ -446,7 +446,10 @@ mod fiat_shamir {
             );
         }
         fs_rng_gadget
-            .absorb_nonnative_field_elements(&absorbed_rand_field_elems_gadgets)
+            .absorb_nonnative_field_elements(
+                &absorbed_rand_field_elems_gadgets,
+                OptimizationType::Weight,
+            )
             .unwrap();
 
         let mut absorbed_rand_byte_elems_gadgets = Vec::<Vec<UInt8<Fq>>>::new();

@@ -8,6 +8,7 @@ use crate::{
     fiat_shamir::{constraints::FiatShamirRngVar, FiatShamirRng},
     PhantomData, PrimeField, String, ToString, Vec,
 };
+use ark_nonnative_field::params::OptimizationType;
 use ark_nonnative_field::NonNativeFieldVar;
 use ark_poly::univariate::DensePolynomial;
 use ark_poly_commit::{
@@ -99,7 +100,7 @@ where
                 elems.append(&mut comm.to_constraint_field().unwrap());
             });
             fs_rng.absorb_native_field_elements(&elems)?;
-            fs_rng.absorb_nonnative_field_elements(&message)?;
+            fs_rng.absorb_nonnative_field_elements(&message, OptimizationType::Weight)?;
         }
 
         // obtain four elements from the sponge
@@ -153,7 +154,7 @@ where
                 elems.append(&mut comm.to_constraint_field().unwrap());
             });
             fs_rng.absorb_native_field_elements(&elems)?;
-            fs_rng.absorb_nonnative_field_elements(&message)?;
+            fs_rng.absorb_nonnative_field_elements(&message, OptimizationType::Weight)?;
         }
 
         // obtain one element from the sponge
@@ -199,7 +200,7 @@ where
                 elems.append(&mut comm.to_constraint_field().unwrap());
             });
             fs_rng.absorb_native_field_elements(&elems)?;
-            fs_rng.absorb_nonnative_field_elements(&message)?;
+            fs_rng.absorb_nonnative_field_elements(&message, OptimizationType::Weight)?;
         }
 
         // obtain one element from the sponge
