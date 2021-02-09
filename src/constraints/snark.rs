@@ -472,6 +472,7 @@ mod test {
     >;
 
     use ark_poly::univariate::DensePolynomial;
+    use ark_relations::r1cs::OptimizationGoal;
 
     #[test]
     fn marlin_snark_test() {
@@ -499,6 +500,7 @@ mod test {
 
         let cs_sys = ConstraintSystem::<MNT4Fq>::new();
         let cs = ConstraintSystemRef::new(cs_sys);
+        cs.set_optimization_goal(OptimizationGoal::Weight);
 
         let input_gadget = <TestSNARKGadget as SNARKGadget<
             <MNT4_298 as PairingEngine>::Fr,

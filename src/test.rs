@@ -138,6 +138,8 @@ mod marlin {
             let b = Fr::rand(rng);
             let mut c = a;
             c.mul_assign(&b);
+            let mut d = c;
+            d.mul_assign(&b);
 
             let circ = Circuit {
                 a: Some(a),
@@ -152,10 +154,10 @@ mod marlin {
             let proof = MarlinInst::prove(&index_pk, circ, rng).unwrap();
             println!("Called prover");
 
-            assert!(MarlinInst::verify(&index_vk, &[c], &proof).unwrap());
+            assert!(MarlinInst::verify(&index_vk, &[c, d], &proof).unwrap());
             println!("Called verifier");
             println!("\nShould not verify (i.e. verifier messages should print below):");
-            assert!(!MarlinInst::verify(&index_vk, &[a], &proof).unwrap());
+            assert!(!MarlinInst::verify(&index_vk, &[a, a], &proof).unwrap());
         }
     }
 

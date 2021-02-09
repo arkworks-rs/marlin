@@ -22,6 +22,7 @@ mod tests {
         BatchLCProofVar, CommitmentVar, MarlinKZG10, MarlinKZG10Gadget,
     };
     use ark_r1cs_std::{alloc::AllocVar, bits::boolean::Boolean, eq::EqGadget};
+    use ark_relations::r1cs::OptimizationGoal;
     use ark_relations::{
         lc, ns,
         r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError},
@@ -117,6 +118,7 @@ mod tests {
 
         let cs_sys = ConstraintSystem::<Fq>::new();
         let cs = ConstraintSystemRef::new(cs_sys);
+        cs.set_optimization_goal(OptimizationGoal::Weight);
 
         // BEGIN: ivk to ivk_gadget
         let ivk_gadget: IndexVerifierKeyVar<Fr, Fq, MultiPC, MultiPCVar> =

@@ -41,13 +41,13 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
     #[rustfmt::skip]
     pub const INDEXER_POLYNOMIALS_WITH_VANISHING: [&'static str; 14] = [
-        // Polynomials for A	
+        // Polynomials for A
         "a_row", "a_col", "a_val", "a_row_col",
-        // Polynomials for B	
+        // Polynomials for B
         "b_row", "b_col", "b_val", "b_row_col",
-        // Polynomials for C	
+        // Polynomials for C
         "c_row", "c_col", "c_val", "c_row_col",
-        // Vanishing polynomials	
+        // Vanishing polynomials
         "vanishing_poly_h", "vanishing_poly_k"
     ];
 
