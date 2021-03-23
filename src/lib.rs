@@ -17,7 +17,7 @@
 #![allow(clippy::op_ref)]
 
 #[macro_use]
-extern crate bench_utils;
+extern crate ark_std;
 
 use ark_ff::{to_bytes, PrimeField, ToConstraintField};
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};

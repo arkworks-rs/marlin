@@ -26,7 +26,6 @@ ark-std = { git = "https://github.com/arkworks-rs/utils", default-features = fal
 ark-poly = { git = "https://github.com/arkworks-rs/algebra", default-features = false }
 ark-relations = { git = "https://github.com/arkworks-rs/snark", default-features = false }
 ark-poly-commit = { git = "https://github.com/arkworks-rs/poly-commit", branch = "constraints", default-features = false, features = [ "r1cs" ] }
-bench-utils = { git = "https://github.com/arkworks-rs/utils", default-features = false }
 
 rand_chacha = { version = "0.2.1", default-features = false }
 rayon = { version = "1", optional = true }
@@ -70,7 +69,7 @@ panic = 'abort'
 [features]
 default = ["std", "parallel"]
 std = [ "ark-crypto-primitives/std", "tracing-subscriber", "ark-ff/std", "ark-nonnative-field/std", "ark-poly/std", "ark-relations/std", "ark-std/std", "ark-serialize/std", "ark-poly-commit/std" ]
-print-trace = [ "bench-utils/print-trace" ]
+print-trace = [ "ark-std/print-trace" ]
 parallel = [ "std", "ark-ff/parallel", "ark-poly/parallel", "ark-std/parallel", "ark-poly-commit/parallel", "rayon" ]
 
 [[bench]]
