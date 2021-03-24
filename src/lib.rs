@@ -23,8 +23,8 @@ use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationD
 use ark_poly_commit::Evaluations;
 use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
 use ark_relations::r1cs::ConstraintSynthesizer;
+use ark_std::rand::RngCore;
 use digest::Digest;
-use rand_core::RngCore;
 
 use ark_std::{
     collections::BTreeMap,
