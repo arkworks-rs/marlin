@@ -27,7 +27,6 @@ ark-poly = { git = "https://github.com/arkworks-rs/algebra", default-features = 
 ark-relations = { git = "https://github.com/arkworks-rs/snark", default-features = false }
 ark-poly-commit = { git = "https://github.com/arkworks-rs/poly-commit", default-features = false }
 
-rand_core = { version = "0.5" }
 rand_chacha = { version = "0.2.1", default-features = false }
 rayon = { version = "1", optional = true }
 digest = { version = "0.9" }

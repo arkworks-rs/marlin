@@ -2,7 +2,7 @@
 
 use crate::ahp::indexer::IndexInfo;
 use crate::ahp::*;
-use rand_core::RngCore;
+use ark_std::rand::RngCore;
 
 use ark_ff::PrimeField;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};

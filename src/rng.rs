@@ -1,9 +1,9 @@
 use crate::Vec;
 use ark_ff::{FromBytes, ToBytes};
 use ark_std::marker::PhantomData;
+use ark_std::rand::{RngCore, SeedableRng};
 use digest::{generic_array::GenericArray, Digest};
 use rand_chacha::ChaChaRng;
-use rand_core::{RngCore, SeedableRng};
 
 /// A `SeedableRng` that refreshes its seed by hashing together the previous seed
 /// and the new seed material.
@@ -32,7 +32,7 @@ impl<D: Digest> RngCore for FiatShamirRng<D> {
     }
 
     #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), ark_std::rand::Error> {
         Ok(self.r.fill_bytes(dest))
     }
 }
