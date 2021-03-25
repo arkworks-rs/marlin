@@ -1,6 +1,6 @@
 [package]
 name = "ark-marlin"
-version = "0.2.0"
+version = "0.2.1-alpha.0"
 authors = [
   "Alessandro Chiesa <alexch@berkeley.edu>",
   "Mary Maller <mary.maller.15@ucl.ac.uk>",
