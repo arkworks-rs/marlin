@@ -35,7 +35,9 @@ pub struct ProverState<'a, F: PrimeField> {
     zk_bound: usize,
 
     w_poly: Option<LabeledPolynomial<F>>,
-    mz_polys: Option<(LabeledPolynomial<F>, LabeledPolynomial<F>)>,
+    mz_rands: Option<(F, F)>,
+    mz_polys: Option<(DensePolynomial<F>, DensePolynomial<F>)>,
+    mz_rand_polys: Option<(LabeledPolynomial<F>, LabeledPolynomial<F>)>,
 
     index: &'a Index<F>,
 
@@ -294,7 +296,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
             z_a: Some(z_a),
             z_b: Some(z_b),
             w_poly: None,
+            mz_rands: None,
             mz_polys: None,
+            mz_rand_polys: None,
             zk_bound,
             index,
             verifier_first_msg: None,
@@ -356,14 +360,16 @@ impl<F: PrimeField> AHPForR1CS<F> {
 
         let z_a_poly_time = start_timer!(|| "Computing z_A polynomial");
         let z_a = state.z_a.clone().unwrap();
-        let z_a_poly = &EvaluationsOnDomain::from_vec_and_domain(z_a, domain_h).interpolate()
-            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+        let r_a = F::rand(rng);
+        let z_a_poly = EvaluationsOnDomain::from_vec_and_domain(z_a, domain_h).interpolate();
+        let z_a_rand_poly = &z_a_poly + &(&DensePolynomial::from_coefficients_slice(&[r_a]) * &v_H);
         end_timer!(z_a_poly_time);
 
         let z_b_poly_time = start_timer!(|| "Computing z_B polynomial");
         let z_b = state.z_b.clone().unwrap();
-        let z_b_poly = &EvaluationsOnDomain::from_vec_and_domain(z_b, domain_h).interpolate()
-            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+        let r_b = F::rand(rng);
+        let z_b_poly = EvaluationsOnDomain::from_vec_and_domain(z_b, domain_h).interpolate();
+        let z_b_rand_poly = &z_b_poly + &(&DensePolynomial::from_coefficients_slice(&[r_b]) * &v_H);
         end_timer!(z_b_poly_time);
 
         let mask_poly_time = start_timer!(|| "Computing mask polynomial");
@@ -381,8 +387,8 @@ impl<F: PrimeField> AHPForR1CS<F> {
         assert!(mask_poly.degree() <= 3 * domain_h.size() + 2 * zk_bound - 3);
 
         let w = LabeledPolynomial::new("w".to_string(), w_poly, None, Some(1));
-        let z_a = LabeledPolynomial::new("z_a".to_string(), z_a_poly, None, Some(1));
-        let z_b = LabeledPolynomial::new("z_b".to_string(), z_b_poly, None, Some(1));
+        let z_a = LabeledPolynomial::new("z_a".to_string(), z_a_rand_poly, None, Some(1));
+        let z_b = LabeledPolynomial::new("z_b".to_string(), z_b_rand_poly, None, Some(1));
         let mask_poly =
             LabeledPolynomial::new("mask_poly".to_string(), mask_poly.clone(), None, None);
 
@@ -394,7 +400,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
         };
 
         state.w_poly = Some(w);
-        state.mz_polys = Some((z_a, z_b));
+        state.mz_rands = Some((r_a, r_b));
+        state.mz_polys = Some((z_a_poly, z_b_poly));
+        state.mz_rand_polys = Some((z_a, z_b));
         state.mask_poly = Some(mask_poly);
         end_timer!(round_time);
 
@@ -456,8 +464,20 @@ impl<F: PrimeField> AHPForR1CS<F> {
         } = *ver_message;
 
         let summed_z_m_poly_time = start_timer!(|| "Compute z_m poly");
+
+        let (r_a, r_b) = state.mz_rands.clone().unwrap();
         let (z_a_poly, z_b_poly) = state.mz_polys.as_ref().unwrap();
-        let z_c_poly = z_a_poly.polynomial() * z_b_poly.polynomial();
+        let (z_a_rand_poly, z_b_rand_poly) = state.mz_rand_polys.as_ref().unwrap();
+
+        let t1 = z_a_poly * z_b_poly;
+        let t2 = (z_b_poly * r_a).mul_by_vanishing_poly(domain_h);
+        let t3 = (z_a_poly * r_b).mul_by_vanishing_poly(domain_h);
+        let t4 = DensePolynomial::from_coefficients_slice(&[r_a * r_b])
+            .mul_by_vanishing_poly(domain_h)
+            .mul_by_vanishing_poly(domain_h);
+
+        // z_c = (z_a_poly + r_A * v_H) * (z_b_poly + r_B * v_H)
+        let z_c_poly = t1 + t2 + t3 + t4;
 
         let mut summed_z_m_coeffs = z_c_poly.coeffs;
         // Note: Can't combine these two loops, because z_c_poly has 2x the degree
@@ -465,8 +485,8 @@ impl<F: PrimeField> AHPForR1CS<F> {
         // the `zip`s.
         cfg_iter_mut!(summed_z_m_coeffs).for_each(|c| *c *= &eta_c);
         cfg_iter_mut!(summed_z_m_coeffs)
-            .zip(&z_a_poly.polynomial().coeffs)
-            .zip(&z_b_poly.polynomial().coeffs)
+            .zip(&z_a_rand_poly.polynomial().coeffs)
+            .zip(&z_b_rand_poly.polynomial().coeffs)
             .for_each(|((c, a), b)| *c += &(eta_a * a + &(eta_b * b)));
 
         let summed_z_m = DensePolynomial::from_coefficients_vec(summed_z_m_coeffs);
