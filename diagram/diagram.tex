@@ -206,7 +206,7 @@ Compute $\x(X) \in \F^{<|x|}[X]$
 
 \node[align=center] (mid5) at (6.5, 6.3) {%
 To verify $(*)$, $\Verifier$ will need to check the following: \\[10pt]
-$ \underbrace{s(\beta) + {\color{gray} r(\alpha, \beta)} ({\color{gray} \eta_A} \za(\beta) + {\color{gray} \eta_C\zb(\beta)} \za(\beta) + {\color{gray} \eta_B\zb(\beta)}) - {\color{gray} t(\beta) \vPoly{H}(\beta)} \w(\beta) - {\color{gray} t(\beta) \x(\beta)} - {\color{gray} \vPoly{\DomainA}(\beta)} h_1(\beta) - {\color{gray} \beta g_1(\beta)}}_{\sumcheckouter(\beta)} \stackrel{?}{=} 0 $
+$ \underbrace{s(\beta) + {\color{gray} r(\alpha, \beta)} ({\color{gray} \eta_A} \za(\beta) + {\color{gray} \eta_C\zb(\beta)} \za(\beta) + {\color{gray} \eta_B\zb(\beta)}) - {\color{gray} t(\beta) \vPoly{H[\leq|x|}(\beta)} \w(\beta) - {\color{gray} t(\beta) \x(\beta)} - {\color{gray} \vPoly{\DomainA}(\beta)} h_1(\beta) - {\color{gray} \beta g_1(\beta)}}_{\sumcheckouter(\beta)} \stackrel{?}{=} 0 $
 };
 
 \node[lalign] (prover5) at (-3,3.9) {%
