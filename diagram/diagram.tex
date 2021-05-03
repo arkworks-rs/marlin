@@ -34,10 +34,10 @@
 \newcommand{\col}{\ensuremath{\mathsf{col}}}
 \newcommand{\rowcol}{\ensuremath{\mathsf{rowcol}}}
 
-\newcommand{\hval}{\ensuremath{\hat{\val}}}
-\newcommand{\hrow}{\ensuremath{\hat{\row}}}
-\newcommand{\hcol}{\ensuremath{\hat{\col}}}
-\newcommand{\hrowcol}{\ensuremath{\hat{\rowcol}}}
+\newcommand{\hval}{\ensuremath{\widehat{\val}}}
+\newcommand{\hrow}{\ensuremath{\widehat{\row}}}
+\newcommand{\hcol}{\ensuremath{\widehat{\col}}}
+\newcommand{\hrowcol}{\ensuremath{\widehat{\rowcol}}}
 
 \newcommand{\bb}{\ensuremath{\mathsf{b}}}
 \newcommand{\denom}{\ensuremath{\mathsf{denom}}}
@@ -76,6 +76,8 @@ This diagram (on the following page) shows the interaction of the Marlin prover 
     $X$ & domain sized for input (not including witness) \\
      \hline
     $v_D(X)$ & vanishing polynomial over domain $D$ \\
+    \hline
+    $u_D(X, Y)$ & bivariate derivative of vanishing polynomials over domain $D$\\
      \hline
     $A, B, C$ & R1CS instance matrices \\
     \hline
@@ -93,7 +95,12 @@ This diagram (on the following page) shows the interaction of the Marlin prover 
     $\Verifier$ & verifier \\
      \hline
     $\Verifier^{p}$ &
-    	\begin{tabular}{@{}c@{}} $\Verifier$ with ``oracle" access to polynomial $p$ (via commitments provided \\ by the indexer, later opened as necessary by $\Prover$) \end{tabular}
+    	\begin{tabular}{@{}c@{}} $\Verifier$ with ``oracle" access to polynomial $p$ (via commitments provided \\ by the indexer, later opened as necessary by $\Prover$) \end{tabular}\\
+    \hline
+    $\bb$ & bound on the number of queries \\
+    \hline
+    $r_M(X, Y)$ & an intermediate polynomial defined by $r_M(X, Y) = M^*(Y,X)$\\
+    \hline
   \end{tabular}
 \end{table*}
 
@@ -119,7 +126,7 @@ $\Verifier^{\{\hval, \hrow, \hcol, \hrowcol\}_{\{A^*, B^*, C^*\}}}(\F, \DomainA,
 \draw [line width=1.0pt] (-3,27.0) -- (16,27.0);
 
 \node[lalign] (prover1) at (-3,26.1) {%
-$z := (x, w), \za := Az, \zb := Bz$ \\
+$z := (x, w), z_A := Az, z_B := Bz$ \\
 sample $\w(X) \in \F^{<|w|+\bb}[X]$ and $\za(X), \zb(X) \in \F^{<|\DomainA|+\bb}[X]$ \\
 sample mask poly $\s(X) \in \F^{<3|\DomainA|+2\bb-2}[X]$ such that $\sum_{\kappa \in \DomainA}\s(\kappa) = 0$
 };
@@ -137,16 +144,16 @@ $\alpha \gets \F \setminus \DomainA$
 compute $t(X) := \sum_M \eta_M r_M(\alpha, X)$
 };
 
-\draw (-2.4,22.0) rectangle (15.4,4.8);
+\draw (-2.9,22.0) rectangle (15.9,4.8);
 
 \node (sc1label) at (6.5,21.7) {%
-\textbf{sumcheck for} $\s(X) + r(\alpha, X) \left(\sum_M \eta_M \zm(X)\right) - t(X)\z(X)$ \textbf{ over } $\DomainA$
+\textbf{sumcheck for} $\s(X) + u_H(\alpha, X) \left(\sum_M \eta_M \zm(X)\right) - t(X)\z(X)$ \textbf{ over } $\DomainA$
 };
 
 \node[lalign] (prover3) at (-2,20.7) {%
 let $\zc(X) := \za(X) \cdot \zb(X)$ \\
 find $g_1(X) \in \F^{|\DomainA|-1}[X]$ and $h_1(X)$ such that \\
-$s(X)+r(\alpha, X)(\sum_M \eta_M \zm(X)) - t(X)\z(X) = h_1(X)\vPoly{\DomainA}(X) + Xg_1(X)$ \hspace{0.3cm} $(*)$
+$s(X)+u_H(\alpha, X)(\sum_M \eta_M \zm(X)) - t(X)\z(X) = h_1(X)\vPoly{\DomainA}(X) + Xg_1(X)$ \hspace{0.3cm} $(*)$
 };
 
 \draw [->] (-1,19.5) -- node[midway,fill=white] {commitments $\cm{t}, \cm{g_1}, \cm{h_1}$} (14,19.5);
@@ -199,14 +206,14 @@ $ \underbrace{{\color{orange} a({\color{black} \gamma})} - {\color{Green4} b({\c
 };
 
 \node[ralign] (verifier3) at (15.4, 7.9) {%
-Compute $\x(X) \in \F^{<|x|}[X]$
+Compute $\x(X) \in \F^{<|x|}[X]$ from input $x$
 };
 
-\draw[dashed] (-2.2,7.4) rectangle (15.2,5.2);
+\draw[dashed] (-2.7,7.4) rectangle (15.7,5.2);
 
 \node[align=center] (mid5) at (6.5, 6.3) {%
 To verify $(*)$, $\Verifier$ will need to check the following: \\[10pt]
-$ \underbrace{s(\beta) + {\color{gray} r(\alpha, \beta)} ({\color{gray} \eta_A} \za(\beta) + {\color{gray} \eta_C\zb(\beta)} \za(\beta) + {\color{gray} \eta_B\zb(\beta)}) - {\color{gray} t(\beta) \vPoly{H[\leq|x|]}(\beta)} \w(\beta) - {\color{gray} t(\beta) \x(\beta)} - {\color{gray} \vPoly{\DomainA}(\beta)} h_1(\beta) - {\color{gray} \beta g_1(\beta)}}_{\sumcheckouter(\beta)} \stackrel{?}{=} 0 $
+$ \underbrace{s(\beta) + {\color{gray} v_H(\alpha, \beta)} ({\color{gray} \eta_A} \za(\beta) + {\color{gray} \eta_C\zb(\beta)} \za(\beta) + {\color{gray} \eta_B\zb(\beta)}) - {\color{gray} t(\beta) \vPoly{X}(\beta)} \w(\beta) - {\color{gray} t(\beta) \x(\beta)} - {\color{gray} \vPoly{\DomainA}(\beta)} h_1(\beta) - {\color{gray} \beta g_1(\beta)}}_{\sumcheckouter(\beta)} \stackrel{?}{=} 0 $
 };
 
 \node[lalign] (prover5) at (-3,3.9) {%
