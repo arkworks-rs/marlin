@@ -105,7 +105,7 @@ Unless you explicitly state otherwise, any contribution that you submit to this 
 ## Reference paper
 
 [Marlin: Preprocessing zkSNARKs with Universal and Updatable SRS][marlin]     
-Alessandro Chiesa, Yuncong Hu, Mary Maller, [Pratyush Mishra](https://www.github.com/pratyush), Noah Vesely, [Nicholas Ward](https://www.github.com/npwardberkeley)     
+Alessandro Chiesa, Yuncong Hu, Mary Maller, [Pratyush Mishra](https://www.github.com/pratyush), [Psi Vesely](https://github.com/psivesely), [Nicholas Ward](https://www.github.com/npwardberkeley)     
 EUROCRYPT 2020
 
 ## Acknowledgements
