@@ -1,3 +1,16 @@
+## Pending 
+
+### Breaking changes
+
+### Features
+
+### Improvements
+
+- [\#70](https://github.com/arkworks-rs/marlin/pull/70) Reduce FFT domain size for witness multiplication
+
+### Bug fixes
+
+
 ## v0.2.0
 
 ### Breaking changes
