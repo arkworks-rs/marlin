@@ -1,3 +1,16 @@
+## Pending 
+
+### Breaking changes
+
+### Features
+
+### Improvements
+
+- [\#71](https://github.com/arkworks-rs/marlin/pull/71) Reduce prover memory overhead when processing the witness
+
+### Bug fixes
+
+
 ## v0.2.0
 
 ### Breaking changes
