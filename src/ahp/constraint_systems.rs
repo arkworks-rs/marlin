@@ -85,17 +85,17 @@ pub(crate) fn make_matrices_square<F: Field>(
 #[derive(Derivative, CanonicalSerialize, CanonicalDeserialize)]
 #[derivative(Debug(bound = "F: PrimeField"), Clone(bound = "F: PrimeField"))]
 pub struct MatrixEvals<F: PrimeField> {
-    /// Evaluations of the LDE of row.
+    /// Evaluations of the `row` polynomial.
     pub row: EvaluationsOnDomain<F>,
-    /// Evaluations of the LDE of col.
+    /// Evaluations of the `col` polynomial.
     pub col: EvaluationsOnDomain<F>,
-    /// Evaluations of the LDE of row_col.
+    /// Evaluations of the `row_col` polynomial.
     pub row_col: EvaluationsOnDomain<F>,
-    /// Evaluations of the LDE of val_a.
+    /// Evaluations of the `val_a` polynomial.
     pub val_a: EvaluationsOnDomain<F>,
-    /// Evaluations of the LDE of val.
+    /// Evaluations of the `val_b` polynomial.
     pub val_b: EvaluationsOnDomain<F>,
-    /// Evaluations of the LDE of val.
+    /// Evaluations of the `val_c` polynomial.
     pub val_c: EvaluationsOnDomain<F>,
 }
 
@@ -182,6 +182,7 @@ pub(crate) fn arithmetize_matrix<F: PrimeField>(
             // We are dealing with the transpose of M
             row_vec.push(col_val);
             col_vec.push(row_val);
+            // We insert zeros if a matrix doesn't contain an entry at the given (row, col) location.
             val_a_vec.push(a.get(&(r, *i)).copied().unwrap_or(F::zero()));
             val_b_vec.push(b.get(&(r, *i)).copied().unwrap_or(F::zero()));
             val_c_vec.push(c.get(&(r, *i)).copied().unwrap_or(F::zero()));
@@ -211,6 +212,7 @@ pub(crate) fn arithmetize_matrix<F: PrimeField>(
         val_b_vec.push(F::zero());
         val_c_vec.push(F::zero());
     }
+
     let row_col_vec: Vec<_> = row_vec
         .iter()
         .zip(&col_vec)
