@@ -10,7 +10,7 @@ use ark_mnt4_753::{Fr as MNT4BigFr, MNT4_753};
 use ark_mnt6_298::{Fr as MNT6Fr, MNT6_298};
 use ark_mnt6_753::{Fr as MNT6BigFr, MNT6_753};
 use ark_poly::univariate::DensePolynomial;
-use ark_poly_commit::marlin_pc::MarlinKZG10;
+use ark_poly_commit::sonic_pc::SonicKZG10;
 use ark_relations::{
     lc,
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
@@ -77,13 +77,13 @@ macro_rules! marlin_prove_bench {
 
         let srs = Marlin::<
             $bench_field,
-            MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
+            SonicKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
             Blake2s,
-        >::universal_setup(65536, 65536, 65536, rng)
+        >::universal_setup(65536, 65536, 3 * 65536, rng)
         .unwrap();
         let (pk, _) = Marlin::<
             $bench_field,
-            MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
+            SonicKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
             Blake2s,
         >::index(&srs, c)
         .unwrap();
@@ -93,7 +93,7 @@ macro_rules! marlin_prove_bench {
         for _ in 0..NUM_PROVE_REPEATITIONS {
             let _ = Marlin::<
                 $bench_field,
-                MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
+                SonicKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
                 Blake2s,
             >::prove(&pk, c.clone(), rng)
             .unwrap();
@@ -119,19 +119,19 @@ macro_rules! marlin_verify_bench {
 
         let srs = Marlin::<
             $bench_field,
-            MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
+            SonicKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
             Blake2s,
-        >::universal_setup(65536, 65536, 65536, rng)
+        >::universal_setup(65536, 65536, 3 * 65536, rng)
         .unwrap();
         let (pk, vk) = Marlin::<
             $bench_field,
-            MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
+            SonicKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
             Blake2s,
         >::index(&srs, c)
         .unwrap();
         let proof = Marlin::<
             $bench_field,
-            MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
+            SonicKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
             Blake2s,
         >::prove(&pk, c.clone(), rng)
         .unwrap();
@@ -143,7 +143,7 @@ macro_rules! marlin_verify_bench {
         for _ in 0..NUM_VERIFY_REPEATITIONS {
             let _ = Marlin::<
                 $bench_field,
-                MarlinKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
+                SonicKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
                 Blake2s,
             >::verify(&vk, &vec![v], &proof, rng)
             .unwrap();

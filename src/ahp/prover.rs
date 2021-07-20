@@ -9,7 +9,10 @@ use crate::ahp::constraint_systems::{
 };
 use crate::{ToString, Vec};
 use ark_ff::{Field, PrimeField, Zero};
-use ark_poly::{EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain, Polynomial, UVPolynomial, univariate::DensePolynomial};
+use ark_poly::{
+    univariate::DensePolynomial, EvaluationDomain, Evaluations as EvaluationsOnDomain,
+    GeneralEvaluationDomain, Polynomial, UVPolynomial,
+};
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError,
 };

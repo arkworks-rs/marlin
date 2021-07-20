@@ -80,7 +80,7 @@ pub(crate) fn make_matrices_square<F: Field>(
     }
 }
 
-/// Evaluations of various polynomials related to the constraint matrices, 
+/// Evaluations of various polynomials related to the constraint matrices,
 /// over the same domain.
 #[derive(Derivative, CanonicalSerialize, CanonicalDeserialize)]
 #[derivative(Debug(bound = "F: PrimeField"), Clone(bound = "F: PrimeField"))]
@@ -134,8 +134,6 @@ pub(crate) fn arithmetize_matrix<F: PrimeField>(
     let matrix_time = start_timer!(|| "Computing row, col, and val LDEs");
 
     let elems: Vec<_> = output_domain.elements().collect();
-
-
 
     let lde_evals_time = start_timer!(|| "Computing row, col and val evals");
     // Recall that we are computing the arithmetization of M^*,
@@ -293,14 +291,17 @@ pub(crate) fn make_matrices_square_for_prover<F: PrimeField>(cs: ConstraintSyste
 mod tests {
     use super::*;
     use ark_relations::r1cs::Matrix;
-    use ark_std::{UniformRand, collections::BTreeMap};
+    use ark_std::{collections::BTreeMap, UniformRand};
 
-    use ark_ff::{One, Zero};
     use ark_bls12_381::Fr as F;
+    use ark_ff::{One, Zero};
     use ark_poly::EvaluationDomain;
 
     fn entry(matrix: &Matrix<F>, row: usize, col: usize) -> F {
-        matrix[row].iter().find_map(|(f, i)| (i == &col).then(|| *f)).unwrap_or(F::zero())
+        matrix[row]
+            .iter()
+            .find_map(|(f, i)| (i == &col).then(|| *f))
+            .unwrap_or(F::zero())
     }
 
     #[test]
@@ -318,7 +319,7 @@ mod tests {
 
         let b = vec![
             vec![],
-            vec![(F::one(),1)],
+            vec![(F::one(), 1)],
             vec![(F::one(), 0)],
             vec![(F::one(), 2)],
             vec![(F::one(), 3)],
@@ -342,14 +343,28 @@ mod tests {
         let interpolation_domain = EvaluationDomain::new(num_non_zero).unwrap();
         let output_domain = EvaluationDomain::new(2 + 6).unwrap();
         let input_domain = EvaluationDomain::new(2).unwrap();
-        let joint_arith = arithmetize_matrix(&joint_matrix, &a, &b, &c, interpolation_domain, output_domain, input_domain);
-        let inverse_map = output_domain.elements().enumerate().map(|(i, e)| (e, i)).collect::<BTreeMap<_, _>>();
+        let joint_arith = arithmetize_matrix(
+            &joint_matrix,
+            &a,
+            &b,
+            &c,
+            interpolation_domain,
+            output_domain,
+            input_domain,
+        );
+        let inverse_map = output_domain
+            .elements()
+            .enumerate()
+            .map(|(i, e)| (e, i))
+            .collect::<BTreeMap<_, _>>();
         let elements = output_domain.elements().collect::<Vec<_>>();
-        let reindexed_inverse_map = (0..output_domain.size()).map(|i| {
-            let reindexed_i = output_domain.reindex_by_subdomain(input_domain, i);
-            (elements[reindexed_i], i)
-        }).collect::<BTreeMap<_, _>>();
-        
+        let reindexed_inverse_map = (0..output_domain.size())
+            .map(|i| {
+                let reindexed_i = output_domain.reindex_by_subdomain(input_domain, i);
+                (elements[reindexed_i], i)
+            })
+            .collect::<BTreeMap<_, _>>();
+
         let eq_poly_vals: BTreeMap<F, F> = output_domain
             .elements()
             .zip(output_domain.batch_eval_unnormalized_bivariate_lagrange_poly_with_same_inputs())
@@ -365,7 +380,7 @@ mod tests {
 
             let inverse = (eq_poly_vals[&row_val]).inverse().unwrap();
             // we're in transpose land.
-            
+
             let val_a = joint_arith.val_a.evaluate(&k);
             let val_b = joint_arith.val_b.evaluate(&k);
             let val_c = joint_arith.val_c.evaluate(&k);
@@ -379,8 +394,11 @@ mod tests {
                 let row = *dbg!(inverse_map.get(&col_val).unwrap());
                 assert!(joint_matrix[row].binary_search(&col).is_ok());
                 assert_eq!(
-                    eta_a * val_a + eta_b * val_b + eta_c * val_c, 
-                    inverse * (eta_a * entry(&a, row, col) + eta_b * entry(&b, row, col) + eta_c * entry(&c, row, col)),
+                    eta_a * val_a + eta_b * val_b + eta_c * val_c,
+                    inverse
+                        * (eta_a * entry(&a, row, col)
+                            + eta_b * entry(&b, row, col)
+                            + eta_c * entry(&c, row, col)),
                 );
             }
         }

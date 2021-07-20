@@ -10,8 +10,7 @@ use crate::Vec;
 use ark_ff::PrimeField;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_relations::r1cs::{
-    ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError,
-    SynthesisMode,
+    ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError, SynthesisMode,
 };
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
 use ark_std::{
@@ -63,9 +62,12 @@ impl<F: PrimeField> IndexInfo<F> {
 /// Represents a matrix.
 pub type Matrix<F> = Vec<Vec<(F, usize)>>;
 
-pub(crate) fn sum_matrices<F: PrimeField>(a: &Matrix<F>, b: &Matrix<F>, c: &Matrix<F>) -> Vec<Vec<usize>> {
-        a
-        .iter()
+pub(crate) fn sum_matrices<F: PrimeField>(
+    a: &Matrix<F>,
+    b: &Matrix<F>,
+    c: &Matrix<F>,
+) -> Vec<Vec<usize>> {
+    a.iter()
         .zip(b)
         .zip(c)
         .map(|((row_a, row_b), row_c)| {
@@ -74,7 +76,9 @@ pub(crate) fn sum_matrices<F: PrimeField>(a: &Matrix<F>, b: &Matrix<F>, c: &Matr
                 .map(|(_, i)| *i)
                 .chain(row_b.iter().map(|(_, i)| *i))
                 .chain(row_c.iter().map(|(_, i)| *i))
-                .collect::<BTreeSet<_>>().into_iter().collect()
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect()
         })
         .collect()
 }

@@ -185,8 +185,6 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let beta_alpha = beta * alpha;
         let g_2 = LinearCombination::new("g_2", vec![(F::one(), "g_2")]);
 
-        
-
         let g_2_at_gamma = evals.get_lc_eval(&g_2, gamma)?;
 
         let v_K_at_gamma = domain_k.evaluate_vanishing_polynomial(gamma);
