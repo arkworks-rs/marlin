@@ -130,7 +130,7 @@ mod marlin {
     fn test_circuit(num_constraints: usize, num_variables: usize) {
         let rng = &mut ark_std::test_rng();
 
-        let universal_srs = MarlinInst::universal_setup(100, 25, 100, rng).unwrap();
+        let universal_srs = MarlinInst::universal_setup(100, 25, 300, rng).unwrap();
 
         for _ in 0..100 {
             let a = Fr::rand(rng);

@@ -1,5 +1,7 @@
 #![allow(non_snake_case)]
 
+use std::collections::BTreeSet;
+
 use crate::ahp::{
     constraint_systems::{arithmetize_matrix, MatrixArithmetization},
     AHPForR1CS, Error, LabeledPolynomial,
@@ -8,7 +10,8 @@ use crate::Vec;
 use ark_ff::PrimeField;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_relations::r1cs::{
-    ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError, SynthesisMode,
+    ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError,
+    SynthesisMode,
 };
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
 use ark_std::{
@@ -18,8 +21,7 @@ use ark_std::{
 use derivative::Derivative;
 
 use crate::ahp::constraint_systems::{
-    balance_matrices, make_matrices_square_for_indexer, num_non_zero,
-    pad_input_for_indexer_and_prover,
+    make_matrices_square_for_indexer, num_non_zero, pad_input_for_indexer_and_prover,
 };
 
 /// Information about the index, including the field of definition, the number of
@@ -32,7 +34,7 @@ pub struct IndexInfo<F> {
     pub num_variables: usize,
     /// The number of constraints.
     pub num_constraints: usize,
-    /// The maximum number of non-zero entries in any constraint matrix.
+    /// The total number of non-zero entries in the sum of all constraint matrices.
     pub num_non_zero: usize,
     /// The number of input elements.
     pub num_instance_variables: usize,
@@ -61,6 +63,22 @@ impl<F: PrimeField> IndexInfo<F> {
 /// Represents a matrix.
 pub type Matrix<F> = Vec<Vec<(F, usize)>>;
 
+pub(crate) fn sum_matrices<F: PrimeField>(a: &Matrix<F>, b: &Matrix<F>, c: &Matrix<F>) -> Vec<Vec<usize>> {
+        a
+        .iter()
+        .zip(b)
+        .zip(c)
+        .map(|((row_a, row_b), row_c)| {
+            row_a
+                .iter()
+                .map(|(_, i)| *i)
+                .chain(row_b.iter().map(|(_, i)| *i))
+                .chain(row_c.iter().map(|(_, i)| *i))
+                .collect::<BTreeSet<_>>().into_iter().collect()
+        })
+        .collect()
+}
+
 #[derive(Derivative)]
 #[derivative(Clone(bound = "F: PrimeField"))]
 /// The indexed version of the constraint system.
@@ -82,12 +100,8 @@ pub struct Index<F: PrimeField> {
     /// The C matrix for the R1CS instance
     pub c: Matrix<F>,
 
-    /// Arithmetization of the A* matrix.
-    pub a_star_arith: MatrixArithmetization<F>,
-    /// Arithmetization of the B* matrix.
-    pub b_star_arith: MatrixArithmetization<F>,
-    /// Arithmetization of the C* matrix.
-    pub c_star_arith: MatrixArithmetization<F>,
+    /// Joint arithmetization of the A*, B*, and C* matrices.
+    pub joint_arith: MatrixArithmetization<F>,
 }
 
 impl<F: PrimeField> Index<F> {
@@ -99,18 +113,12 @@ impl<F: PrimeField> Index<F> {
     /// Iterate over the indexed polynomials.
     pub fn iter(&self) -> impl Iterator<Item = &LabeledPolynomial<F>> {
         ark_std::vec![
-            &self.a_star_arith.row,
-            &self.a_star_arith.col,
-            &self.a_star_arith.val,
-            &self.a_star_arith.row_col,
-            &self.b_star_arith.row,
-            &self.b_star_arith.col,
-            &self.b_star_arith.val,
-            &self.b_star_arith.row_col,
-            &self.c_star_arith.row,
-            &self.c_star_arith.col,
-            &self.c_star_arith.val,
-            &self.c_star_arith.row_col,
+            &self.joint_arith.row,
+            &self.joint_arith.col,
+            &self.joint_arith.val_a,
+            &self.joint_arith.val_b,
+            &self.joint_arith.val_c,
+            &self.joint_arith.row_col,
         ]
         .into_iter()
     }
@@ -135,9 +143,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
         ics.finalize();
         make_matrices_square_for_indexer(ics.clone());
         let matrices = ics.to_matrices().expect("should not be `None`");
-        let num_non_zero_val = num_non_zero::<F>(&matrices);
+        let joint_matrix = sum_matrices(&matrices.a, &matrices.b, &matrices.c);
+        let num_non_zero_val = num_non_zero(&joint_matrix);
         let (mut a, mut b, mut c) = (matrices.a, matrices.b, matrices.c);
-        balance_matrices(&mut a, &mut b);
         end_timer!(matrix_processing_time);
 
         let (num_formatted_input_variables, num_witness_variables, num_constraints, num_non_zero) = (
@@ -176,22 +184,20 @@ impl<F: PrimeField> AHPForR1CS<F> {
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_k = GeneralEvaluationDomain::new(num_non_zero)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let x_domain = GeneralEvaluationDomain::<F>::new(num_formatted_input_variables)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        let b_domain = GeneralEvaluationDomain::<F>::new(3 * domain_k.size() - 3)
+        let x_domain = GeneralEvaluationDomain::new(num_formatted_input_variables)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
-        let a_arithmetization_time = start_timer!(|| "Arithmetizing A");
-        let a_star_arith = arithmetize_matrix("a", &mut a, domain_k, domain_h, x_domain, b_domain);
-        end_timer!(a_arithmetization_time);
-
-        let b_arithmetization_time = start_timer!(|| "Arithmetizing B");
-        let b_star_arith = arithmetize_matrix("b", &mut b, domain_k, domain_h, x_domain, b_domain);
-        end_timer!(b_arithmetization_time);
-
-        let c_arithmetization_time = start_timer!(|| "Arithmetizing C");
-        let c_star_arith = arithmetize_matrix("c", &mut c, domain_k, domain_h, x_domain, b_domain);
-        end_timer!(c_arithmetization_time);
+        let joint_arithmetization_time = start_timer!(|| "Arithmetizing A");
+        let joint_arith = arithmetize_matrix(
+            &joint_matrix,
+            &mut a,
+            &mut b,
+            &mut c,
+            domain_k,
+            domain_h,
+            x_domain,
+        );
+        end_timer!(joint_arithmetization_time);
 
         end_timer!(index_time);
         Ok(Index {
@@ -201,9 +207,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
             b,
             c,
 
-            a_star_arith,
-            b_star_arith,
-            c_star_arith,
+            joint_arith,
         })
     }
 }
