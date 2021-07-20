@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use std::collections::BTreeSet;
+use ark_std::collections::BTreeSet;
 
 use crate::ahp::{
     constraint_systems::{arithmetize_matrix, MatrixArithmetization},
