@@ -191,7 +191,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let x_domain = GeneralEvaluationDomain::new(num_formatted_input_variables)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
-        let joint_arithmetization_time = start_timer!(|| "Arithmetizing A");
+        let joint_arithmetization_time = start_timer!(|| "Arithmetizing all matrices");
         let joint_arith = arithmetize_matrix(
             &joint_matrix,
             &mut a,
