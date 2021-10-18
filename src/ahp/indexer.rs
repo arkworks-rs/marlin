@@ -42,6 +42,24 @@ pub struct IndexInfo<F> {
     f: PhantomData<F>,
 }
 
+impl<F> IndexInfo<F> {
+    /// Construct a new index info
+    pub fn new(
+        num_variables: usize,
+        num_constraints: usize,
+        num_non_zero: usize,
+        num_instance_variables: usize,
+    ) -> Self {
+        Self {
+            num_variables,
+            num_constraints,
+            num_non_zero,
+            num_instance_variables,
+            f: PhantomData,
+        }
+    }
+}
+
 impl<F: PrimeField> ark_ff::ToBytes for IndexInfo<F> {
     fn write<W: Write>(&self, mut w: W) -> ark_std::io::Result<()> {
         (self.num_variables as u64).write(&mut w)?;
