@@ -24,7 +24,6 @@ use ark_poly_commit::Evaluations;
 use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
 use ark_relations::r1cs::ConstraintSynthesizer;
 use ark_std::rand::RngCore;
-use digest::Digest;
 
 use ark_std::{
     collections::BTreeMap,
@@ -61,13 +60,13 @@ use ahp::EvaluationsProvider;
 mod test;
 
 /// The compiled argument system.
-pub struct Marlin<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, D: Digest>(
+pub struct Marlin<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatShamirRng>(
     #[doc(hidden)] PhantomData<F>,
     #[doc(hidden)] PhantomData<PC>,
-    #[doc(hidden)] PhantomData<D>,
+    #[doc(hidden)] PhantomData<FS>,
 );
 
-impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, D: Digest> Marlin<F, PC, D> {
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatShamirRng> Marlin<F, PC, FS> {
     /// The personalization string for this protocol. Used to personalize the
     /// Fiat-Shamir rng.
     pub const PROTOCOL_NAME: &'static [u8] = b"MARLIN-2019";
@@ -156,7 +155,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, D: Digest> 
 
         let prover_init_state = AHPForR1CS::prover_init(&index_pk.index, c)?;
         let public_input = prover_init_state.public_input();
-        let mut fs_rng = FiatShamirRng::<D>::from_seed(
+        let mut fs_rng = FS::initialize(
             &to_bytes![&Self::PROTOCOL_NAME, &index_pk.index_vk, &public_input].unwrap(),
         );
 
@@ -330,7 +329,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, D: Digest> 
             unpadded_input
         };
 
-        let mut fs_rng = FiatShamirRng::<D>::from_seed(
+        let mut fs_rng = FS::initialize(
             &to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap(),
         );
 
