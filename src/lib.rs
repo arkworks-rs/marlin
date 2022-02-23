@@ -66,7 +66,9 @@ pub struct Marlin<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>
     #[doc(hidden)] PhantomData<FS>,
 );
 
-impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatShamirRng> Marlin<F, PC, FS> {
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatShamirRng>
+    Marlin<F, PC, FS>
+{
     /// The personalization string for this protocol. Used to personalize the
     /// Fiat-Shamir rng.
     pub const PROTOCOL_NAME: &'static [u8] = b"MARLIN-2019";
@@ -329,9 +331,8 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
             unpadded_input
         };
 
-        let mut fs_rng = FS::initialize(
-            &to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap(),
-        );
+        let mut fs_rng =
+            FS::initialize(&to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap());
 
         // --------------------------------------------------------------------
         // First round
