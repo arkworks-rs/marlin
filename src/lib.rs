@@ -44,6 +44,7 @@ macro_rules! eprintln {
 /// the seed based on new messages in the proof transcript.
 pub mod rng;
 use rng::FiatShamirRng;
+pub use rng::SimpleHashFiatShamirRng;
 
 mod error;
 pub use error::*;

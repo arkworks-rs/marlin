@@ -56,7 +56,7 @@ where
         initial_input
             .write(&mut bytes)
             .expect("failed to convert to bytes");
-        let seed = FromBytes::read(D::digest(&bytes).as_ref()).expect("failed to get [u32; 8]");
+        let seed = FromBytes::read(D::digest(&bytes).as_ref()).expect("failed to get [u8; 32]");
         let r = R::from_seed(<R::Seed>::from(seed));
         Self {
             r,
@@ -74,7 +74,7 @@ where
             .write(&mut bytes)
             .expect("failed to convert to bytes");
         bytes.extend_from_slice(&self.seed);
-        self.seed = FromBytes::read(D::digest(&bytes).as_ref()).expect("failed to get [u32; 8]");
+        self.seed = FromBytes::read(D::digest(&bytes).as_ref()).expect("failed to get [u8; 32]");
         self.r = R::from_seed(<R::Seed>::from(self.seed));
     }
 }

@@ -115,7 +115,7 @@ impl<F: Field> ConstraintSynthesizer<F> for OutlineTestCircuit<F> {
 
 mod marlin {
     use super::*;
-    use crate::{rng::SimpleHashFiatShamirRng, Marlin};
+    use crate::{Marlin, SimpleHashFiatShamirRng};
 
     use ark_bls12_381::{Bls12_381, Fr};
     use ark_ff::UniformRand;

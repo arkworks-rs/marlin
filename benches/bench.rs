@@ -4,7 +4,7 @@
 
 use ark_bls12_381::{Bls12_381, Fr as BlsFr};
 use ark_ff::PrimeField;
-use ark_marlin::Marlin;
+use ark_marlin::{Marlin, SimpleHashFiatShamirRng};
 use ark_mnt4_298::{Fr as MNT4Fr, MNT4_298};
 use ark_mnt4_753::{Fr as MNT4BigFr, MNT4_753};
 use ark_mnt6_298::{Fr as MNT6Fr, MNT6_298};
@@ -17,6 +17,7 @@ use ark_relations::{
 };
 use ark_std::{ops::Mul, UniformRand};
 use blake2::Blake2s;
+use rand_chacha::ChaChaRng;
 
 const NUM_PROVE_REPEATITIONS: usize = 10;
 const NUM_VERIFY_REPEATITIONS: usize = 50;
@@ -78,13 +79,13 @@ macro_rules! marlin_prove_bench {
         let srs = Marlin::<
             $bench_field,
             SonicKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
-            Blake2s,
+            SimpleHashFiatShamirRng<Blake2s, ChaChaRng>,
         >::universal_setup(65536, 65536, 3 * 65536, rng)
         .unwrap();
         let (pk, _) = Marlin::<
             $bench_field,
             SonicKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
-            Blake2s,
+            SimpleHashFiatShamirRng<Blake2s, ChaChaRng>,
         >::index(&srs, c)
         .unwrap();
 
@@ -94,7 +95,7 @@ macro_rules! marlin_prove_bench {
             let _ = Marlin::<
                 $bench_field,
                 SonicKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
-                Blake2s,
+                SimpleHashFiatShamirRng<Blake2s, ChaChaRng>,
             >::prove(&pk, c.clone(), rng)
             .unwrap();
         }
@@ -120,19 +121,19 @@ macro_rules! marlin_verify_bench {
         let srs = Marlin::<
             $bench_field,
             SonicKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
-            Blake2s,
+            SimpleHashFiatShamirRng<Blake2s, ChaChaRng>,
         >::universal_setup(65536, 65536, 3 * 65536, rng)
         .unwrap();
         let (pk, vk) = Marlin::<
             $bench_field,
             SonicKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
-            Blake2s,
+            SimpleHashFiatShamirRng<Blake2s, ChaChaRng>,
         >::index(&srs, c)
         .unwrap();
         let proof = Marlin::<
             $bench_field,
             SonicKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
-            Blake2s,
+            SimpleHashFiatShamirRng<Blake2s, ChaChaRng>,
         >::prove(&pk, c.clone(), rng)
         .unwrap();
 
@@ -144,7 +145,7 @@ macro_rules! marlin_verify_bench {
             let _ = Marlin::<
                 $bench_field,
                 SonicKZG10<$bench_pairing_engine, DensePolynomial<$bench_field>>,
-                Blake2s,
+                SimpleHashFiatShamirRng<Blake2s, ChaChaRng>,
             >::verify(&vk, &vec![v], &proof, rng)
             .unwrap();
         }
