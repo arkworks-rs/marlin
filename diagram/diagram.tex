@@ -34,17 +34,16 @@
 \newcommand{\col}{\ensuremath{\mathsf{col}}}
 \newcommand{\rowcol}{\ensuremath{\mathsf{rowcol}}}
 
-\newcommand{\hval}{\ensuremath{\hat{\val}}}
-\newcommand{\hrow}{\ensuremath{\hat{\row}}}
-\newcommand{\hcol}{\ensuremath{\hat{\col}}}
-\newcommand{\hrowcol}{\ensuremath{\hat{\rowcol}}}
+\newcommand{\hval}{\ensuremath{\widehat{\val}}}
+\newcommand{\hrow}{\ensuremath{\widehat{\row}}}
+\newcommand{\hcol}{\ensuremath{\widehat{\col}}}
+\newcommand{\hrowcol}{\ensuremath{\widehat{\rowcol}}}
 
 \newcommand{\bb}{\ensuremath{\mathsf{b}}}
 \newcommand{\denom}{\ensuremath{\mathsf{denom}}}
 
-\newcommand{\sumcheckinner}{\mathsf{sumcheck}
-_{\mathsf{inner}}}
-\newcommand{\sumcheckouter}{\mathsf{sumcheck}_{\mathsf{outer}}}
+\newcommand{\sumcheckinner}{\mathsf{inner}}
+\newcommand{\sumcheckouter}{\mathsf{outer}}
 
 \newcommand{\Prover}{\mathcal{P}}
 \newcommand{\Verifier}{\mathcal{V}}
@@ -76,34 +75,44 @@ This diagram (on the following page) shows the interaction of the Marlin prover 
     $X$ & domain sized for input (not including witness) \\
      \hline
     $v_D(X)$ & vanishing polynomial over domain $D$ \\
+    \hline
+    $u_D(X, Y)$ & bivariate derivative of vanishing polynomials over domain $D$\\
      \hline
     $A, B, C$ & R1CS instance matrices \\
     \hline
     $A^*, B^*, C^*$ &
     \begin{tabular}{@{}c@{}}shifted transpose of $A,B,C$ matries given by $M^*_{a,b} := M_{b,a} \cdot u_\DomainA(b,b) \; \forall a,b \in \DomainA$ \\ (optimization from Fractal, explained in Claim 6.7 of that paper) \end{tabular} \\
      \hline
-    $\{\hval, \hrow, \hcol\}_{\{A^*,B^*,C^*\}}$ &
-    	\begin{tabular}{@{}c@{}} preprocessed polynomials from $A^*, B^*, C^*$ matrices containing LDEs of (respectively) \\ row positions, column positions, and values of non-zero matrix elements \end{tabular} \\
+    $\hrow, \hcol$ &
+    \begin{tabular}{@{}c@{}} LDEs of (respectively) row positions and column positions of non-zero elements of any \\ linear combination of $A^*$, $B^*$, and $C^*$ (the choice of combination is irrelevant).\end{tabular} \\
     \hline
-    $\hrowcol_{\{A^*, B^*, C^*\}}$ &
-        	\begin{tabular}{@{}c@{}} the product polynomial of $\hrow$ and $\hcol$, given separately for efficiency (namely \\ to allow this product to be part of a \textit{linear} combination) \end{tabular} \\
+    ${\hrowcol}$ &
+    \begin{tabular}{@{}c@{}} LDE of the element-wise product of $\row$ and $\col$, given separately for efficiency  \\ (namely to allow this product to be part of a \textit{linear} combination) \end{tabular} \\
+    \hline
+    $\hval_{\{A^*, B^*, C^*\}}$ &
+    \begin{tabular}{@{}c@{}} preprocessed polynomials containing LDEs of \\ the values of non-zero elements of any linear combination of $A^*$, $B^*$, and $C^*$. \\ That is, if $\kappa$ is the $k$-th element of $\DomainB$, then $(\sum_M \eta_M \hval_{M^*})(\kappa)$ is the \\$k$-th non-zero entry of $\sum_M \eta_M M^*$, for arbitrary $\eta_{\{A, B, C\}} \in \F$.\end{tabular} \\
      \hline
     $\Prover$ & prover \\
      \hline
     $\Verifier$ & verifier \\
      \hline
     $\Verifier^{p}$ &
-    	\begin{tabular}{@{}c@{}} $\Verifier$ with ``oracle" access to polynomial $p$ (via commitments provided \\ by the indexer, later opened as necessary by $\Prover$) \end{tabular}
+    	\begin{tabular}{@{}c@{}} $\Verifier$ with ``oracle" access to polynomial $p$ (via commitments provided \\ by the indexer, later opened as necessary by $\Prover$) \end{tabular}\\
+    \hline
+    $\bb$ & bound on the number of queries \\
+    \hline
+    $r_M(X, Y)$ & an intermediate polynomial defined by $r_M(X, Y) = M^*(Y,X)$\\
+    \hline
   \end{tabular}
 \end{table*}
 
 \afterpage{%
-\newgeometry{margin=0.5in}
+\newgeometry{margin=0.2in}
 
 \section{Diagram}
 
 \centering
-\begin{tikzpicture}[scale=0.9, every node/.style={scale=0.9}]
+\begin{tikzpicture}[scale=0.95, every node/.style={scale=0.95}]
 
 \tikzstyle{lalign} = [minimum width=3cm,align=left,anchor=west]
 \tikzstyle{ralign} = [minimum width=3cm,align=right,anchor=east]
@@ -113,13 +122,13 @@ $\Prover(\F, \DomainA, \DomainB, A, B, C, x, w)$
 };
 
 \node[ralign] (verifier) at (16.2,27.3) {%
-$\Verifier^{\{\hval, \hrow, \hcol, \hrowcol\}_{\{A^*, B^*, C^*\}}}(\F, \DomainA, \DomainB, x)$
+$\Verifier^{\hrow, \hcol, \hrowcol, \hval_{A^*}, \hval_{B^*}, \hval_{C^*}}(\F, \DomainA, \DomainB, x)$
 };
 
 \draw [line width=1.0pt] (-3,27.0) -- (16,27.0);
 
 \node[lalign] (prover1) at (-3,26.1) {%
-$z := (x, w), \za := Az, \zb := Bz$ \\
+$z := (x, w), z_A := Az, z_B := Bz$ \\
 sample $\w(X) \in \F^{<|w|+\bb}[X]$ and $\za(X), \zb(X) \in \F^{<|\DomainA|+\bb}[X]$ \\
 sample mask poly $\s(X) \in \F^{<3|\DomainA|+2\bb-2}[X]$ such that $\sum_{\kappa \in \DomainA}\s(\kappa) = 0$
 };
@@ -137,16 +146,16 @@ $\alpha \gets \F \setminus \DomainA$
 compute $t(X) := \sum_M \eta_M r_M(\alpha, X)$
 };
 
-\draw (-2.4,22.0) rectangle (15.4,4.8);
+\draw (-2.9,22.0) rectangle (15.9,3.8);
 
 \node (sc1label) at (6.5,21.7) {%
-\textbf{sumcheck for} $\s(X) + r(\alpha, X) \left(\sum_M \eta_M \zm(X)\right) - t(X)\z(X)$ \textbf{ over } $\DomainA$
+\textbf{sumcheck for} $\s(X) + u_H(\alpha, X) \left(\sum_M \eta_M \zm(X)\right) - t(X)\z(X)$ \textbf{ over } $\DomainA$
 };
 
 \node[lalign] (prover3) at (-2,20.7) {%
 let $\zc(X) := \za(X) \cdot \zb(X)$ \\
 find $g_1(X) \in \F^{|\DomainA|-1}[X]$ and $h_1(X)$ such that \\
-$s(X)+r(\alpha, X)(\sum_M \eta_M \zm(X)) - t(X)\z(X) = h_1(X)\vPoly{\DomainA}(X) + Xg_1(X)$ \hspace{0.3cm} $(*)$
+$s(X)+u_H(\alpha, X)(\sum_M \eta_M \zm(X)) - t(X)\z(X) = h_1(X)\vPoly{\DomainA}(X) + Xg_1(X)$ \hspace{0.3cm} $(*)$
 };
 
 \draw [->] (-1,19.5) -- node[midway,fill=white] {commitments $\cm{t}, \cm{g_1}, \cm{h_1}$} (14,19.5);
@@ -157,71 +166,62 @@ $\beta \gets \F \setminus \DomainA$
 
 \draw [->] (14,18.7) -- node[midway,fill=white] {$\beta \in \F$} (-1,18.7);
 
-\draw (-0.85,18.2) rectangle (13.85,8.4);
+\draw (-0.85,18.2) rectangle (13.85,7.6);
 
 \node (sc2label) at (6.5,17.6) {%
-\textbf{sumcheck for } $\sum\limits_{M \in \{A, B, C\}} \eta_M \frac{\vPoly{\DomainA}(\beta) \vPoly{\DomainA}(\alpha)\hval_{M^*}(X)}{\color{purple}(\beta-\hrow_{M^*}(X))(\alpha-\hcol_{M^*}(X))} $ \textbf{ over } $\DomainB$
+\textbf{sumcheck for } $\sum\limits_{M \in \{A, B, C\}} \eta_M \frac{\vPoly{\DomainA}(\beta) \vPoly{\DomainA}(\alpha)\hval_{M^*}(X)}{\color{purple}(\beta-\hrow(X))(\alpha-\hcol(X))} $ \textbf{ over } $\DomainB$
 };
 
-\node[align=center] (mid1) at (6.5, 16.3) {%
+\node[align=center] (mid1) at (6.5, 15) {%
 $\begin{aligned} 
-\text{for } M \in \{A, B, C\} \text{, let } {\color{purple} M_\denom(X)} &:= (\beta - \hrow_{M^*}(X)) (\alpha - \hcol_{M^*}(X)) \\
-&= {\color{gray}\alpha\beta} - {\color{gray}\alpha}\hrow_{M^*}(X) - {\color{gray}\beta}\hcol_{M^*}(X) + \hrowcol_{M^*}(X)
+\text{let } {\color{purple} \denom(X)} &{}:= (\beta - \hrow(X)) (\alpha - \hcol(X)) \\
+                                       &{}= {\color{gray}\alpha\beta} - {\color{gray}\alpha}\hrow(X) - {\color{gray}\beta}\hcol(X) + \hrowcol(X) \text{ (over $\DomainB$)}\\\\
+    \text{ let } {\color{orange} a(X)} &{}:= {\color{gray} \vPoly{\DomainA}(\beta) \vPoly{\DomainA}(\alpha)} \sum\limits_{M \in \{A, B, C\}} \eta_M \hval_{M^*}(X)
+\\\\
+    \text{ let } {\color{Green4} b(X)} &{}:= {\color{purple} \denom(X)}\\\\
 \end{aligned}$
 };
 
-\node[align=center] (mid2) at (6.5, 15.0) {%
-let ${\color{orange} a(X)} := \sum\limits_{M \in \{A, B, C\}} {\color{gray} \eta_M \vPoly{\DomainA}(\beta) \vPoly{\DomainA}(\alpha)} \hval_{M^*}(X) \prod_{N \neq M} {\color{purple} N_\denom(X)}$
-};
-
-\node[align=center] (mid3) at (6.5, 14.1) {%
-let ${\color{Green4} b(X)} := \sum\limits_{M \in \{A, B, C\}} {\color{purple} M_\denom(X)}$
-};
-
-\node[lalign] (prover4) at (-0.75,13.2) {%
+\node[lalign] (prover4) at (-0.75,12.2) {%
 find $g_2(X) \in \F^{|\DomainB|-1}[X]$ and $h_2(X)$ s.t. \\
 $h_2(X)\vPoly{\DomainB}(X) = {\color{orange} a(X)} - {\color{Green4} b(X)} (Xg_2(X)+t(\beta)/|\DomainB|)$ \hspace{0.3cm} $(**)$
 };
 
-\draw [->] (0,12.2) -- node[midway,fill=white] {commitments $\cm{g_2}, \cm{h_2}$} (13,12.2);
+\draw [->] (0,11.2) -- node[midway,fill=white] {commitments $\cm{g_2}, \cm{h_2}$} (13,11.2);
 
-\draw [->] (13,11.5) -- node[midway,fill=white] {$\gamma \in \F$} (0,11.5);
+\draw [->] (13,10.5) -- node[midway,fill=white] {$\gamma \in \F$} (0,10.5);
 
-\node[ralign] (verifier3) at (14.5, 11.9) {%
+\node[ralign] (verifier3) at (14.5, 10.9) {%
 $\gamma \gets \F$
 };
 
-\draw[dashed] (1.5,11.0) rectangle (11.5,8.8);
+\draw[dashed] (1.5,10.0) rectangle (11.5,7.8);
 
-\node[align=center] (mid4) at (6.5, 9.9) {%
+\node[align=center] (mid4) at (6.5, 8.9) {%
 To verify $(**)$, $\Verifier$ will need to check the following: \\[10pt]
 $ \underbrace{{\color{orange} a({\color{black} \gamma})} - {\color{Green4} b({\color{black} \gamma})} {\color{gray} (\gamma g_2(\gamma) + t(\beta) / |\DomainB|) - \vPoly{\DomainB}(\gamma)} h_2(\gamma)}_{\sumcheckinner(\gamma)} \stackrel{?}{=} 0 $
 };
 
-\node[ralign] (verifier3) at (15.4, 7.9) {%
-Compute $\x(X) \in \F^{<|x|}[X]$
+\node[ralign] (verifier3) at (15.4, 6.9) {%
+Compute $\x(X) \in \F^{<|x|}[X]$ from input $x$
 };
 
-\draw[dashed] (-2.2,7.4) rectangle (15.2,5.2);
+\draw[dashed] (-2.7,7.4) rectangle (15.7,4.2);
 
-\node[align=center] (mid5) at (6.5, 6.3) {%
+\node[align=center] (mid5) at (6.5, 5.3) {%
 To verify $(*)$, $\Verifier$ will need to check the following: \\[10pt]
-$ \underbrace{s(\beta) + {\color{gray} r(\alpha, \beta)} ({\color{gray} \eta_A} \za(\beta) + {\color{gray} \eta_C\zb(\beta)} \za(\beta) + {\color{gray} \eta_B\zb(\beta)}) - {\color{gray} t(\beta) \vPoly{X}(\beta)} \w(\beta) - {\color{gray} t(\beta) \x(\beta)} - {\color{gray} \vPoly{\DomainA}(\beta)} h_1(\beta) - {\color{gray} \beta g_1(\beta)}}_{\sumcheckouter(\beta)} \stackrel{?}{=} 0 $
+$ \underbrace{s(\beta) + {\color{gray} v_H(\alpha, \beta)} ({\color{gray} \eta_A} \za(\beta) + {\color{gray} \eta_C\zb(\beta)} \za(\beta) + {\color{gray} \eta_B\zb(\beta)}) - {\color{gray} t(\beta) \vPoly{X}(\beta)} \w(\beta) - {\color{gray} t(\beta) \x(\beta)} - {\color{gray} \vPoly{\DomainA}(\beta)} h_1(\beta) - {\color{gray} \beta g_1(\beta)}}_{\sumcheckouter(\beta)} \stackrel{?}{=} 0 $
 };
 
-\node[lalign] (prover5) at (-3,3.9) {%
-$v_{g_2} := g_2(\gamma), v_{A_\denom} := A_\denom(\gamma), v_{B_\denom} := B_\denom(\gamma), v_{C_\denom} := C_\denom(\gamma)$ \\[3pt]
+\node[lalign] (prover5) at (-3,2.9) {%
+$v_{g_2} := g_2(\gamma)$ \\[3pt]
 $v_{g_1} := g_1(\beta), v_{\zb} := \zb(\beta), v_{t} := t(\beta)$
 };
 
-\draw [->] (-2,2.9) -- node[midway,fill=white] {$v_{g_2}, v_{A_\denom}, v_{B_\denom}, v_{C_\denom}, v_{g_1}, v_{\zb}, v_{t}$} (15,2.9);
-
-\node[align=center] (mid6) at (6.5,1.9) {%
-use index commitments $\hrow, \hcol, \hrowcol$ to construct virtual commitments $\vcm{\{A_\denom, B_\denom, C_\denom\}}$
-};
+\draw [->] (-2,1.9) -- node[midway,fill=white] {$v_{g_2}, v_{g_1}, v_{\zb}, v_{t}$} (15,1.9);
 
 \node[align=center] (mid7) at (6.5,0.8) {%
-use index commitments $\hval$, commitments $\vcm{A_\denom}$, $\vcm{B_\denom}, \vcm{C_\denom}, \cm{h_2}$, {\color{gray} and evaluations $g_2(\gamma),t(\beta)$} \\
+use index commitments $\hrow, \hcol, \hrowcol, \hval_{\{A^*, B^*, C^*\}}$, commitment $\cm{h_2}$, {\color{gray} and evaluations $g_2(\gamma),t(\beta)$} \\
 to construct virtual commitment $\vcm{\sumcheckinner}$
 };
 
@@ -230,8 +230,8 @@ use commitments $\cm{\s}, \cm{\za}, \cm{\w}, \cm{h_1}$ {\color{gray} and evaluat
 to construct virtual commitment $\vcm{\sumcheckouter}$
 };
 
-\node[ralign] (verifier4) at (16,-1.5) {%
-$\xi_1, \dots, \xi_5 \gets \F$
+\node[ralign] (verifier4) at (16,-1.4) {%
+$\xi_1, \dots, \xi_5 \gets F$
 };
 
 \draw [->] (15,-2.1) -- node[midway,fill=white] {$\xi_1, \dots, \xi_5$} (-2,-2.1);
@@ -239,7 +239,7 @@ $\xi_1, \dots, \xi_5 \gets \F$
 \node[lalign] (prover6) at (-3,-3.6) {%
 use $\mathsf{PC}.\mathsf{Prove}$ with randomness $\xi_1, \dots, \xi_5$ to \\
 construct a batch opening proof $\pi$ of the following: \\
-$(\cm{g_2}, \cm{A_\denom}, \cm{B_\denom}, \cm{C_\denom}, {\color{red} \vcm{\sumcheckinner}})$ at $\gamma$ evaluate to $(v_{g_2}, v_{A_\denom}, v_{B_\denom}, v_{C_\denom}, {\color{red} 0})$ \hspace{0.3cm} ${\color{red} (**)}$ \\
+$(\cm{g_2}, {\color{red} \vcm{\sumcheckinner}})$ at $\gamma$ evaluate to $(v_{g_2}, {\color{red} 0})$ \hspace{0.3cm} ${\color{red} (**)}$ \\
 $(\cm{g_1}, \cm{\zb}, \cm{t}, {\color{red} \vcm{\sumcheckouter}})$ at $\beta$ evaluate to $(v_{g_1}, v_{\zb}, v_{t}, {\color{red} 0})$ \hspace{0.3cm} ${\color{red} (*)}$ \\
 };
 
@@ -247,9 +247,8 @@ $(\cm{g_1}, \cm{\zb}, \cm{t}, {\color{red} \vcm{\sumcheckouter}})$ at $\beta$ ev
 
 \node[ralign] (verifier5) at (16,-6.0) {%
 verify $\pi$ with $\mathsf{PC}.\mathsf{Verify}$, using randomness $\xi_1, \dots, \xi_5$, \\
-evaluations $v_{g_2}, v_{A_\denom}, v_{B_\denom}, v_{C_\denom}, v_{g_1}, v_{\zb}, v_{t}$, and \\
-commitments $\cm{g_2}, \cm{A_\denom}, \cm{B_\denom}, \cm{C_\denom},$ \\
-$\vcm{\sumcheckinner}, \cm{g_1}, \cm{\zb}, \cm{t}, \vcm{\sumcheckinner}$
+evaluations $v_{g_2}, v_{g_1}, v_{\zb}, v_{t}$, and \\
+commitments $\cm{g_2},\vcm{\sumcheckinner}, \cm{g_1}, \cm{\zb}, \cm{t}, \vcm{\sumcheckinner}$
 };
 
 \end{tikzpicture}
