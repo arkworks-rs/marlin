@@ -10,6 +10,8 @@
 
 ### Improvements
 
+- [\#71](https://github.com/arkworks-rs/marlin/pull/71) Remove an unnecessary clone of the full witness.
+
 ### Bug fixes
 
 ## v0.3.0
