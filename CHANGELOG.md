@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## Pending 
+## Pending
 
 ### Breaking changes
 
@@ -10,7 +10,7 @@
 
 ### Improvements
 
-- [\#71](https://github.com/arkworks-rs/marlin/pull/71) Reduce prover memory overhead when processing the witness.
+- [\#71](https://github.com/arkworks-rs/marlin/pull/71) Remove an unnecessary clone of the full witness.
 
 ### Bug fixes
 
