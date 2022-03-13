@@ -4,6 +4,8 @@
 
 ### Breaking changes
 
+- [\#86](https://github.com/arkworks-rs/marlin/pull/86) Unify the interface for Fiat-Shamir transform.
+
 ### Features
 
 ### Improvements
