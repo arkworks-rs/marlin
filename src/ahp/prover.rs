@@ -232,7 +232,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let num_non_zero = index.index_info.num_non_zero;
 
         let (formatted_input_assignment, witness_assignment, num_constraints) = {
-            let pcs = pcs.into_inner();
+            let pcs = pcs.into_inner().unwrap();
             (
                 pcs.instance_assignment,
                 pcs.witness_assignment,
