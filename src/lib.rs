@@ -7,21 +7,25 @@
 //! is the same as the number of constraints (i.e., where the constraint
 //! matrices are square). Furthermore, Marlin only supports instances where the
 //! public inputs are of size one less than a power of 2 (i.e., 2^n - 1).
-#![deny(unused_import_braces, unused_qualifications, trivial_casts)]
-#![deny(trivial_numeric_casts, private_in_public)]
-#![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
-#![deny(unused_attributes, unused_imports, unused_mut)]
-#![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
-#![deny(unused_comparisons, bare_trait_objects, unused_must_use, const_err)]
+//#![deny(unused_import_braces, unused_qualifications, trivial_casts)]
+//#![deny(trivial_numeric_casts, private_in_public)]
+//#![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
+//#![deny(unused_attributes, unused_imports, unused_mut)]
+//#![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
+//#![deny(unused_comparisons, bare_trait_objects, unused_must_use, const_err)]
 #![forbid(unsafe_code)]
 #![allow(clippy::op_ref)]
 
+use crate::ahp::prover::ProverMsg;
 use ark_ff::{to_bytes, PrimeField, ToConstraintField};
+use ark_nonnative_field::params::OptimizationType;
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
-use ark_poly_commit::Evaluations;
-use ark_poly_commit::LabeledPolynomial;
-use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
+use ark_poly_commit::{
+    challenge::ChallengeGenerator, Evaluations, LabeledCommitment, LabeledPolynomial,
+    PCUniversalParams, PolynomialCommitment,
+};
 use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError};
+use ark_sponge::CryptographicSponge;
 use ark_std::rand::RngCore;
 
 #[macro_use]
@@ -45,7 +49,7 @@ macro_rules! eprintln {
 /// Implements a Fiat-Shamir based Rng that allows one to incrementally update
 /// the seed based on new messages in the proof transcript.
 pub mod fiat_shamir;
-use crate::fiat_shamir::FiatShamirRng;
+pub use fiat_shamir::*;
 
 mod error;
 pub use error::*;
@@ -57,10 +61,7 @@ pub mod constraints;
 
 /// Implements an Algebraic Holographic Proof (AHP) for the R1CS indexed relation.
 pub mod ahp;
-use crate::ahp::prover::ProverMsg;
-pub use ahp::AHPForR1CS;
-use ahp::EvaluationsProvider;
-use ark_nonnative_field::params::OptimizationType;
+pub use ahp::{AHPForR1CS, EvaluationsProvider};
 
 #[cfg(test)]
 mod test;
@@ -87,22 +88,25 @@ impl MarlinConfig for MarlinRecursiveConfig {
 pub struct Marlin<
     F: PrimeField,
     FSF: PrimeField,
-    PC: PolynomialCommitment<F, DensePolynomial<F>>,
+    S: CryptographicSponge + AlgebraicSponge<F>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
     FS: FiatShamirRng<F, FSF>,
     MC: MarlinConfig,
 >(
     #[doc(hidden)] PhantomData<F>,
     #[doc(hidden)] PhantomData<FSF>,
+    #[doc(hidden)] PhantomData<S>,
     #[doc(hidden)] PhantomData<PC>,
     #[doc(hidden)] PhantomData<FS>,
     #[doc(hidden)] PhantomData<MC>,
 );
 
-fn compute_vk_hash<F, FSF, PC, FS>(vk: &IndexVerifierKey<F, PC>) -> Vec<FSF>
+fn compute_vk_hash<F, FSF, S, PC, FS>(vk: &IndexVerifierKey<F, S, PC>) -> Vec<FSF>
 where
     F: PrimeField,
     FSF: PrimeField,
-    PC: PolynomialCommitment<F, DensePolynomial<F>>,
+    S: CryptographicSponge + AlgebraicSponge<F>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
     FS: FiatShamirRng<F, FSF>,
     PC::Commitment: ToConstraintField<FSF>,
 {
@@ -111,9 +115,10 @@ where
     vk_hash_rng.squeeze_native_field_elements(1)
 }
 
-impl<F: PrimeField, FSF: PrimeField, PC, FS, MC: MarlinConfig> Marlin<F, FSF, PC, FS, MC>
+impl<F: PrimeField, FSF: PrimeField, S, PC, FS, MC: MarlinConfig> Marlin<F, FSF, S, PC, FS, MC>
 where
-    PC: PolynomialCommitment<F, DensePolynomial<F>>,
+    S: CryptographicSponge + AlgebraicSponge<F>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, S, BatchProof = DensePolynomial<F>>,
     PC::VerifierKey: ToConstraintField<FSF>,
     PC::Commitment: ToConstraintField<FSF>,
     FS: FiatShamirRng<F, FSF>,
@@ -129,7 +134,7 @@ where
         num_variables: usize,
         num_non_zero: usize,
         rng: &mut R,
-    ) -> Result<UniversalSRS<F, PC>, Error<PC::Error>> {
+    ) -> Result<UniversalSRS<F, PC, S>, Error<PC::Error>> {
         let max_degree = AHPForR1CS::<F>::max_degree(num_constraints, num_variables, num_non_zero)?;
         let setup_time = start_timer!(|| {
             format!(
@@ -149,7 +154,7 @@ where
     pub fn circuit_specific_setup<C: ConstraintSynthesizer<F>, R: RngCore>(
         c: C,
         rng: &mut R,
-    ) -> Result<(IndexProverKey<F, PC>, IndexVerifierKey<F, PC>), Error<PC::Error>> {
+    ) -> Result<(IndexProverKey<F, S, PC>, IndexVerifierKey<F, S, PC>), Error<PC::Error>> {
         let index_time = start_timer!(|| "Marlin::Index");
 
         let for_recursion = MC::FOR_RECURSION;
@@ -233,9 +238,9 @@ where
     /// keys. This is a deterministic algorithm that anyone can rerun.
     #[allow(clippy::type_complexity)]
     pub fn index<C: ConstraintSynthesizer<F>>(
-        srs: &UniversalSRS<F, PC>,
+        srs: &UniversalSRS<F, PC, S>,
         c: C,
-    ) -> Result<(IndexProverKey<F, PC>, IndexVerifierKey<F, PC>), Error<PC::Error>> {
+    ) -> Result<(IndexProverKey<F, S, PC>, IndexVerifierKey<F, S, PC>), Error<PC::Error>> {
         let index_time = start_timer!(|| "Marlin::Index");
 
         let for_recursion = MC::FOR_RECURSION;
@@ -314,10 +319,10 @@ where
 
     /// Create a zkSNARK asserting that the constraint system is satisfied.
     pub fn prove<C: ConstraintSynthesizer<F>, R: RngCore>(
-        index_pk: &IndexProverKey<F, PC>,
+        index_pk: &IndexProverKey<F, S, PC>,
         c: C,
         zk_rng: &mut R,
-    ) -> Result<Proof<F, PC>, Error<PC::Error>> {
+    ) -> Result<Proof<F, S, PC>, Error<PC::Error>> {
         let prover_time = start_timer!(|| "Marlin::Prover");
         // TODO: Add check that c is in the correct mode.
 
@@ -332,7 +337,7 @@ where
 
         if for_recursion {
             fs_rng.absorb_bytes(&to_bytes![&Self::PROTOCOL_NAME].unwrap());
-            fs_rng.absorb_native_field_elements(&compute_vk_hash::<F, FSF, PC, FS>(
+            fs_rng.absorb_native_field_elements(&compute_vk_hash::<F, FSF, S, PC, FS>(
                 &index_pk.index_vk,
             ));
             fs_rng.absorb_nonnative_field_elements(&public_input, OptimizationType::Weight);
@@ -537,57 +542,39 @@ where
             fs_rng.absorb_bytes(&to_bytes![&evaluations].unwrap());
         }
 
-        let pc_proof = if for_recursion {
-            let num_open_challenges: usize = 7;
+        let sponge = <S as AlgebraicSponge<F>>::new();
+        let mut opening_challenges = ChallengeGenerator::<F, _>::new_multivariate(sponge);
 
-            let mut opening_challenges = Vec::<F>::new();
-            opening_challenges
-                .append(&mut fs_rng.squeeze_128_bits_nonnative_field_elements(num_open_challenges));
-
-            let opening_challenges_f = |i| opening_challenges[i as usize];
-
-            PC::open_combinations_individual_opening_challenges(
-                &index_pk.committer_key,
-                &lc_s,
-                polynomials,
-                &labeled_comms,
-                &query_set,
-                &opening_challenges_f,
-                &comm_rands,
-                Some(zk_rng),
-            )
-            .map_err(Error::from_pc_err)?
-        } else {
-            let opening_challenge: F = fs_rng.squeeze_128_bits_nonnative_field_elements(1)[0];
-
-            PC::open_combinations(
-                &index_pk.committer_key,
-                &lc_s,
-                polynomials,
-                &labeled_comms,
-                &query_set,
-                opening_challenge,
-                &comm_rands,
-                Some(zk_rng),
-            )
-            .map_err(Error::from_pc_err)?
-        };
+        let pc_proof = PC::open_combinations(
+            &index_pk.committer_key,
+            &lc_s,
+            polynomials,
+            &labeled_comms,
+            &query_set,
+            &mut opening_challenges,
+            &comm_rands,
+            Some(zk_rng),
+        )
+        .map_err(Error::from_pc_err)?;
 
         // Gather prover messages together.
         let prover_messages = vec![prover_first_msg, prover_second_msg, prover_third_msg];
 
         let proof = Proof::new(commitments, evaluations, prover_messages, pc_proof);
+
         proof.print_size_info();
+
         end_timer!(prover_time);
+
         Ok(proof)
     }
 
     /// Verify that a proof for the constrain system defined by `C` asserts that
     /// all constraints are satisfied.
     pub fn verify(
-        index_vk: &IndexVerifierKey<F, PC>,
+        index_vk: &IndexVerifierKey<F, S, PC>,
         public_input: &[F],
-        proof: &Proof<F, PC>,
+        proof: &Proof<F, S, PC>,
     ) -> Result<bool, Error<PC::Error>> {
         let verifier_time = start_timer!(|| "Marlin::Verify");
 
@@ -609,7 +596,7 @@ where
 
         if for_recursion {
             fs_rng.absorb_bytes(&to_bytes![&Self::PROTOCOL_NAME].unwrap());
-            fs_rng.absorb_native_field_elements(&compute_vk_hash::<F, FSF, PC, FS>(index_vk));
+            fs_rng.absorb_native_field_elements(&compute_vk_hash::<F, FSF, S, PC, FS>(index_vk));
             fs_rng.absorb_nonnative_field_elements(&public_input, OptimizationType::Weight);
         } else {
             fs_rng
@@ -734,56 +721,37 @@ where
             for_recursion,
         )?;
 
-        let evaluations_are_correct = if for_recursion {
-            let num_open_challenges: usize = 7;
+        let sponge = <S as AlgebraicSponge<F>>::new();
+        let mut opening_challenges = ChallengeGenerator::<F, _>::new_multivariate(sponge);
 
-            let mut opening_challenges = Vec::<F>::new();
-            opening_challenges
-                .append(&mut fs_rng.squeeze_128_bits_nonnative_field_elements(num_open_challenges));
-
-            let opening_challenges_f = |i| opening_challenges[i as usize];
-
-            PC::check_combinations_individual_opening_challenges(
-                &index_vk.verifier_key,
-                &lc_s,
-                &commitments,
-                &query_set,
-                &evaluations,
-                &proof.pc_proof,
-                &opening_challenges_f,
-                &mut fs_rng,
-            )
-            .map_err(Error::from_pc_err)?
-        } else {
-            let opening_challenge: F = fs_rng.squeeze_128_bits_nonnative_field_elements(1)[0];
-
-            PC::check_combinations(
-                &index_vk.verifier_key,
-                &lc_s,
-                &commitments,
-                &query_set,
-                &evaluations,
-                &proof.pc_proof,
-                opening_challenge,
-                &mut fs_rng,
-            )
-            .map_err(Error::from_pc_err)?
-        };
+        let evaluations_are_correct = PC::check_combinations(
+            &index_vk.verifier_key,
+            &lc_s,
+            &commitments,
+            &query_set,
+            &evaluations,
+            &proof.pc_proof,
+            &mut opening_challenges,
+            &mut fs_rng,
+        )
+        .map_err(Error::from_pc_err)?;
 
         if !evaluations_are_correct {
             eprintln!("PC::Check failed");
         }
+
         end_timer!(verifier_time, || format!(
             " PC::Check for AHP Verifier linear equations: {}",
             evaluations_are_correct
         ));
+
         Ok(evaluations_are_correct)
     }
 
     pub fn prepared_verify(
-        prepared_vk: &PreparedIndexVerifierKey<F, PC>,
+        prepared_vk: &PreparedIndexVerifierKey<F, S, PC>,
         public_input: &[F],
-        proof: &Proof<F, PC>,
+        proof: &Proof<F, S, PC>,
     ) -> Result<bool, Error<PC::Error>> {
         Self::verify(&prepared_vk.orig_vk, public_input, proof)
     }

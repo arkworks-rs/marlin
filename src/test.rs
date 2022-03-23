@@ -115,7 +115,10 @@ impl<F: Field> ConstraintSynthesizer<F> for OutlineTestCircuit<F> {
 
 mod marlin {
     use super::*;
-    use crate::{fiat_shamir::FiatShamirChaChaRng, Marlin, MarlinDefaultConfig};
+    use crate::{
+        fiat_shamir::poseidon::PoseidonSponge, fiat_shamir::FiatShamirChaChaRng, Marlin,
+        MarlinDefaultConfig,
+    };
 
     use ark_bls12_381::{Bls12_381, Fq, Fr};
     use ark_ff::UniformRand;
@@ -124,9 +127,15 @@ mod marlin {
     use ark_std::ops::MulAssign;
     use blake2::Blake2s;
 
-    type MultiPC = MarlinKZG10<Bls12_381, DensePolynomial<Fr>>;
-    type MarlinInst =
-        Marlin<Fr, Fq, MultiPC, FiatShamirChaChaRng<Fr, Fq, Blake2s>, MarlinDefaultConfig>;
+    type MultiPC = MarlinKZG10<Bls12_381, DensePolynomial<Fr>, PoseidonSponge<Fr>>;
+    type MarlinInst = Marlin<
+        Fr,
+        Fq,
+        PoseidonSponge<Fr>,
+        MultiPC,
+        FiatShamirChaChaRng<Fr, Fq, Blake2s>,
+        MarlinDefaultConfig,
+    >;
 
     fn test_circuit(num_constraints: usize, num_variables: usize) {
         let rng = &mut ark_std::test_rng();
@@ -217,10 +226,11 @@ mod marlin_recursion {
     use ark_poly_commit::marlin_pc::MarlinKZG10;
     use core::ops::MulAssign;
 
-    type MultiPC = MarlinKZG10<MNT4_298, DensePolynomial<Fr>>;
+    type MultiPC = MarlinKZG10<MNT4_298, DensePolynomial<Fr>, PoseidonSponge<Fr>>;
     type MarlinInst = Marlin<
         Fr,
         Fq,
+        PoseidonSponge<Fr>,
         MultiPC,
         FiatShamirAlgebraicSpongeRng<Fr, Fq, PoseidonSponge<Fq>>,
         MarlinRecursiveConfig,

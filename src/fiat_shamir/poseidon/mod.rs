@@ -8,6 +8,7 @@
 use crate::fiat_shamir::AlgebraicSponge;
 use crate::Vec;
 use ark_ff::PrimeField;
+use ark_sponge::{Absorb, CryptographicSponge};
 use ark_std::rand::SeedableRng;
 
 /// constraints for Poseidon
@@ -239,5 +240,31 @@ impl<F: PrimeField> AlgebraicSponge<F> for PoseidonSponge<F> {
             }
         };
         squeezed_elems
+    }
+}
+
+impl<F> CryptographicSponge for PoseidonSponge<F>
+where
+    F: PrimeField,
+{
+    type Parameters = ();
+
+    fn new(_params: &Self::Parameters) -> Self {
+        <Self as AlgebraicSponge<F>>::new()
+    }
+
+    fn absorb(&mut self, input: &impl Absorb) {
+        <Self as AlgebraicSponge<F>>::absorb(
+            self,
+            input.to_sponge_field_elements_as_vec().as_slice(),
+        )
+    }
+
+    fn squeeze_bytes(&mut self, num_bytes: usize) -> Vec<u8> {
+        todo!()
+    }
+
+    fn squeeze_bits(&mut self, num_bits: usize) -> Vec<bool> {
+        todo!()
     }
 }

@@ -23,6 +23,7 @@ use ark_r1cs_std::{
     ToBitsGadget, ToConstraintFieldGadget,
 };
 use ark_relations::r1cs::ConstraintSystemRef;
+use ark_sponge::CryptographicSponge;
 use hashbrown::{HashMap, HashSet};
 
 #[derive(Clone)]
@@ -57,14 +58,16 @@ pub struct VerifierThirdMsgVar<TargetField: PrimeField, BaseField: PrimeField> {
 pub struct AHPForR1CS<
     F: PrimeField,
     CF: PrimeField,
-    PC: PolynomialCommitment<F, DensePolynomial<F>>,
-    PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF>,
+    S: CryptographicSponge,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
+    PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF, S>,
 > where
     PCG::VerifierKeyVar: ToConstraintFieldGadget<CF>,
     PCG::CommitmentVar: ToConstraintFieldGadget<CF>,
 {
     field: PhantomData<F>,
     constraint_field: PhantomData<CF>,
+    sponge: PhantomData<S>,
     polynomial_commitment: PhantomData<PC>,
     pc_check: PhantomData<PCG>,
 }
@@ -72,9 +75,10 @@ pub struct AHPForR1CS<
 impl<
         F: PrimeField,
         CF: PrimeField,
-        PC: PolynomialCommitment<F, DensePolynomial<F>>,
-        PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF>,
-    > AHPForR1CS<F, CF, PC, PCG>
+        S: CryptographicSponge,
+        PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
+        PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF, S>,
+    > AHPForR1CS<F, CF, S, PC, PCG>
 where
     PCG::VerifierKeyVar: ToConstraintFieldGadget<CF>,
     PCG::CommitmentVar: ToConstraintFieldGadget<CF>,
@@ -529,8 +533,8 @@ where
         PR: FiatShamirRng<F, CF>,
         R: FiatShamirRngVar<F, CF, PR>,
     >(
-        index_pvk: &PreparedIndexVerifierKeyVar<F, CF, PC, PCG, PR, R>,
-        proof: &ProofVar<F, CF, PC, PCG>,
+        index_pvk: &PreparedIndexVerifierKeyVar<F, CF, S, PC, PCG, PR, R>,
+        proof: &ProofVar<F, CF, S, PC, PCG>,
         state: &VerifierStateVar<F, CF>,
     ) -> Result<
         (

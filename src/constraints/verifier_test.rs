@@ -42,10 +42,12 @@ mod tests {
     }
 
     type FS = FiatShamirAlgebraicSpongeRng<Fr, Fq, PoseidonSponge<Fq>>;
-    type MultiPC = MarlinKZG10<MNT4_298, DensePolynomial<Fr>>;
-    type MarlinNativeInst = MarlinNative<Fr, Fq, MultiPC, FS, MarlinRecursiveConfig>;
+    type MultiPC = MarlinKZG10<MNT4_298, DensePolynomial<Fr>, PoseidonSponge<Fr>>;
+    type MarlinNativeInst =
+        MarlinNative<Fr, Fq, PoseidonSponge<Fr>, MultiPC, FS, MarlinRecursiveConfig>;
 
-    type MultiPCVar = MarlinKZG10Gadget<MNT298Cycle, DensePolynomial<Fr>, MNT4PairingVar>;
+    type MultiPCVar =
+        MarlinKZG10Gadget<MNT298Cycle, DensePolynomial<Fr>, MNT4PairingVar, PoseidonSponge<Fr>>;
 
     #[derive(Copy, Clone)]
     struct Circuit<F: Field> {

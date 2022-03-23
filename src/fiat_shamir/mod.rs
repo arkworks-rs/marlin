@@ -9,6 +9,7 @@ use rand_chacha::ChaChaRng;
 
 /// The constraints for Fiat-Shamir
 pub mod constraints;
+
 /// The Poseidon sponge
 pub mod poseidon;
 
