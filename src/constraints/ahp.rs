@@ -57,14 +57,18 @@ pub struct VerifierThirdMsgVar<TargetField: PrimeField, BaseField: PrimeField> {
 pub struct AHPForR1CS<
     F: PrimeField,
     CF: PrimeField,
-    PC: PolynomialCommitment<F, DensePolynomial<F>>,
-    PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF>,
+    PR: FiatShamirRng<F, CF>,
+    R: FiatShamirRngVar<F, CF, PR>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, PR>,
+    PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF, PR>,
 > where
     PCG::VerifierKeyVar: ToConstraintFieldGadget<CF>,
     PCG::CommitmentVar: ToConstraintFieldGadget<CF>,
 {
     field: PhantomData<F>,
     constraint_field: PhantomData<CF>,
+    fs_rng: PhantomData<PR>,
+    fs_var: PhantomData<R>,
     polynomial_commitment: PhantomData<PC>,
     pc_check: PhantomData<PCG>,
 }
@@ -72,9 +76,11 @@ pub struct AHPForR1CS<
 impl<
         F: PrimeField,
         CF: PrimeField,
-        PC: PolynomialCommitment<F, DensePolynomial<F>>,
-        PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF>,
-    > AHPForR1CS<F, CF, PC, PCG>
+        PR: FiatShamirRng<F, CF>,
+        R: FiatShamirRngVar<F, CF, PR>,
+        PC: PolynomialCommitment<F, DensePolynomial<F>, PR>,
+        PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF, PR>,
+    > AHPForR1CS<F, CF, PR, R, PC, PCG>
 where
     PCG::VerifierKeyVar: ToConstraintFieldGadget<CF>,
     PCG::CommitmentVar: ToConstraintFieldGadget<CF>,
@@ -82,11 +88,7 @@ where
     /// Output the first message and next round state.
     #[tracing::instrument(target = "r1cs", skip(fs_rng, comms))]
     #[allow(clippy::type_complexity)]
-    pub fn verifier_first_round<
-        CommitmentVar: ToConstraintFieldGadget<CF>,
-        PR: FiatShamirRng<F, CF>,
-        R: FiatShamirRngVar<F, CF, PR>,
-    >(
+    pub fn verifier_first_round<CommitmentVar: ToConstraintFieldGadget<CF>>(
         domain_h_size: u64,
         domain_k_size: u64,
         fs_rng: &mut R,
@@ -99,16 +101,16 @@ where
             comms.iter().for_each(|comm| {
                 elems.append(&mut comm.to_constraint_field().unwrap());
             });
-            fs_rng.absorb_native_field_elements(&elems)?;
-            fs_rng.absorb_nonnative_field_elements(&message, OptimizationType::Weight)?;
+            fs_rng.absorb(&elems)?;
+            fs_rng.absorb_nonnative(&message, OptimizationType::Weight)?;
         }
 
-        // obtain four elements from the sponge
-        let elems = fs_rng.squeeze_field_elements(4)?;
-        let alpha = elems[0].clone();
-        let eta_a = elems[1].clone();
-        let eta_b = elems[2].clone();
-        let eta_c = elems[3].clone();
+        // obtain four elements from the sponge_var
+        let elems = fs_rng.squeeze_nonnative_field_elements(4)?;
+        let alpha = elems.0[0].clone();
+        let eta_a = elems.0[1].clone();
+        let eta_b = elems.0[2].clone();
+        let eta_c = elems.0[3].clone();
 
         let msg = VerifierFirstMsgVar {
             alpha,
@@ -130,11 +132,7 @@ where
 
     #[tracing::instrument(target = "r1cs", skip(state, fs_rng, comms))]
     #[allow(clippy::type_complexity)]
-    pub fn verifier_second_round<
-        CommitmentVar: ToConstraintFieldGadget<CF>,
-        PR: FiatShamirRng<F, CF>,
-        R: FiatShamirRngVar<F, CF, PR>,
-    >(
+    pub fn verifier_second_round<CommitmentVar: ToConstraintFieldGadget<CF>>(
         state: VerifierStateVar<F, CF>,
         fs_rng: &mut R,
         comms: &[CommitmentVar],
@@ -153,13 +151,13 @@ where
             comms.iter().for_each(|comm| {
                 elems.append(&mut comm.to_constraint_field().unwrap());
             });
-            fs_rng.absorb_native_field_elements(&elems)?;
-            fs_rng.absorb_nonnative_field_elements(&message, OptimizationType::Weight)?;
+            fs_rng.absorb(&elems)?;
+            fs_rng.absorb_nonnative(&message, OptimizationType::Weight)?;
         }
 
-        // obtain one element from the sponge
-        let elems = fs_rng.squeeze_field_elements(1)?;
-        let beta = elems[0].clone();
+        // obtain one element from the sponge_var
+        let elems = fs_rng.squeeze_nonnative_field_elements(1)?;
+        let beta = elems.0[0].clone();
 
         let msg = VerifierSecondMsgVar { beta };
 
@@ -175,11 +173,7 @@ where
     }
 
     #[tracing::instrument(target = "r1cs", skip(state, fs_rng, comms))]
-    pub fn verifier_third_round<
-        CommitmentVar: ToConstraintFieldGadget<CF>,
-        PR: FiatShamirRng<F, CF>,
-        R: FiatShamirRngVar<F, CF, PR>,
-    >(
+    pub fn verifier_third_round<CommitmentVar: ToConstraintFieldGadget<CF>>(
         state: VerifierStateVar<F, CF>,
         fs_rng: &mut R,
         comms: &[CommitmentVar],
@@ -199,13 +193,13 @@ where
             comms.iter().for_each(|comm| {
                 elems.append(&mut comm.to_constraint_field().unwrap());
             });
-            fs_rng.absorb_native_field_elements(&elems)?;
-            fs_rng.absorb_nonnative_field_elements(&message, OptimizationType::Weight)?;
+            fs_rng.absorb(&elems)?;
+            fs_rng.absorb_nonnative(&message, OptimizationType::Weight)?;
         }
 
-        // obtain one element from the sponge
-        let elems = fs_rng.squeeze_field_elements(1)?;
-        let gamma = elems[0].clone();
+        // obtain one element from the sponge_var
+        let elems = fs_rng.squeeze_nonnative_field_elements(1)?;
+        let gamma = elems.0[0].clone();
 
         let new_state = VerifierStateVar {
             domain_h_size,
@@ -525,12 +519,9 @@ where
 
     #[tracing::instrument(target = "r1cs", skip(index_pvk, proof, state))]
     #[allow(clippy::type_complexity)]
-    pub fn verifier_comm_query_eval_set<
-        PR: FiatShamirRng<F, CF>,
-        R: FiatShamirRngVar<F, CF, PR>,
-    >(
+    pub fn verifier_comm_query_eval_set(
         index_pvk: &PreparedIndexVerifierKeyVar<F, CF, PC, PCG, PR, R>,
-        proof: &ProofVar<F, CF, PC, PCG>,
+        proof: &ProofVar<F, CF, PR, PC, PCG>,
         state: &VerifierStateVar<F, CF>,
     ) -> Result<
         (

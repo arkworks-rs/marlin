@@ -1,5 +1,5 @@
-use crate::fiat_shamir::{AlgebraicSponge, FiatShamirAlgebraicSpongeRng, FiatShamirRng};
-use crate::{overhead, Vec};
+use crate::sponge::CryptographicSpongeVarNonNative;
+use crate::{overhead, CryptographicSpongeParameters, Vec};
 use ark_ff::PrimeField;
 use ark_nonnative_field::params::{get_params, OptimizationType};
 use ark_nonnative_field::{AllocatedNonNativeFieldVar, NonNativeFieldVar};
@@ -15,52 +15,41 @@ use ark_relations::lc;
 use ark_relations::r1cs::{
     ConstraintSystemRef, LinearCombination, OptimizationGoal, SynthesisError,
 };
+use ark_sponge::constraints::{AbsorbGadget, CryptographicSpongeVar};
+use ark_sponge::CryptographicSponge;
 use core::marker::PhantomData;
 
 /// Vars for a RNG for use in a Fiat-Shamir transform.
-pub trait FiatShamirRngVar<F: PrimeField, CF: PrimeField, PFS: FiatShamirRng<F, CF>>:
-    Clone
+pub trait FiatShamirRngVar<F: PrimeField, CF: PrimeField, S: CryptographicSponge>:
+    From<ConstraintSystemRef<CF>> + CryptographicSpongeVar<CF, S>
 {
-    /// Create a new RNG.
-    fn new(cs: ConstraintSystemRef<CF>) -> Self;
-
     // Instantiate from a plaintext fs_rng.
-    fn constant(cs: ConstraintSystemRef<CF>, pfs: &PFS) -> Self;
+    fn constant(cs: ConstraintSystemRef<CF>, pfs: &S) -> Self;
 
     /// Take in field elements.
-    fn absorb_nonnative_field_elements(
+    fn absorb_nonnative(
         &mut self,
         elems: &[NonNativeFieldVar<F, CF>],
         ty: OptimizationType,
     ) -> Result<(), SynthesisError>;
 
     /// Take in field elements.
-    fn absorb_native_field_elements(&mut self, elems: &[FpVar<CF>]) -> Result<(), SynthesisError>;
+    fn absorb_native(&mut self, elems: &[FpVar<CF>]) -> Result<(), SynthesisError>;
 
     /// Take in bytes.
     fn absorb_bytes(&mut self, elems: &[UInt8<CF>]) -> Result<(), SynthesisError>;
 
     /// Output field elements.
-    fn squeeze_native_field_elements(
-        &mut self,
-        num: usize,
-    ) -> Result<Vec<FpVar<CF>>, SynthesisError>;
+    fn squeeze_native(&mut self, num: usize) -> Result<Vec<FpVar<CF>>, SynthesisError>;
 
     /// Output field elements.
-    fn squeeze_field_elements(
+    fn squeeze_nonnative(
         &mut self,
         num: usize,
     ) -> Result<Vec<NonNativeFieldVar<F, CF>>, SynthesisError>;
 
-    /// Output field elements and the corresponding bits (this can reduce repeated computation).
-    #[allow(clippy::type_complexity)]
-    fn squeeze_field_elements_and_bits(
-        &mut self,
-        num: usize,
-    ) -> Result<(Vec<NonNativeFieldVar<F, CF>>, Vec<Vec<Boolean<CF>>>), SynthesisError>;
-
     /// Output field elements with only 128 bits.
-    fn squeeze_128_bits_field_elements(
+    fn squeeze_128_bits_nonnative(
         &mut self,
         num: usize,
     ) -> Result<Vec<NonNativeFieldVar<F, CF>>, SynthesisError>;
@@ -68,37 +57,19 @@ pub trait FiatShamirRngVar<F: PrimeField, CF: PrimeField, PFS: FiatShamirRng<F, 
     /// Output field elements with only 128 bits, and the corresponding bits (this can reduce
     /// repeated computation).
     #[allow(clippy::type_complexity)]
-    fn squeeze_128_bits_field_elements_and_bits(
+    fn squeeze_128_bits_nonnative_and_bits(
         &mut self,
         num: usize,
     ) -> Result<(Vec<NonNativeFieldVar<F, CF>>, Vec<Vec<Boolean<CF>>>), SynthesisError>;
 }
 
-/// Trait for an algebraic sponge such as Poseidon.
-pub trait AlgebraicSpongeVar<CF: PrimeField, PS: AlgebraicSponge<CF>>: Clone {
-    /// Create the new sponge.
-    fn new(cs: ConstraintSystemRef<CF>) -> Self;
-
-    /// Instantiate from a plaintext sponge.
-    fn constant(cs: ConstraintSystemRef<CF>, ps: &PS) -> Self;
-
-    /// Obtain the constraint system.
-    fn cs(&self) -> ConstraintSystemRef<CF>;
-
-    /// Take in field elements.
-    fn absorb(&mut self, elems: &[FpVar<CF>]) -> Result<(), SynthesisError>;
-
-    /// Output field elements.
-    fn squeeze(&mut self, num: usize) -> Result<Vec<FpVar<CF>>, SynthesisError>;
-}
-
 /// Building the Fiat-Shamir sponge's gadget from any algebraic sponge's gadget.
 #[derive(Clone)]
-pub struct FiatShamirAlgebraicSpongeRngVar<
+pub struct FiatShamirSpongeRngVar<
     F: PrimeField,
     CF: PrimeField,
-    PS: AlgebraicSponge<CF>,
-    S: AlgebraicSpongeVar<CF, PS>,
+    PS: CryptographicSponge,
+    S: CryptographicSpongeVar<CF, PS>,
 > {
     pub cs: ConstraintSystemRef<CF>,
     pub s: S,
@@ -108,8 +79,8 @@ pub struct FiatShamirAlgebraicSpongeRngVar<
     ps_phantom: PhantomData<PS>,
 }
 
-impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeVar<CF, PS>>
-    FiatShamirAlgebraicSpongeRngVar<F, CF, PS, S>
+impl<F: PrimeField, CF: PrimeField, PS: CryptographicSponge, S: CryptographicSpongeVar<CF, PS>>
+    FiatShamirSpongeRngVar<F, CF, PS, S>
 {
     /// Compress every two elements if possible. Provides a vector of (limb, num_of_additions),
     /// both of which are CF.
@@ -223,7 +194,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
         let bits_per_element = CF::size_in_bits() - 1;
         let num_elements = (num_bits + bits_per_element - 1) / bits_per_element;
 
-        let src_elements = sponge.squeeze(num_elements)?;
+        let src_elements = sponge.squeeze_field_elements(num_elements)?;
         let mut dest_bits = Vec::<Boolean<CF>>::new();
 
         for elem in src_elements.iter() {
@@ -335,27 +306,35 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     }
 }
 
-impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeVar<CF, PS>>
-    FiatShamirRngVar<F, CF, FiatShamirAlgebraicSpongeRng<F, CF, PS>>
-    for FiatShamirAlgebraicSpongeRngVar<F, CF, PS, S>
+impl<
+        F: PrimeField,
+        CF: PrimeField,
+        PS: CryptographicSponge,
+        S: CryptographicSpongeVarNonNative<F, CF, PS>,
+    > From<ConstraintSystemRef<CF>> for FiatShamirSpongeRngVar<F, CF, PS, S>
+where
+    <S as CryptographicSpongeVar<CF, PS>>::Parameters: CryptographicSpongeParameters,
 {
-    fn new(cs: ConstraintSystemRef<CF>) -> Self {
+    fn from(cs: ConstraintSystemRef<CF>) -> Self {
         Self {
             cs: cs.clone(),
-            s: S::new(cs),
+            s: S::with_default_rate(cs),
             f_phantom: PhantomData,
             cf_phantom: PhantomData,
             ps_phantom: PhantomData,
         }
     }
+}
 
-    fn constant(
-        cs: ConstraintSystemRef<CF>,
-        pfs: &FiatShamirAlgebraicSpongeRng<F, CF, PS>,
-    ) -> Self {
+impl<F: PrimeField, CF: PrimeField, PS: CryptographicSponge, S: CryptographicSpongeVar<CF, PS>>
+    CryptographicSpongeVar<CF, PS> for FiatShamirSpongeRngVar<F, CF, PS, S>
+{
+    type Parameters = S::Parameters;
+
+    fn new(cs: ConstraintSystemRef<CF>, params: &Self::Parameters) -> Self {
         Self {
             cs: cs.clone(),
-            s: S::constant(cs, &pfs.s.clone()),
+            s: S::new(cs, params),
             f_phantom: PhantomData,
             cf_phantom: PhantomData,
             ps_phantom: PhantomData,
@@ -363,7 +342,48 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     }
 
     #[tracing::instrument(target = "r1cs", skip(self))]
-    fn absorb_nonnative_field_elements(
+    fn cs(&self) -> ConstraintSystemRef<CF> {
+        self.cs.clone()
+    }
+
+    fn absorb(&mut self, input: &impl AbsorbGadget<CF>) -> Result<(), SynthesisError> {
+        self.s.absorb(input)
+    }
+
+    #[tracing::instrument(target = "r1cs", skip(self))]
+    fn squeeze_bytes(&mut self, num_bytes: usize) -> Result<Vec<UInt8<CF>>, SynthesisError> {
+        self.s.squeeze_bytes(num_bytes)
+    }
+
+    #[tracing::instrument(target = "r1cs", skip(self))]
+    fn squeeze_bits(&mut self, num_bits: usize) -> Result<Vec<Boolean<CF>>, SynthesisError> {
+        self.s.squeeze_bits(num_bits)
+    }
+
+    #[tracing::instrument(target = "r1cs", skip(self))]
+    fn squeeze_field_elements(
+        &mut self,
+        num_elements: usize,
+    ) -> Result<Vec<FpVar<CF>>, SynthesisError> {
+        self.s.squeeze_field_elements(num_elements)
+    }
+}
+
+impl<
+        F: PrimeField,
+        CF: PrimeField,
+        PS: CryptographicSponge,
+        S: CryptographicSpongeVarNonNative<F, CF, PS>,
+    > FiatShamirRngVar<F, CF, PS> for FiatShamirSpongeRngVar<F, CF, PS, S>
+where
+    <S as CryptographicSpongeVar<CF, PS>>::Parameters: CryptographicSpongeParameters,
+{
+    fn constant(cs: ConstraintSystemRef<CF>, _pfs: &PS) -> Self {
+        Self::from(cs)
+    }
+
+    #[tracing::instrument(target = "r1cs", skip(self))]
+    fn absorb_nonnative(
         &mut self,
         elems: &[NonNativeFieldVar<F, CF>],
         ty: OptimizationType,
@@ -372,60 +392,22 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     }
 
     #[tracing::instrument(target = "r1cs", skip(self))]
-    fn absorb_native_field_elements(&mut self, elems: &[FpVar<CF>]) -> Result<(), SynthesisError> {
-        self.s.absorb(elems)?;
-        Ok(())
+    fn absorb_native(&mut self, elems: &[FpVar<CF>]) -> Result<(), SynthesisError> {
+        self.absorb(&elems)
     }
 
     #[tracing::instrument(target = "r1cs", skip(self))]
     fn absorb_bytes(&mut self, elems: &[UInt8<CF>]) -> Result<(), SynthesisError> {
-        let capacity = CF::size_in_bits() - 1;
-        let mut bits = Vec::<Boolean<CF>>::new();
-        for elem in elems.iter() {
-            let mut bits_le = elem.to_bits_le()?; // UInt8's to_bits is le, which is an exception in Zexe.
-            bits_le.reverse();
-            bits.extend_from_slice(&bits_le);
-        }
-
-        let mut adjustment_factors = Vec::<CF>::new();
-        let mut cur = CF::one();
-        for _ in 0..capacity {
-            adjustment_factors.push(cur);
-            cur.double_in_place();
-        }
-
-        let mut gadgets = Vec::<FpVar<CF>>::new();
-        for elem_bits in bits.chunks(capacity) {
-            let mut elem = CF::zero();
-            let mut lc = LinearCombination::zero();
-            for (bit, adjustment_factor) in elem_bits.iter().rev().zip(adjustment_factors.iter()) {
-                if bit.value().unwrap_or_default() {
-                    elem += adjustment_factor;
-                }
-                lc = &lc + bit.lc() * *adjustment_factor;
-            }
-
-            let gadget =
-                AllocatedFp::new_witness(ark_relations::ns!(self.cs, "gadget"), || Ok(elem))?;
-            lc = lc.clone() - (CF::one(), gadget.variable);
-
-            gadgets.push(FpVar::from(gadget));
-            self.cs.enforce_constraint(lc!(), lc!(), lc)?;
-        }
-
-        self.s.absorb(&gadgets)
+        self.absorb(&elems)
     }
 
     #[tracing::instrument(target = "r1cs", skip(self))]
-    fn squeeze_native_field_elements(
-        &mut self,
-        num: usize,
-    ) -> Result<Vec<FpVar<CF>>, SynthesisError> {
-        self.s.squeeze(num)
+    fn squeeze_native(&mut self, num: usize) -> Result<Vec<FpVar<CF>>, SynthesisError> {
+        self.s.squeeze_field_elements(num)
     }
 
     #[tracing::instrument(target = "r1cs", skip(self))]
-    fn squeeze_field_elements(
+    fn squeeze_nonnative(
         &mut self,
         num: usize,
     ) -> Result<Vec<NonNativeFieldVar<F, CF>>, SynthesisError> {
@@ -433,16 +415,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     }
 
     #[tracing::instrument(target = "r1cs", skip(self))]
-    #[allow(clippy::type_complexity)]
-    fn squeeze_field_elements_and_bits(
-        &mut self,
-        num: usize,
-    ) -> Result<(Vec<NonNativeFieldVar<F, CF>>, Vec<Vec<Boolean<CF>>>), SynthesisError> {
-        Self::get_gadgets_and_bits_from_sponge(&mut self.s, num, false)
-    }
-
-    #[tracing::instrument(target = "r1cs", skip(self))]
-    fn squeeze_128_bits_field_elements(
+    fn squeeze_128_bits_nonnative(
         &mut self,
         num: usize,
     ) -> Result<Vec<NonNativeFieldVar<F, CF>>, SynthesisError> {
@@ -450,8 +423,7 @@ impl<F: PrimeField, CF: PrimeField, PS: AlgebraicSponge<CF>, S: AlgebraicSpongeV
     }
 
     #[tracing::instrument(target = "r1cs", skip(self))]
-    #[allow(clippy::type_complexity)]
-    fn squeeze_128_bits_field_elements_and_bits(
+    fn squeeze_128_bits_nonnative_and_bits(
         &mut self,
         num: usize,
     ) -> Result<(Vec<NonNativeFieldVar<F, CF>>, Vec<Vec<Boolean<CF>>>), SynthesisError> {

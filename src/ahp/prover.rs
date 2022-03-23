@@ -444,10 +444,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the second round message and the next state.
-    pub fn prover_second_round<'a, R: RngCore>(
+    pub fn prover_second_round<'a>(
         ver_message: &VerifierFirstMsg<F>,
         mut state: ProverState<'a, F>,
-        _r: &mut R,
         hiding: bool,
     ) -> (ProverMsg<F>, ProverSecondOracles<F>, ProverState<'a, F>) {
         let round_time = start_timer!(|| "AHP::Prover::SecondRound");
@@ -598,10 +597,9 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the third round message and the next state.
-    pub fn prover_third_round<'a, R: RngCore>(
+    pub fn prover_third_round<'a>(
         ver_message: &VerifierSecondMsg<F>,
         prover_state: ProverState<'a, F>,
-        _r: &mut R,
     ) -> Result<(ProverMsg<F>, ProverThirdOracles<F>), Error> {
         let round_time = start_timer!(|| "AHP::Prover::ThirdRound");
 

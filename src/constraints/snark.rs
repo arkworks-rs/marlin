@@ -49,7 +49,7 @@ impl Debug for MarlinBound {
 pub struct MarlinSNARK<
     F: PrimeField,
     FSF: PrimeField,
-    PC: PolynomialCommitment<F, DensePolynomial<F>>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, FS>,
     FS: FiatShamirRng<F, FSF>,
     MC: MarlinConfig,
 > {
@@ -64,16 +64,16 @@ impl<F, FSF, PC, FS, MC> SNARK<F> for MarlinSNARK<F, FSF, PC, FS, MC>
 where
     F: PrimeField,
     FSF: PrimeField,
-    PC: PolynomialCommitment<F, DensePolynomial<F>>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, FS>,
     FS: FiatShamirRng<F, FSF>,
     MC: MarlinConfig,
     PC::VerifierKey: ToConstraintField<FSF>,
     PC::Commitment: ToConstraintField<FSF>,
 {
-    type ProvingKey = IndexProverKey<F, PC>;
-    type VerifyingKey = IndexVerifierKey<F, PC>;
-    type ProcessedVerifyingKey = PreparedIndexVerifierKey<F, PC>;
-    type Proof = Proof<F, PC>;
+    type ProvingKey = IndexProverKey<F, FS, PC>;
+    type VerifyingKey = IndexVerifierKey<F, FS, PC>;
+    type ProcessedVerifyingKey = PreparedIndexVerifierKey<F, FS, PC>;
+    type Proof = Proof<F, FS, PC>;
     type Error = Box<MarlinError>;
 
     fn circuit_specific_setup<C: ConstraintSynthesizer<F>, R: RngCore + CryptoRng>(
@@ -122,14 +122,14 @@ impl<F, FSF, PC, FS, MC> UniversalSetupSNARK<F> for MarlinSNARK<F, FSF, PC, FS, 
 where
     F: PrimeField,
     FSF: PrimeField,
-    PC: PolynomialCommitment<F, DensePolynomial<F>>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, FS>,
     FS: FiatShamirRng<F, FSF>,
     MC: MarlinConfig,
     PC::VerifierKey: ToConstraintField<FSF>,
     PC::Commitment: ToConstraintField<FSF>,
 {
     type ComputationBound = MarlinBound;
-    type PublicParameters = (MarlinBound, UniversalSRS<F, PC>);
+    type PublicParameters = (MarlinBound, UniversalSRS<F, PC, FS>);
 
     fn universal_setup<R: RngCore>(
         bound: &Self::ComputationBound,
@@ -171,10 +171,10 @@ pub struct MarlinSNARKGadget<F, FSF, PC, FS, MC, PCG, FSG>
 where
     F: PrimeField,
     FSF: PrimeField,
-    PC: PolynomialCommitment<F, DensePolynomial<F>>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, FS>,
     FS: FiatShamirRng<F, FSF>,
     MC: MarlinConfig,
-    PCG: PCCheckVar<F, DensePolynomial<F>, PC, FSF>,
+    PCG: PCCheckVar<F, DensePolynomial<F>, PC, FSF, FS>,
     FSG: FiatShamirRngVar<F, FSF, FS>,
 {
     pub f_phantom: PhantomData<F>,
@@ -191,10 +191,10 @@ impl<F, FSF, PC, FS, MC, PCG, FSG> SNARKGadget<F, FSF, MarlinSNARK<F, FSF, PC, F
 where
     F: PrimeField,
     FSF: PrimeField,
-    PC: PolynomialCommitment<F, DensePolynomial<F>>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, FS>,
     FS: FiatShamirRng<F, FSF>,
     MC: MarlinConfig,
-    PCG: PCCheckVar<F, DensePolynomial<F>, PC, FSF>,
+    PCG: PCCheckVar<F, DensePolynomial<F>, PC, FSF, FS>,
     FSG: FiatShamirRngVar<F, FSF, FS>,
     PC::VerifierKey: ToConstraintField<FSF>,
     PC::Commitment: ToConstraintField<FSF>,
@@ -202,9 +202,9 @@ where
     PCG::CommitmentVar: ToConstraintFieldGadget<FSF>,
 {
     type ProcessedVerifyingKeyVar = PreparedIndexVerifierKeyVar<F, FSF, PC, PCG, FS, FSG>;
-    type VerifyingKeyVar = IndexVerifierKeyVar<F, FSF, PC, PCG>;
+    type VerifyingKeyVar = IndexVerifierKeyVar<F, FSF, FS, PC, PCG>;
     type InputVar = NonNativeFieldInputVar<F, FSF>;
-    type ProofVar = ProofVar<F, FSF, PC, PCG>;
+    type ProofVar = ProofVar<F, FSF, FS, PC, PCG>;
 
     type VerifierSize = usize;
 
@@ -221,8 +221,12 @@ where
         proof: &Self::ProofVar,
     ) -> Result<Boolean<FSF>, SynthesisError> {
         Ok(
-            MarlinVerifierGadget::<F, FSF, PC, PCG>::prepared_verify(&circuit_pvk, &x.val, proof)
-                .unwrap(),
+            MarlinVerifierGadget::<F, FSF, FS, FSG, PC, PCG>::prepared_verify(
+                &circuit_pvk,
+                &x.val,
+                proof,
+            )
+            .unwrap(),
         )
     }
 
@@ -233,7 +237,7 @@ where
         proof: &Self::ProofVar,
     ) -> Result<Boolean<FSF>, SynthesisError> {
         Ok(
-            MarlinVerifierGadget::<F, FSF, PC, PCG>::verify::<FS, FSG>(circuit_vk, &x.val, proof)
+            MarlinVerifierGadget::<F, FSF, FS, FSG, PC, PCG>::verify(circuit_vk, &x.val, proof)
                 .unwrap(),
         )
     }
@@ -303,10 +307,10 @@ impl<F, FSF, PC, FS, MC, PCG, FSG>
 where
     F: PrimeField,
     FSF: PrimeField,
-    PC: PolynomialCommitment<F, DensePolynomial<F>>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, FS>,
     FS: FiatShamirRng<F, FSF>,
     MC: MarlinConfig,
-    PCG: PCCheckVar<F, DensePolynomial<F>, PC, FSF>,
+    PCG: PCCheckVar<F, DensePolynomial<F>, PC, FSF, FS>,
     FSG: FiatShamirRngVar<F, FSF, FS>,
     PC::VerifierKey: ToConstraintField<FSF>,
     PC::Commitment: ToConstraintField<FSF>,
@@ -372,7 +376,7 @@ impl ark_std::error::Error for MarlinError {}
 
 #[cfg(test)]
 mod test {
-    use crate::MarlinConfig;
+    use crate::{MarlinConfig, PoseidonSpongeVarWithDefaultRate, PoseidonSpongeWithDefaultRate};
     #[derive(Clone)]
     struct TestMarlinConfig;
     impl MarlinConfig for TestMarlinConfig {
@@ -391,10 +395,8 @@ mod test {
     }
 
     use crate::constraints::snark::{MarlinSNARK, MarlinSNARKGadget};
-    use crate::fiat_shamir::constraints::FiatShamirAlgebraicSpongeRngVar;
-    use crate::fiat_shamir::poseidon::constraints::PoseidonSpongeVar;
-    use crate::fiat_shamir::poseidon::PoseidonSponge;
-    use crate::fiat_shamir::FiatShamirAlgebraicSpongeRng;
+    use crate::fiat_shamir::constraints::FiatShamirSpongeRngVar;
+    use crate::fiat_shamir::FiatShamirSpongeRng;
     use ark_crypto_primitives::snark::{SNARKGadget, SNARK};
     use ark_ec::{CurveCycle, PairingEngine, PairingFriendlyCycle};
     use ark_ff::{Field, UniformRand};
@@ -409,7 +411,6 @@ mod test {
         r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError},
     };
     use core::ops::MulAssign;
-
     #[derive(Copy, Clone)]
     struct Circuit<F: Field> {
         a: Option<F>,
@@ -449,22 +450,19 @@ mod test {
     type TestSNARK = MarlinSNARK<
         MNT4Fr,
         MNT4Fq,
-        MarlinKZG10<MNT4_298, DensePolynomial<MNT4Fr>>,
+        MarlinKZG10<MNT4_298, DensePolynomial<MNT4Fr>, FS4>,
         FS4,
         TestMarlinConfig,
     >;
-    type FS4 = FiatShamirAlgebraicSpongeRng<MNT4Fr, MNT4Fq, PoseidonSponge<MNT4Fq>>;
-    type PCGadget4 = MarlinKZG10Gadget<Mnt64298cycle, DensePolynomial<MNT4Fr>, MNT4PairingVar>;
-    type FSG4 = FiatShamirAlgebraicSpongeRngVar<
-        MNT4Fr,
-        MNT4Fq,
-        PoseidonSponge<MNT4Fq>,
-        PoseidonSpongeVar<MNT4Fq>,
-    >;
+    type FS4 = FiatShamirSpongeRng<MNT4Fr, MNT4Fq, PoseidonSpongeWithDefaultRate<MNT4Fq>>;
+    type PCGadget4 = MarlinKZG10Gadget<Mnt64298cycle, DensePolynomial<MNT4Fr>, MNT4PairingVar, FS4>;
+    type FSG4 =
+        FiatShamirSpongeRngVar<MNT4Fr, MNT4Fq, FS4, PoseidonSpongeVarWithDefaultRate<MNT4Fq>>;
+
     type TestSNARKGadget = MarlinSNARKGadget<
         MNT4Fr,
         MNT4Fq,
-        MarlinKZG10<MNT4_298, DensePolynomial<MNT4Fr>>,
+        MarlinKZG10<MNT4_298, DensePolynomial<MNT4Fr>, FS4>,
         FS4,
         TestMarlinConfig,
         PCGadget4,
@@ -475,6 +473,7 @@ mod test {
     use ark_relations::r1cs::OptimizationGoal;
 
     #[test]
+    #[ignore]
     fn marlin_snark_test() {
         let mut rng = ark_std::test_rng();
         let a = MNT4Fr::rand(&mut rng);
