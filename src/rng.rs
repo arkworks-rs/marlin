@@ -66,7 +66,7 @@ where
     }
 
     /// Refresh `self.seed` with new material. Achieved by setting
-    /// `self.seed = H(self.seed || new_input)`.
+    /// `self.seed = H(new_input || self.seed)`.
     #[inline]
     fn absorb<'a, T: 'a + ToBytes>(&mut self, new_input: &'a T) {
         let mut bytes = Vec::new();
