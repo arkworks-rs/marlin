@@ -434,7 +434,7 @@ where
     F: PrimeField,
     CF: PrimeField,
     S: CryptographicSponge,
-    PC: PolynomialCommitment<F, DensePolynomial<F>, S, BatchProof = DensePolynomial<F>>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
     PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF, S>,
     PC::VerifierKey: ToConstraintField<CF>,
     PC::Commitment: ToConstraintField<CF>,

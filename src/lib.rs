@@ -118,7 +118,7 @@ where
 impl<F: PrimeField, FSF: PrimeField, S, PC, FS, MC: MarlinConfig> Marlin<F, FSF, S, PC, FS, MC>
 where
     S: CryptographicSponge + AlgebraicSponge<F>,
-    PC: PolynomialCommitment<F, DensePolynomial<F>, S, BatchProof = DensePolynomial<F>>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
     PC::VerifierKey: ToConstraintField<FSF>,
     PC::Commitment: ToConstraintField<FSF>,
     FS: FiatShamirRng<F, FSF>,

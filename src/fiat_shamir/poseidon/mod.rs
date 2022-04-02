@@ -260,11 +260,11 @@ where
         )
     }
 
-    fn squeeze_bytes(&mut self, num_bytes: usize) -> Vec<u8> {
+    fn squeeze_bytes(&mut self, _num_bytes: usize) -> Vec<u8> {
         todo!()
     }
 
-    fn squeeze_bits(&mut self, num_bits: usize) -> Vec<bool> {
+    fn squeeze_bits(&mut self, _num_bits: usize) -> Vec<bool> {
         todo!()
     }
 }
