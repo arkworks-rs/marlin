@@ -1,9 +1,12 @@
 use crate::{String, ToString, Vec};
 use ark_ff::{Field, PrimeField};
+use ark_nonnative_field::NonNativeFieldVar;
 use ark_poly::univariate::DensePolynomial;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::{LCTerm, LinearCombination};
-use ark_relations::r1cs::SynthesisError;
+use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
+use ark_sponge::constraints::CryptographicSpongeVar;
+use ark_sponge::CryptographicSponge;
 use ark_std::{borrow::Borrow, cfg_iter_mut, format, marker::PhantomData, vec};
 
 #[cfg(feature = "parallel")]
@@ -19,6 +22,34 @@ pub mod verifier;
 
 /// A labeled DensePolynomial with coefficients over `F`
 pub type LabeledPolynomial<F> = ark_poly_commit::LabeledPolynomial<F, DensePolynomial<F>>;
+
+/// The interface for a cryptographic sponge with default parameters
+pub trait CryptographicSpongeWithDefault: CryptographicSponge {
+    /// Default parametes for the cryptographic sponge
+    ///
+    /// Replacement for the requirement of S::Parameters: Default to minimize the upwards impact of
+    /// this implementation
+    fn default_params() -> Self::Parameters;
+}
+
+/// The interface for a cryptographic sponge constraints on field `F`.
+/// A sponge can `absorb` or take in inputs and later `squeeze` or output bytes or field elements.
+/// The outputs are dependent on previous `absorb` and `squeeze` calls.
+pub trait CryptographicSpongeVarNonNative<F: PrimeField, CF: PrimeField, S: CryptographicSponge>:
+    CryptographicSpongeVar<CF, S>
+{
+    /// Default parametes for the cryptographic sponge var
+    fn default_params() -> <Self as CryptographicSpongeVar<CF, S>>::Parameters;
+
+    /// Plaintext sponge
+    fn constant(cs: ConstraintSystemRef<CF>) -> Self;
+
+    /// Absorb non native `CF` elements
+    fn absorb_nonnative(
+        &mut self,
+        input: &[NonNativeFieldVar<F, CF>],
+    ) -> Result<(), SynthesisError>;
+}
 
 /// The algebraic holographic proof defined in [CHMMVW19](https://eprint.iacr.org/2019/1047).
 /// Currently, this AHP only supports inputs of size one

@@ -115,10 +115,7 @@ impl<F: Field> ConstraintSynthesizer<F> for OutlineTestCircuit<F> {
 
 mod marlin {
     use super::*;
-    use crate::{
-        fiat_shamir::poseidon::PoseidonSponge, fiat_shamir::FiatShamirChaChaRng, Marlin,
-        MarlinDefaultConfig,
-    };
+    use crate::{Marlin, MarlinDefaultConfig};
 
     use ark_bls12_381::{Bls12_381, Fq, Fr};
     use ark_ff::UniformRand;
@@ -213,10 +210,7 @@ mod marlin {
 
 mod marlin_recursion {
     use super::*;
-    use crate::{
-        fiat_shamir::{poseidon::PoseidonSponge, FiatShamirAlgebraicSpongeRng},
-        Marlin, MarlinRecursiveConfig,
-    };
+    use crate::{Marlin, MarlinRecursiveConfig};
 
     use ark_ec::{CurveCycle, PairingEngine, PairingFriendlyCycle};
     use ark_ff::UniformRand;
@@ -348,12 +342,6 @@ mod marlin_recursion {
 }
 
 mod fiat_shamir {
-    use crate::fiat_shamir::constraints::FiatShamirRngVar;
-    use crate::fiat_shamir::{
-        constraints::FiatShamirAlgebraicSpongeRngVar,
-        poseidon::{constraints::PoseidonSpongeVar, PoseidonSponge},
-        FiatShamirAlgebraicSpongeRng, FiatShamirChaChaRng, FiatShamirRng,
-    };
     use ark_ff::PrimeField;
     use ark_mnt4_298::{Fq, Fr};
     use ark_nonnative_field::params::OptimizationType;

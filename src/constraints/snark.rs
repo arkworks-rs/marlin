@@ -1,9 +1,12 @@
-use crate::constraints::{
-    data_structures::{IndexVerifierKeyVar, PreparedIndexVerifierKeyVar, ProofVar},
-    verifier::Marlin as MarlinVerifierGadget,
-};
-use crate::fiat_shamir::{constraints::FiatShamirRngVar, AlgebraicSponge, FiatShamirRng};
+use crate::ahp::CryptographicSpongeVarNonNative;
 use crate::Error::IndexTooLarge;
+use crate::{
+    ahp::CryptographicSpongeWithDefault,
+    constraints::{
+        data_structures::{IndexVerifierKeyVar, PreparedIndexVerifierKeyVar, ProofVar},
+        verifier::Marlin as MarlinVerifierGadget,
+    },
+};
 use crate::{
     Box, IndexProverKey, IndexVerifierKey, Marlin, MarlinConfig, PreparedIndexVerifierKey, Proof,
     String, ToString, UniversalSRS, Vec,
@@ -14,14 +17,15 @@ use ark_crypto_primitives::snark::{
 };
 use ark_ff::{PrimeField, ToConstraintField};
 use ark_poly::univariate::DensePolynomial;
-use ark_poly_commit::{PCCheckVar, PolynomialCommitment};
+use ark_poly_commit::optional_rng::OptionalRng;
+use ark_poly_commit::{LabeledCommitment, PCCheckVar, PolynomialCommitment};
 use ark_r1cs_std::{bits::boolean::Boolean, ToConstraintFieldGadget};
 use ark_relations::lc;
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystemRef, LinearCombination, SynthesisError, Variable,
 };
 use ark_snark::UniversalSetupSNARK;
-use ark_sponge::CryptographicSponge;
+use ark_sponge::{Absorb, CryptographicSponge};
 use ark_std::cmp::min;
 use ark_std::fmt::{Debug, Formatter};
 use ark_std::marker::PhantomData;
@@ -29,6 +33,7 @@ use ark_std::{
     rand::{CryptoRng, RngCore},
     test_rng,
 };
+use rand_chacha::ChaChaRng;
 
 #[derive(Clone, PartialEq, PartialOrd)]
 pub struct MarlinBound {
@@ -50,29 +55,81 @@ impl Debug for MarlinBound {
 pub struct MarlinSNARK<
     F: PrimeField,
     FSF: PrimeField,
-    S: CryptographicSponge + AlgebraicSponge<F>,
+    S: CryptographicSponge,
     PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
-    FS: FiatShamirRng<F, FSF>,
     MC: MarlinConfig,
 > {
     f_phantom: PhantomData<F>,
     fsf_phantom: PhantomData<FSF>,
     s_phantom: PhantomData<S>,
     pc_phantom: PhantomData<PC>,
-    fs_phantom: PhantomData<FS>,
     mc_phantom: PhantomData<MC>,
 }
 
-impl<F, FSF, S, PC, FS, MC> SNARK<F> for MarlinSNARK<F, FSF, S, PC, FS, MC>
+pub struct MarlinError {
+    pub error_msg: String,
+}
+
+impl<E> From<crate::Error<E>> for MarlinError
 where
-    F: PrimeField,
-    FSF: PrimeField,
-    S: CryptographicSponge + AlgebraicSponge<F>,
+    E: ark_std::error::Error,
+{
+    fn from(e: crate::Error<E>) -> Self {
+        match e {
+            IndexTooLarge(v) => Self {
+                error_msg: format!("index too large, needed degree {}", v),
+            },
+            crate::Error::<E>::AHPError(err) => match err {
+                crate::ahp::Error::MissingEval(str) => Self {
+                    error_msg: String::from("missing eval: ") + &*str,
+                },
+                crate::ahp::Error::InvalidPublicInputLength => Self {
+                    error_msg: String::from("invalid public input length"),
+                },
+                crate::ahp::Error::InstanceDoesNotMatchIndex => Self {
+                    error_msg: String::from("instance does not match index"),
+                },
+                crate::ahp::Error::NonSquareMatrix => Self {
+                    error_msg: String::from("non-sqaure matrix"),
+                },
+                crate::ahp::Error::ConstraintSystemError(error) => Self {
+                    error_msg: error.to_string(),
+                },
+            },
+            crate::Error::<E>::R1CSError(err) => Self {
+                error_msg: err.to_string(),
+            },
+            crate::Error::<E>::PolynomialCommitmentError(err) => Self {
+                error_msg: err.to_string(),
+            },
+        }
+    }
+}
+
+impl Debug for MarlinError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.error_msg)
+    }
+}
+
+impl core::fmt::Display for MarlinError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.error_msg)
+    }
+}
+
+impl ark_std::error::Error for MarlinError {}
+
+impl<F, FSF, S, PC, MC> SNARK<F> for MarlinSNARK<F, FSF, S, PC, MC>
+where
+    F: PrimeField + Absorb,
+    FSF: PrimeField + Absorb,
+    S: CryptographicSpongeWithDefault,
     PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
-    FS: FiatShamirRng<F, FSF>,
     MC: MarlinConfig,
     PC::VerifierKey: ToConstraintField<FSF>,
-    PC::Commitment: ToConstraintField<FSF>,
+    PC::Commitment: ToConstraintField<FSF> + Absorb,
+    LabeledCommitment<<PC as PolynomialCommitment<F, DensePolynomial<F>, S>>::Commitment>: Absorb,
 {
     type ProvingKey = IndexProverKey<F, S, PC>;
     type VerifyingKey = IndexVerifierKey<F, S, PC>;
@@ -84,7 +141,7 @@ where
         circuit: C,
         rng: &mut R,
     ) -> Result<(Self::ProvingKey, Self::VerifyingKey), Self::Error> {
-        Ok(Marlin::<F, FSF, S, PC, FS, MC>::circuit_specific_setup(circuit, rng).unwrap())
+        Ok(Marlin::<F, FSF, S, PC, MC>::circuit_specific_setup(circuit, rng).unwrap())
     }
 
     fn prove<C: ConstraintSynthesizer<F>, R: RngCore>(
@@ -92,14 +149,14 @@ where
         circuit: C,
         rng: &mut R,
     ) -> Result<Self::Proof, Self::Error> {
-        match Marlin::<F, FSF, S, PC, FS, MC>::prove(&pk, circuit, rng) {
+        match Marlin::<F, FSF, S, PC, MC>::prove(&pk, circuit, rng) {
             Ok(res) => Ok(res),
             Err(e) => Err(Box::new(MarlinError::from(e))),
         }
     }
 
     fn verify(vk: &Self::VerifyingKey, x: &[F], proof: &Self::Proof) -> Result<bool, Self::Error> {
-        match Marlin::<F, FSF, S, PC, FS, MC>::verify(vk, x, proof) {
+        match Marlin::<F, FSF, S, PC, MC>::verify::<OptionalRng<ChaChaRng>>(vk, x, proof, None) {
             Ok(res) => Ok(res),
             Err(e) => Err(Box::new(MarlinError::from(e))),
         }
@@ -115,23 +172,25 @@ where
         x: &[F],
         proof: &Self::Proof,
     ) -> Result<bool, Self::Error> {
-        match Marlin::<F, FSF, S, PC, FS, MC>::prepared_verify(pvk, x, proof) {
+        match Marlin::<F, FSF, S, PC, MC>::prepared_verify::<OptionalRng<ChaChaRng>>(
+            pvk, x, proof, None,
+        ) {
             Ok(res) => Ok(res),
             Err(e) => Err(Box::new(MarlinError::from(e))),
         }
     }
 }
 
-impl<F, FSF, S, PC, FS, MC> UniversalSetupSNARK<F> for MarlinSNARK<F, FSF, S, PC, FS, MC>
+impl<F, FSF, S, PC, MC> UniversalSetupSNARK<F> for MarlinSNARK<F, FSF, S, PC, MC>
 where
-    F: PrimeField,
-    FSF: PrimeField,
-    S: CryptographicSponge + AlgebraicSponge<F>,
+    F: PrimeField + Absorb,
+    FSF: PrimeField + Absorb,
+    S: CryptographicSpongeWithDefault,
     PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
-    FS: FiatShamirRng<F, FSF>,
     MC: MarlinConfig,
     PC::VerifierKey: ToConstraintField<FSF>,
-    PC::Commitment: ToConstraintField<FSF>,
+    PC::Commitment: ToConstraintField<FSF> + Absorb,
+    LabeledCommitment<<PC as PolynomialCommitment<F, DensePolynomial<F>, S>>::Commitment>: Absorb,
 {
     type ComputationBound = MarlinBound;
     type PublicParameters = (MarlinBound, UniversalSRS<F, PC, S>);
@@ -142,7 +201,7 @@ where
     ) -> Result<Self::PublicParameters, Self::Error> {
         let Self::ComputationBound { max_degree } = bound;
 
-        match Marlin::<F, FSF, S, PC, FS, MC>::universal_setup(1, 1, (max_degree + 5) / 3, rng) {
+        match Marlin::<F, FSF, S, PC, MC>::universal_setup(1, 1, (max_degree + 5) / 3, rng) {
             Ok(res) => Ok((bound.clone(), res)),
             Err(e) => Err(Box::new(MarlinError::from(e))),
         }
@@ -157,7 +216,7 @@ where
         (Self::ProvingKey, Self::VerifyingKey),
         UniversalSetupIndexError<Self::ComputationBound, Self::Error>,
     > {
-        let index_res = Marlin::<F, FSF, S, PC, FS, MC>::index(&crs.1, circuit);
+        let index_res = Marlin::<F, FSF, S, PC, MC>::index(&crs.1, circuit);
         match index_res {
             Ok(res) => Ok(res),
             Err(err) => match err {
@@ -172,44 +231,42 @@ where
     }
 }
 
-pub struct MarlinSNARKGadget<F, FSF, S, PC, FS, MC, PCG, FSG>
+pub struct MarlinSNARKGadget<F, FSF, S, SVN, PC, MC, PCG>
 where
     F: PrimeField,
     FSF: PrimeField,
-    S: CryptographicSponge,
+    S: CryptographicSpongeWithDefault,
+    SVN: CryptographicSpongeVarNonNative<F, FSF, S>,
     PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
-    FS: FiatShamirRng<F, FSF>,
     MC: MarlinConfig,
     PCG: PCCheckVar<F, DensePolynomial<F>, PC, FSF, S>,
-    FSG: FiatShamirRngVar<F, FSF, FS>,
 {
     pub f_phantom: PhantomData<F>,
     pub fsf_phantom: PhantomData<FSF>,
     pub s_phantom: PhantomData<S>,
+    pub svn_phantom: PhantomData<SVN>,
     pub pc_phantom: PhantomData<PC>,
-    pub fs_phantom: PhantomData<FS>,
     pub mc_phantom: PhantomData<MC>,
     pub pcg_phantom: PhantomData<PCG>,
-    pub fsg_phantom: PhantomData<FSG>,
 }
 
-impl<F, FSF, S, PC, FS, MC, PCG, FSG> SNARKGadget<F, FSF, MarlinSNARK<F, FSF, S, PC, FS, MC>>
-    for MarlinSNARKGadget<F, FSF, S, PC, FS, MC, PCG, FSG>
+impl<F, FSF, S, SVN, PC, MC, PCG> SNARKGadget<F, FSF, MarlinSNARK<F, FSF, S, PC, MC>>
+    for MarlinSNARKGadget<F, FSF, S, SVN, PC, MC, PCG>
 where
-    F: PrimeField,
-    FSF: PrimeField,
-    S: CryptographicSponge + AlgebraicSponge<F>,
+    F: PrimeField + Absorb,
+    FSF: PrimeField + Absorb,
+    S: CryptographicSpongeWithDefault,
+    SVN: CryptographicSpongeVarNonNative<F, FSF, S>,
     PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
-    FS: FiatShamirRng<F, FSF>,
     MC: MarlinConfig,
     PCG: PCCheckVar<F, DensePolynomial<F>, PC, FSF, S>,
-    FSG: FiatShamirRngVar<F, FSF, FS>,
     PC::VerifierKey: ToConstraintField<FSF>,
-    PC::Commitment: ToConstraintField<FSF>,
+    PC::Commitment: ToConstraintField<FSF> + Absorb,
     PCG::VerifierKeyVar: ToConstraintFieldGadget<FSF>,
     PCG::CommitmentVar: ToConstraintFieldGadget<FSF>,
+    LabeledCommitment<<PC as PolynomialCommitment<F, DensePolynomial<F>, S>>::Commitment>: Absorb,
 {
-    type ProcessedVerifyingKeyVar = PreparedIndexVerifierKeyVar<F, FSF, S, PC, PCG, FS, FSG>;
+    type ProcessedVerifyingKeyVar = PreparedIndexVerifierKeyVar<F, FSF, S, SVN, PC, PCG>;
     type VerifyingKeyVar = IndexVerifierKeyVar<F, FSF, S, PC, PCG>;
     type InputVar = NonNativeFieldInputVar<F, FSF>;
     type ProofVar = ProofVar<F, FSF, S, PC, PCG>;
@@ -217,7 +274,7 @@ where
     type VerifierSize = usize;
 
     fn verifier_size(
-        circuit_vk: &<MarlinSNARK<F, FSF, S, PC, FS, MC> as SNARK<F>>::VerifyingKey,
+        circuit_vk: &<MarlinSNARK<F, FSF, S, PC, MC> as SNARK<F>>::VerifyingKey,
     ) -> Self::VerifierSize {
         circuit_vk.index_info.num_instance_variables
     }
@@ -245,10 +302,8 @@ where
         proof: &Self::ProofVar,
     ) -> Result<Boolean<FSF>, SynthesisError> {
         Ok(
-            MarlinVerifierGadget::<F, FSF, S, PC, PCG>::verify::<FS, FSG>(
-                circuit_vk, &x.val, proof,
-            )
-            .unwrap(),
+            MarlinVerifierGadget::<F, FSF, S, PC, PCG>::verify::<SVN>(circuit_vk, &x.val, proof)
+                .unwrap(),
         )
     }
 }
@@ -311,79 +366,24 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for MarlinBoundCircuit<F> {
     }
 }
 
-impl<F, FSF, S, PC, FS, MC, PCG, FSG>
-    UniversalSetupSNARKGadget<F, FSF, MarlinSNARK<F, FSF, S, PC, FS, MC>>
-    for MarlinSNARKGadget<F, FSF, S, PC, FS, MC, PCG, FSG>
+impl<F, FSF, S, SVN, PC, MC, PCG> UniversalSetupSNARKGadget<F, FSF, MarlinSNARK<F, FSF, S, PC, MC>>
+    for MarlinSNARKGadget<F, FSF, S, SVN, PC, MC, PCG>
 where
-    F: PrimeField,
-    FSF: PrimeField,
-    S: CryptographicSponge + AlgebraicSponge<F>,
+    F: PrimeField + Absorb,
+    FSF: PrimeField + Absorb,
+    S: CryptographicSpongeWithDefault,
+    SVN: CryptographicSpongeVarNonNative<F, FSF, S>,
     PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
-    FS: FiatShamirRng<F, FSF>,
     MC: MarlinConfig,
     PCG: PCCheckVar<F, DensePolynomial<F>, PC, FSF, S>,
-    FSG: FiatShamirRngVar<F, FSF, FS>,
     PC::VerifierKey: ToConstraintField<FSF>,
-    PC::Commitment: ToConstraintField<FSF>,
+    PC::Commitment: ToConstraintField<FSF> + Absorb,
     PCG::VerifierKeyVar: ToConstraintFieldGadget<FSF>,
     PCG::CommitmentVar: ToConstraintFieldGadget<FSF>,
+    LabeledCommitment<<PC as PolynomialCommitment<F, DensePolynomial<F>, S>>::Commitment>: Absorb,
 {
     type BoundCircuit = MarlinBoundCircuit<F>;
 }
-
-pub struct MarlinError {
-    pub error_msg: String,
-}
-
-impl<E> From<crate::Error<E>> for MarlinError
-where
-    E: ark_std::error::Error,
-{
-    fn from(e: crate::Error<E>) -> Self {
-        match e {
-            IndexTooLarge(v) => Self {
-                error_msg: format!("index too large, needed degree {}", v),
-            },
-            crate::Error::<E>::AHPError(err) => match err {
-                crate::ahp::Error::MissingEval(str) => Self {
-                    error_msg: String::from("missing eval: ") + &*str,
-                },
-                crate::ahp::Error::InvalidPublicInputLength => Self {
-                    error_msg: String::from("invalid public input length"),
-                },
-                crate::ahp::Error::InstanceDoesNotMatchIndex => Self {
-                    error_msg: String::from("instance does not match index"),
-                },
-                crate::ahp::Error::NonSquareMatrix => Self {
-                    error_msg: String::from("non-sqaure matrix"),
-                },
-                crate::ahp::Error::ConstraintSystemError(error) => Self {
-                    error_msg: error.to_string(),
-                },
-            },
-            crate::Error::<E>::R1CSError(err) => Self {
-                error_msg: err.to_string(),
-            },
-            crate::Error::<E>::PolynomialCommitmentError(err) => Self {
-                error_msg: err.to_string(),
-            },
-        }
-    }
-}
-
-impl Debug for MarlinError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.error_msg)
-    }
-}
-
-impl core::fmt::Display for MarlinError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.error_msg)
-    }
-}
-
-impl ark_std::error::Error for MarlinError {}
 
 #[cfg(test)]
 mod test {
@@ -406,10 +406,6 @@ mod test {
     }
 
     use crate::constraints::snark::{MarlinSNARK, MarlinSNARKGadget};
-    use crate::fiat_shamir::constraints::FiatShamirAlgebraicSpongeRngVar;
-    use crate::fiat_shamir::poseidon::constraints::PoseidonSpongeVar;
-    use crate::fiat_shamir::poseidon::PoseidonSponge;
-    use crate::fiat_shamir::FiatShamirAlgebraicSpongeRng;
     use ark_crypto_primitives::snark::{SNARKGadget, SNARK};
     use ark_ec::{CurveCycle, PairingEngine, PairingFriendlyCycle};
     use ark_ff::{Field, UniformRand};

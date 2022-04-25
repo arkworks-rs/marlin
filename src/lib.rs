@@ -17,15 +17,15 @@
 #![allow(clippy::op_ref)]
 
 use crate::ahp::prover::ProverMsg;
+use ahp::CryptographicSpongeWithDefault;
 use ark_ff::{to_bytes, PrimeField, ToConstraintField};
-use ark_nonnative_field::params::OptimizationType;
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::{
     challenge::ChallengeGenerator, Evaluations, LabeledCommitment, LabeledPolynomial,
     PCUniversalParams, PolynomialCommitment,
 };
 use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError};
-use ark_sponge::CryptographicSponge;
+use ark_sponge::{Absorb, CryptographicSponge};
 use ark_std::rand::RngCore;
 
 #[macro_use]
@@ -45,11 +45,6 @@ macro_rules! eprintln {
     () => {};
     ($($arg: tt)*) => {};
 }
-
-/// Implements a Fiat-Shamir based Rng that allows one to incrementally update
-/// the seed based on new messages in the proof transcript.
-pub mod fiat_shamir;
-pub use fiat_shamir::*;
 
 mod error;
 pub use error::*;
@@ -88,40 +83,40 @@ impl MarlinConfig for MarlinRecursiveConfig {
 pub struct Marlin<
     F: PrimeField,
     FSF: PrimeField,
-    S: CryptographicSponge + AlgebraicSponge<F>,
+    S: CryptographicSponge,
     PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
-    FS: FiatShamirRng<F, FSF>,
     MC: MarlinConfig,
 >(
     #[doc(hidden)] PhantomData<F>,
     #[doc(hidden)] PhantomData<FSF>,
     #[doc(hidden)] PhantomData<S>,
     #[doc(hidden)] PhantomData<PC>,
-    #[doc(hidden)] PhantomData<FS>,
     #[doc(hidden)] PhantomData<MC>,
 );
 
-fn compute_vk_hash<F, FSF, S, PC, FS>(vk: &IndexVerifierKey<F, S, PC>) -> Vec<FSF>
+fn compute_vk_hash<F, FSF, S, PC>(vk: &IndexVerifierKey<F, S, PC>) -> Vec<FSF>
 where
     F: PrimeField,
     FSF: PrimeField,
-    S: CryptographicSponge + AlgebraicSponge<F>,
+    S: CryptographicSpongeWithDefault,
     PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
-    FS: FiatShamirRng<F, FSF>,
-    PC::Commitment: ToConstraintField<FSF>,
+    PC::Commitment: ToConstraintField<FSF> + Absorb,
 {
-    let mut vk_hash_rng = FS::new();
-    vk_hash_rng.absorb_native_field_elements(&vk.index_comms);
-    vk_hash_rng.squeeze_native_field_elements(1)
+    let params = S::default_params();
+    let mut vk_hash_rng = S::new(&params);
+    vk_hash_rng.absorb(&vk.index_comms);
+    vk_hash_rng.squeeze_field_elements(1)
 }
 
-impl<F: PrimeField, FSF: PrimeField, S, PC, FS, MC: MarlinConfig> Marlin<F, FSF, S, PC, FS, MC>
+impl<F: PrimeField, FSF: PrimeField, S, PC, MC: MarlinConfig> Marlin<F, FSF, S, PC, MC>
 where
-    S: CryptographicSponge + AlgebraicSponge<F>,
+    S: CryptographicSpongeWithDefault,
+    F: Absorb,
+    FSF: Absorb,
     PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
     PC::VerifierKey: ToConstraintField<FSF>,
-    PC::Commitment: ToConstraintField<FSF>,
-    FS: FiatShamirRng<F, FSF>,
+    PC::Commitment: ToConstraintField<FSF> + Absorb,
+    LabeledCommitment<<PC as PolynomialCommitment<F, DensePolynomial<F>, S>>::Commitment>: Absorb,
 {
     /// The personalization string for this protocol. Used to personalize the
     /// Fiat-Shamir rng.
@@ -331,18 +326,17 @@ where
         let prover_init_state = AHPForR1CS::prover_init(&index_pk.index, c)?;
         let public_input = prover_init_state.public_input();
 
-        let mut fs_rng = FS::new();
+        let params = S::default_params();
+        let mut sponge = S::new(&params);
 
         let hiding = !for_recursion;
 
         if for_recursion {
-            fs_rng.absorb_bytes(&to_bytes![&Self::PROTOCOL_NAME].unwrap());
-            fs_rng.absorb_native_field_elements(&compute_vk_hash::<F, FSF, S, PC, FS>(
-                &index_pk.index_vk,
-            ));
-            fs_rng.absorb_nonnative_field_elements(&public_input, OptimizationType::Weight);
+            sponge.absorb(&to_bytes![&Self::PROTOCOL_NAME].unwrap());
+            sponge.absorb(&compute_vk_hash::<F, FSF, S, PC>(&index_pk.index_vk));
+            sponge.absorb(&public_input);
         } else {
-            fs_rng.absorb_bytes(
+            sponge.absorb(
                 &to_bytes![&Self::PROTOCOL_NAME, &index_pk.index_vk, &public_input].unwrap(),
             );
         }
@@ -363,26 +357,24 @@ where
         end_timer!(first_round_comm_time);
 
         if for_recursion {
-            fs_rng.absorb_native_field_elements(&first_comms);
+            sponge.absorb(&first_comms);
             match prover_first_msg.clone() {
                 ProverMsg::EmptyMessage => (),
-                ProverMsg::FieldElements(v) => {
-                    fs_rng.absorb_nonnative_field_elements(&v, OptimizationType::Weight)
-                }
+                ProverMsg::FieldElements(v) => sponge.absorb(&v),
             }
         } else {
-            fs_rng.absorb_bytes(&to_bytes![first_comms, prover_first_msg].unwrap());
+            sponge.absorb(&to_bytes![first_comms, prover_first_msg].unwrap());
         }
 
         let (verifier_first_msg, verifier_state) =
-            AHPForR1CS::verifier_first_round(index_pk.index_vk.index_info, &mut fs_rng)?;
+            AHPForR1CS::verifier_first_round::<FSF, S>(index_pk.index_vk.index_info, &mut sponge)?;
         // --------------------------------------------------------------------
 
         // --------------------------------------------------------------------
         // Second round
 
         let (prover_second_msg, prover_second_oracles, prover_state) =
-            AHPForR1CS::prover_second_round(&verifier_first_msg, prover_state, zk_rng, hiding);
+            AHPForR1CS::prover_second_round(&verifier_first_msg, prover_state, hiding);
 
         let second_round_comm_time = start_timer!(|| "Committing to second round polys");
         let (second_comms, second_comm_rands) = PC::commit(
@@ -394,25 +386,23 @@ where
         end_timer!(second_round_comm_time);
 
         if for_recursion {
-            fs_rng.absorb_native_field_elements(&second_comms);
+            sponge.absorb(&second_comms);
             match prover_second_msg.clone() {
                 ProverMsg::EmptyMessage => (),
-                ProverMsg::FieldElements(v) => {
-                    fs_rng.absorb_nonnative_field_elements(&v, OptimizationType::Weight)
-                }
+                ProverMsg::FieldElements(v) => sponge.absorb(&v),
             }
         } else {
-            fs_rng.absorb_bytes(&to_bytes![second_comms, prover_second_msg].unwrap());
+            sponge.absorb(&to_bytes![second_comms, prover_second_msg].unwrap());
         }
 
         let (verifier_second_msg, verifier_state) =
-            AHPForR1CS::verifier_second_round(verifier_state, &mut fs_rng);
+            AHPForR1CS::verifier_second_round::<FSF, S>(verifier_state, &mut sponge);
         // --------------------------------------------------------------------
 
         // --------------------------------------------------------------------
         // Third round
         let (prover_third_msg, prover_third_oracles) =
-            AHPForR1CS::prover_third_round(&verifier_second_msg, prover_state, zk_rng)?;
+            AHPForR1CS::prover_third_round(&verifier_second_msg, prover_state)?;
 
         let third_round_comm_time = start_timer!(|| "Committing to third round polys");
         let (third_comms, third_comm_rands) = PC::commit(
@@ -424,18 +414,17 @@ where
         end_timer!(third_round_comm_time);
 
         if for_recursion {
-            fs_rng.absorb_native_field_elements(&third_comms);
+            sponge.absorb(&third_comms);
             match prover_third_msg.clone() {
                 ProverMsg::EmptyMessage => (),
-                ProverMsg::FieldElements(v) => {
-                    fs_rng.absorb_nonnative_field_elements(&v, OptimizationType::Weight)
-                }
+                ProverMsg::FieldElements(v) => sponge.absorb(&v),
             }
         } else {
-            fs_rng.absorb_bytes(&to_bytes![third_comms, prover_third_msg].unwrap());
+            sponge.absorb(&to_bytes![third_comms, prover_third_msg].unwrap());
         }
 
-        let verifier_state = AHPForR1CS::verifier_third_round(verifier_state, &mut fs_rng);
+        let verifier_state =
+            AHPForR1CS::verifier_third_round::<FSF, S>(verifier_state, &mut sponge);
         // --------------------------------------------------------------------
 
         let vanishing_polys = if for_recursion {
@@ -511,7 +500,7 @@ where
 
         // Compute the AHP verifier's query set.
         let (query_set, verifier_state) =
-            AHPForR1CS::verifier_query_set(verifier_state, &mut fs_rng, for_recursion);
+            AHPForR1CS::verifier_query_set::<FSF>(verifier_state, for_recursion);
         let lc_s = AHPForR1CS::construct_linear_combinations(
             &public_input,
             &polynomials,
@@ -537,12 +526,14 @@ where
         end_timer!(eval_time);
 
         if for_recursion {
-            fs_rng.absorb_nonnative_field_elements(&evaluations, OptimizationType::Weight);
+            sponge.absorb(&evaluations);
         } else {
-            fs_rng.absorb_bytes(&to_bytes![&evaluations].unwrap());
+            sponge.absorb(&to_bytes![&evaluations].unwrap());
         }
 
-        let sponge = <S as AlgebraicSponge<F>>::new();
+        let params = S::default_params();
+        let sponge = S::new(&params);
+
         let mut opening_challenges = ChallengeGenerator::<F, _>::new_multivariate(sponge);
 
         let pc_proof = PC::open_combinations(
@@ -571,10 +562,11 @@ where
 
     /// Verify that a proof for the constrain system defined by `C` asserts that
     /// all constraints are satisfied.
-    pub fn verify(
+    pub fn verify<R: RngCore>(
         index_vk: &IndexVerifierKey<F, S, PC>,
         public_input: &[F],
         proof: &Proof<F, S, PC>,
+        zk_rng: Option<&mut R>,
     ) -> Result<bool, Error<PC::Error>> {
         let verifier_time = start_timer!(|| "Marlin::Verify");
 
@@ -592,34 +584,32 @@ where
 
         let for_recursion = MC::FOR_RECURSION;
 
-        let mut fs_rng = FS::new();
+        let params = S::default_params();
+        let mut sponge = S::new(&params);
 
         if for_recursion {
-            fs_rng.absorb_bytes(&to_bytes![&Self::PROTOCOL_NAME].unwrap());
-            fs_rng.absorb_native_field_elements(&compute_vk_hash::<F, FSF, S, PC, FS>(index_vk));
-            fs_rng.absorb_nonnative_field_elements(&public_input, OptimizationType::Weight);
+            sponge.absorb(&to_bytes![&Self::PROTOCOL_NAME].unwrap());
+            sponge.absorb(&compute_vk_hash::<F, FSF, S, PC>(index_vk));
+            sponge.absorb(&public_input);
         } else {
-            fs_rng
-                .absorb_bytes(&to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap());
+            sponge.absorb(&to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap());
         }
 
         // --------------------------------------------------------------------
         // First round
         let first_comms = &proof.commitments[0];
         if for_recursion {
-            fs_rng.absorb_native_field_elements(&first_comms);
+            sponge.absorb(&first_comms);
             match proof.prover_messages[0].clone() {
                 ProverMsg::EmptyMessage => (),
-                ProverMsg::FieldElements(v) => {
-                    fs_rng.absorb_nonnative_field_elements(&v, OptimizationType::Weight)
-                }
+                ProverMsg::FieldElements(v) => sponge.absorb(&v),
             };
         } else {
-            fs_rng.absorb_bytes(&to_bytes![first_comms, proof.prover_messages[0]].unwrap());
+            sponge.absorb(&to_bytes![first_comms, proof.prover_messages[0]].unwrap());
         }
 
         let (_, verifier_state) =
-            AHPForR1CS::verifier_first_round(index_vk.index_info, &mut fs_rng)?;
+            AHPForR1CS::verifier_first_round::<FSF, S>(index_vk.index_info, &mut sponge)?;
         // --------------------------------------------------------------------
 
         // --------------------------------------------------------------------
@@ -627,18 +617,17 @@ where
         let second_comms = &proof.commitments[1];
 
         if for_recursion {
-            fs_rng.absorb_native_field_elements(&second_comms);
+            sponge.absorb(&second_comms);
             match proof.prover_messages[1].clone() {
                 ProverMsg::EmptyMessage => (),
-                ProverMsg::FieldElements(v) => {
-                    fs_rng.absorb_nonnative_field_elements(&v, OptimizationType::Weight)
-                }
+                ProverMsg::FieldElements(v) => sponge.absorb(&v),
             };
         } else {
-            fs_rng.absorb_bytes(&to_bytes![second_comms, proof.prover_messages[1]].unwrap());
+            sponge.absorb(&to_bytes![second_comms, proof.prover_messages[1]].unwrap());
         }
 
-        let (_, verifier_state) = AHPForR1CS::verifier_second_round(verifier_state, &mut fs_rng);
+        let (_, verifier_state) =
+            AHPForR1CS::verifier_second_round::<FSF, S>(verifier_state, &mut sponge);
         // --------------------------------------------------------------------
 
         // --------------------------------------------------------------------
@@ -646,18 +635,17 @@ where
         let third_comms = &proof.commitments[2];
 
         if for_recursion {
-            fs_rng.absorb_native_field_elements(&third_comms);
+            sponge.absorb(&third_comms);
             match proof.prover_messages[2].clone() {
                 ProverMsg::EmptyMessage => (),
-                ProverMsg::FieldElements(v) => {
-                    fs_rng.absorb_nonnative_field_elements(&v, OptimizationType::Weight)
-                }
+                ProverMsg::FieldElements(v) => sponge.absorb(&v),
             };
         } else {
-            fs_rng.absorb_bytes(&to_bytes![third_comms, proof.prover_messages[2]].unwrap());
+            sponge.absorb(&to_bytes![third_comms, proof.prover_messages[2]].unwrap());
         }
 
-        let verifier_state = AHPForR1CS::verifier_third_round(verifier_state, &mut fs_rng);
+        let verifier_state =
+            AHPForR1CS::verifier_third_round::<FSF, S>(verifier_state, &mut sponge);
         // --------------------------------------------------------------------
 
         // Collect degree bounds for commitments. Indexed polynomials have *no*
@@ -690,12 +678,12 @@ where
             .collect();
 
         let (query_set, verifier_state) =
-            AHPForR1CS::verifier_query_set(verifier_state, &mut fs_rng, for_recursion);
+            AHPForR1CS::verifier_query_set::<FSF>(verifier_state, for_recursion);
 
         if for_recursion {
-            fs_rng.absorb_nonnative_field_elements(&proof.evaluations, OptimizationType::Weight);
+            sponge.absorb(&proof.evaluations);
         } else {
-            fs_rng.absorb_bytes(&to_bytes![&proof.evaluations].unwrap());
+            sponge.absorb(&to_bytes![&proof.evaluations].unwrap());
         }
 
         let mut evaluations = Evaluations::new();
@@ -721,8 +709,8 @@ where
             for_recursion,
         )?;
 
-        let sponge = <S as AlgebraicSponge<F>>::new();
-        let mut opening_challenges = ChallengeGenerator::<F, _>::new_multivariate(sponge);
+        let params = S::default_params();
+        let mut opening_challenges = ChallengeGenerator::<F, _>::new_multivariate(S::new(&params));
 
         let evaluations_are_correct = PC::check_combinations(
             &index_vk.verifier_key,
@@ -732,7 +720,7 @@ where
             &evaluations,
             &proof.pc_proof,
             &mut opening_challenges,
-            &mut fs_rng,
+            zk_rng,
         )
         .map_err(Error::from_pc_err)?;
 
@@ -748,11 +736,12 @@ where
         Ok(evaluations_are_correct)
     }
 
-    pub fn prepared_verify(
+    pub fn prepared_verify<R: RngCore>(
         prepared_vk: &PreparedIndexVerifierKey<F, S, PC>,
         public_input: &[F],
         proof: &Proof<F, S, PC>,
+        zk_rng: Option<&mut R>,
     ) -> Result<bool, Error<PC::Error>> {
-        Self::verify(&prepared_vk.orig_vk, public_input, proof)
+        Self::verify(&prepared_vk.orig_vk, public_input, proof, zk_rng)
     }
 }

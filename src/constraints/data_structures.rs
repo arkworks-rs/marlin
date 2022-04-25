@@ -1,9 +1,9 @@
 use crate::ahp::prover::ProverMsg;
+use crate::ahp::{CryptographicSpongeVarNonNative, CryptographicSpongeWithDefault};
 use crate::{
     constraints::verifier::Marlin as MarlinVerifierVar,
     data_structures::{IndexVerifierKey, PreparedIndexVerifierKey, Proof},
-    fiat_shamir::{constraints::FiatShamirRngVar, FiatShamirRng},
-    PhantomData, PrimeField, String, SynthesisError, ToString, Vec,
+    PrimeField, String, SynthesisError, ToString, Vec,
 };
 use ark_ff::{to_bytes, ToConstraintField};
 use ark_nonnative_field::NonNativeFieldVar;
@@ -17,7 +17,7 @@ use ark_r1cs_std::{
     R1CSVar, ToBytesGadget, ToConstraintFieldGadget,
 };
 use ark_relations::r1cs::{ConstraintSystemRef, Namespace};
-use ark_sponge::CryptographicSponge;
+use ark_sponge::{Absorb, CryptographicSponge};
 use ark_std::borrow::Borrow;
 use hashbrown::HashMap;
 
@@ -146,7 +146,7 @@ impl<
 impl<
         F: PrimeField,
         CF: PrimeField,
-        S: CryptographicSponge,
+        S: CryptographicSpongeWithDefault,
         PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
         PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF, S>,
     > Clone for IndexVerifierKeyVar<F, CF, S, PC, PCG>
@@ -181,10 +181,9 @@ pub struct PreparedIndexVerifierKeyVar<
     F: PrimeField,
     CF: PrimeField,
     S: CryptographicSponge,
+    SVN: CryptographicSpongeVarNonNative<F, CF, S>,
     PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
     PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF, S>,
-    PR: FiatShamirRng<F, CF>,
-    R: FiatShamirRngVar<F, CF, PR>,
 > {
     pub cs: ConstraintSystemRef<CF>,
     pub domain_h_size: u64,
@@ -193,20 +192,17 @@ pub struct PreparedIndexVerifierKeyVar<
     pub domain_k_size_gadget: FpVar<CF>,
     pub prepared_index_comms: Vec<PCG::PreparedCommitmentVar>,
     pub prepared_verifier_key: PCG::PreparedVerifierKeyVar,
-    pub fs_rng: R,
-
-    pr: PhantomData<PR>,
+    pub sponge_var: SVN,
 }
 
 impl<
         F: PrimeField,
         CF: PrimeField,
         S: CryptographicSponge,
+        SVN: CryptographicSpongeVarNonNative<F, CF, S>,
         PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
         PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF, S>,
-        PR: FiatShamirRng<F, CF>,
-        R: FiatShamirRngVar<F, CF, PR>,
-    > Clone for PreparedIndexVerifierKeyVar<F, CF, S, PC, PCG, PR, R>
+    > Clone for PreparedIndexVerifierKeyVar<F, CF, S, SVN, PC, PCG>
 {
     fn clone(&self) -> Self {
         PreparedIndexVerifierKeyVar {
@@ -217,35 +213,29 @@ impl<
             domain_k_size_gadget: self.domain_k_size_gadget.clone(),
             prepared_index_comms: self.prepared_index_comms.clone(),
             prepared_verifier_key: self.prepared_verifier_key.clone(),
-            fs_rng: self.fs_rng.clone(),
-            pr: PhantomData,
+            sponge_var: self.sponge_var.clone(),
         }
     }
 }
 
-impl<F, CF, S, PC, PCG, PR, R> PreparedIndexVerifierKeyVar<F, CF, S, PC, PCG, PR, R>
+impl<F, CF, S, SVN, PC, PCG> PreparedIndexVerifierKeyVar<F, CF, S, SVN, PC, PCG>
 where
     F: PrimeField,
-    CF: PrimeField,
-    S: CryptographicSponge,
+    CF: PrimeField + Absorb,
+    S: CryptographicSpongeWithDefault,
+    SVN: CryptographicSpongeVarNonNative<F, CF, S>,
     PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
     PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF, S>,
-    PR: FiatShamirRng<F, CF>,
-    R: FiatShamirRngVar<F, CF, PR>,
     PCG::VerifierKeyVar: ToConstraintFieldGadget<CF>,
     PCG::CommitmentVar: ToConstraintFieldGadget<CF>,
 {
     #[tracing::instrument(target = "r1cs", skip(vk))]
     pub fn prepare(vk: &IndexVerifierKeyVar<F, CF, S, PC, PCG>) -> Result<Self, SynthesisError> {
         let cs = vk.cs();
-
-        let mut fs_rng_raw = PR::new();
-        fs_rng_raw.absorb_bytes(
-            &to_bytes![&MarlinVerifierVar::<F, CF, S, PC, PCG>::PROTOCOL_NAME].unwrap(),
-        );
+        let params = S::default_params();
 
         let index_vk_hash = {
-            let mut vk_hash_rng = PR::new();
+            let mut vk_hash = S::new(&params);
 
             let mut vk_elems = Vec::<CF>::new();
             vk.index_comms.iter().for_each(|index_comm| {
@@ -258,18 +248,25 @@ where
                         .collect(),
                 );
             });
-            vk_hash_rng.absorb_native_field_elements(&vk_elems);
+
+            vk_hash.absorb(&vk_elems);
+
             FpVar::<CF>::new_witness(ark_relations::ns!(cs, "alloc#vk_hash"), || {
-                Ok(vk_hash_rng.squeeze_native_field_elements(1)[0])
+                Ok(vk_hash.squeeze_field_elements::<CF>(1)[0])
             })
             .unwrap()
         };
 
-        let fs_rng = {
-            let mut fs_rng = R::constant(cs, &fs_rng_raw);
-            fs_rng.absorb_native_field_elements(&[index_vk_hash])?;
-            fs_rng
-        };
+        let params = S::default_params();
+        let mut sponge = S::new(&params);
+
+        sponge.absorb(&to_bytes![&MarlinVerifierVar::<F, CF, S, PC, PCG>::PROTOCOL_NAME].unwrap());
+
+        // FIXME Original call was `R::constant`
+        let params_var = SVN::default_params();
+        let mut sponge_var = SVN::new(cs, &params_var);
+
+        sponge_var.absorb(&index_vk_hash)?;
 
         let mut prepared_index_comms = Vec::<PCG::PreparedCommitmentVar>::new();
         for comm in vk.index_comms.iter() {
@@ -286,22 +283,20 @@ where
             domain_k_size_gadget: vk.domain_k_size_gadget.clone(),
             prepared_index_comms,
             prepared_verifier_key,
-            fs_rng,
-            pr: PhantomData,
+            sponge_var,
         })
     }
 }
 
-impl<F, CF, S, PC, PCG, PR, R> AllocVar<PreparedIndexVerifierKey<F, S, PC>, CF>
-    for PreparedIndexVerifierKeyVar<F, CF, S, PC, PCG, PR, R>
+impl<F, CF, S, SVN, PC, PCG> AllocVar<PreparedIndexVerifierKey<F, S, PC>, CF>
+    for PreparedIndexVerifierKeyVar<F, CF, S, SVN, PC, PCG>
 where
     F: PrimeField,
-    CF: PrimeField,
-    S: CryptographicSponge,
+    CF: PrimeField + Absorb,
+    S: CryptographicSpongeWithDefault,
+    SVN: CryptographicSpongeVarNonNative<F, CF, S>,
     PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
     PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF, S>,
-    PR: FiatShamirRng<F, CF>,
-    R: FiatShamirRngVar<F, CF, PR>,
     PC::VerifierKey: ToConstraintField<CF>,
     PC::Commitment: ToConstraintField<CF>,
     PCG::VerifierKeyVar: ToConstraintFieldGadget<CF>,
@@ -343,33 +338,36 @@ where
         });
 
         let index_vk_hash = {
-            let mut vk_hash_rng = PR::new();
+            let params = S::default_params();
+            let mut vk_hash_rng = S::new(&params);
 
-            vk_hash_rng.absorb_native_field_elements(&vk_elems);
+            vk_hash_rng.absorb(&vk_elems);
+
             FpVar::<CF>::new_variable(
                 ark_relations::ns!(cs, "alloc#vk_hash"),
-                || Ok(vk_hash_rng.squeeze_native_field_elements(1)[0]),
+                || Ok(vk_hash_rng.squeeze_field_elements::<CF>(1)[0]),
                 mode,
             )
             .unwrap()
         };
 
-        let mut fs_rng_raw = PR::new();
-        fs_rng_raw.absorb_bytes(
-            &to_bytes![&MarlinVerifierVar::<F, CF, S, PC, PCG>::PROTOCOL_NAME].unwrap(),
-        );
+        let params = S::default_params();
+        let mut sponge = S::new(&params);
 
-        let fs_rng = {
-            let mut fs_rng = R::constant(cs.clone(), &fs_rng_raw);
-            fs_rng.absorb_native_field_elements(&[index_vk_hash])?;
-            fs_rng
-        };
+        sponge.absorb(&to_bytes![&MarlinVerifierVar::<F, CF, S, PC, PCG>::PROTOCOL_NAME].unwrap());
+
+        // FIXME Original call was `R::constant`
+        let params_var = SVN::default_params();
+        let mut sponge_var = SVN::new(cs.clone(), &params_var);
+
+        sponge_var.absorb(&index_vk_hash)?;
 
         let domain_h_size_gadget = FpVar::<CF>::new_variable(
             ark_relations::ns!(cs, "domain_h_size"),
             || Ok(CF::from(obj.domain_h_size as u128)),
             mode,
         )?;
+
         let domain_k_size_gadget = FpVar::<CF>::new_variable(
             ark_relations::ns!(cs, "domain_k_size"),
             || Ok(CF::from(obj.domain_k_size as u128)),
@@ -384,8 +382,7 @@ where
             domain_k_size_gadget,
             prepared_index_comms,
             prepared_verifier_key,
-            fs_rng,
-            pr: PhantomData,
+            sponge_var,
         })
     }
 }

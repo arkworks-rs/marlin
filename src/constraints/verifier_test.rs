@@ -6,10 +6,6 @@ mod tests {
             data_structures::{IndexVerifierKeyVar, ProofVar, ProverMsgVar},
             verifier::Marlin,
         },
-        fiat_shamir::{
-            constraints::FiatShamirAlgebraicSpongeRngVar, poseidon::constraints::PoseidonSpongeVar,
-            poseidon::PoseidonSponge, FiatShamirAlgebraicSpongeRng,
-        },
         Marlin as MarlinNative, MarlinRecursiveConfig, Proof,
     };
     use ark_ec::{CurveCycle, PairingEngine, PairingFriendlyCycle};
