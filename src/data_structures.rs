@@ -127,32 +127,28 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> Proof<F, PC
 
     /// Prints information about the size of the proof.
     pub fn print_size_info(&self) {
-        use ark_poly_commit::{PCCommitment, PCProof};
+        use ark_poly_commit::PCCommitment;
 
-        let size_of_fe_in_bytes = F::zero().into_repr().as_ref().len() * 8;
         let mut num_comms_without_degree_bounds = 0;
         let mut num_comms_with_degree_bounds = 0;
         let mut size_bytes_comms_without_degree_bounds = 0;
         let mut size_bytes_comms_with_degree_bounds = 0;
-        let mut size_bytes_proofs = 0;
         for c in self.commitments.iter().flat_map(|c| c) {
             if !c.has_degree_bound() {
                 num_comms_without_degree_bounds += 1;
-                size_bytes_comms_without_degree_bounds += c.size_in_bytes();
+                size_bytes_comms_without_degree_bounds += c.serialized_size();
             } else {
                 num_comms_with_degree_bounds += 1;
-                size_bytes_comms_with_degree_bounds += c.size_in_bytes();
+                size_bytes_comms_with_degree_bounds += c.serialized_size();
             }
         }
 
         let proofs: Vec<PC::Proof> = self.pc_proof.proof.clone().into();
         let num_proofs = proofs.len();
-        for proof in &proofs {
-            size_bytes_proofs += proof.size_in_bytes();
-        }
+        let size_bytes_proofs = self.pc_proof.proof.serialized_size();
 
         let num_evals = self.evaluations.len();
-        let evals_size_in_bytes = num_evals * size_of_fe_in_bytes;
+        let evals_size_in_bytes = self.evaluations.serialized_size();
         let num_prover_messages: usize = self
             .prover_messages
             .iter()
@@ -161,12 +157,8 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> Proof<F, PC
                 ProverMsg::FieldElements(elems) => elems.len(),
             })
             .sum();
-        let prover_msg_size_in_bytes = num_prover_messages * size_of_fe_in_bytes;
-        let arg_size = size_bytes_comms_with_degree_bounds
-            + size_bytes_comms_without_degree_bounds
-            + size_bytes_proofs
-            + prover_msg_size_in_bytes
-            + evals_size_in_bytes;
+        let prover_msg_size_in_bytes = self.prover_messages.serialized_size();
+        let arg_size = self.serialized_size();
         let stats = format!(
             "Argument size in bytes: {}\n\n\
              Number of commitments without degree bounds: {}\n\
