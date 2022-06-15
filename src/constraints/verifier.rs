@@ -16,21 +16,27 @@ use ark_relations::ns;
 pub struct Marlin<
     F: PrimeField,
     CF: PrimeField,
-    PC: PolynomialCommitment<F, DensePolynomial<F>>,
-    PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF>,
+    PR: FiatShamirRng<F, CF>,
+    R: FiatShamirRngVar<F, CF, PR>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, PR>,
+    PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF, PR>,
 >(
     PhantomData<F>,
     PhantomData<CF>,
+    PhantomData<PR>,
+    PhantomData<R>,
     PhantomData<PC>,
     PhantomData<PCG>,
 );
 
-impl<F, CF, PC, PCG> Marlin<F, CF, PC, PCG>
+impl<F, CF, PC, PCG, PR, R> Marlin<F, CF, PR, R, PC, PCG>
 where
     F: PrimeField,
     CF: PrimeField,
-    PC: PolynomialCommitment<F, DensePolynomial<F>>,
-    PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF>,
+    PR: FiatShamirRng<F, CF>,
+    R: FiatShamirRngVar<F, CF, PR>,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, PR>,
+    PCG: PCCheckVar<F, DensePolynomial<F>, PC, CF, PR>,
     PCG::VerifierKeyVar: ToConstraintFieldGadget<CF>,
     PCG::CommitmentVar: ToConstraintFieldGadget<CF>,
 {
@@ -38,10 +44,10 @@ where
 
     /// verify with an established hashchain initial state
     #[tracing::instrument(target = "r1cs", skip(index_pvk, proof))]
-    pub fn prepared_verify<PR: FiatShamirRng<F, CF>, R: FiatShamirRngVar<F, CF, PR>>(
+    pub fn prepared_verify(
         index_pvk: &PreparedIndexVerifierKeyVar<F, CF, PC, PCG, PR, R>,
         public_input: &[NonNativeFieldVar<F, CF>],
-        proof: &ProofVar<F, CF, PC, PCG>,
+        proof: &ProofVar<F, CF, PR, PC, PCG>,
     ) -> Result<Boolean<CF>, Error<PC::Error>> {
         let cs = index_pvk
             .cs
@@ -53,9 +59,9 @@ where
 
         eprintln!("before AHP: constraints: {}", cs.num_constraints());
 
-        fs_rng.absorb_nonnative_field_elements(&public_input, OptimizationType::Weight)?;
+        fs_rng.absorb_nonnative(&public_input, OptimizationType::Weight)?;
 
-        let (_, verifier_state) = AHPForR1CS::<F, CF, PC, PCG>::verifier_first_round(
+        let (_, verifier_state) = AHPForR1CS::<F, CF, PR, R, PC, PCG>::verifier_first_round(
             index_pvk.domain_h_size,
             index_pvk.domain_k_size,
             &mut fs_rng,
@@ -63,14 +69,14 @@ where
             &proof.prover_messages[0].field_elements,
         )?;
 
-        let (_, verifier_state) = AHPForR1CS::<F, CF, PC, PCG>::verifier_second_round(
+        let (_, verifier_state) = AHPForR1CS::<F, CF, PR, R, PC, PCG>::verifier_second_round(
             verifier_state,
             &mut fs_rng,
             &proof.commitments[1],
             &proof.prover_messages[1].field_elements,
         )?;
 
-        let verifier_state = AHPForR1CS::<F, CF, PC, PCG>::verifier_third_round(
+        let verifier_state = AHPForR1CS::<F, CF, PR, R, PC, PCG>::verifier_third_round(
             verifier_state,
             &mut fs_rng,
             &proof.commitments[2],
@@ -82,7 +88,7 @@ where
             formatted_public_input.push(elem);
         }
 
-        let lc = AHPForR1CS::<F, CF, PC, PCG>::verifier_decision(
+        let lc = AHPForR1CS::<F, CF, PR, R, PC, PCG>::verifier_decision(
             ns!(cs, "ahp").cs(),
             &formatted_public_input,
             &proof.evaluations,
@@ -90,8 +96,8 @@ where
             &index_pvk.domain_k_size_gadget,
         )?;
 
-        let (num_opening_challenges, num_batching_rands, comm, query_set, evaluations) =
-            AHPForR1CS::<F, CF, PC, PCG>::verifier_comm_query_eval_set(
+        let (num_opening_challenges, _num_batching_rands, comm, query_set, evaluations) =
+            AHPForR1CS::<F, CF, PR, R, PC, PCG>::verifier_comm_query_eval_set(
                 &index_pvk,
                 &proof,
                 &verifier_state,
@@ -110,12 +116,13 @@ where
             }
         }
 
-        fs_rng.absorb_nonnative_field_elements(&evals_vec, OptimizationType::Weight)?;
+        fs_rng.absorb_nonnative(&evals_vec, OptimizationType::Weight)?;
 
         let (opening_challenges, opening_challenges_bits) =
-            fs_rng.squeeze_128_bits_field_elements_and_bits(num_opening_challenges)?;
+            fs_rng.squeeze_128_bits_nonnative_and_bits(num_opening_challenges)?;
+
         let (batching_rands, batching_rands_bits) =
-            fs_rng.squeeze_128_bits_field_elements_and_bits(num_batching_rands)?;
+            fs_rng.squeeze_128_bits_nonnative_and_bits(num_opening_challenges)?;
 
         eprintln!("before PC checks: constraints: {}", cs.num_constraints());
 
@@ -139,10 +146,10 @@ where
     }
 
     #[tracing::instrument(target = "r1cs", skip(index_vk, proof))]
-    pub fn verify<PR: FiatShamirRng<F, CF>, R: FiatShamirRngVar<F, CF, PR>>(
-        index_vk: &IndexVerifierKeyVar<F, CF, PC, PCG>,
+    pub fn verify(
+        index_vk: &IndexVerifierKeyVar<F, CF, PR, PC, PCG>,
         public_input: &[NonNativeFieldVar<F, CF>],
-        proof: &ProofVar<F, CF, PC, PCG>,
+        proof: &ProofVar<F, CF, PR, PC, PCG>,
     ) -> Result<Boolean<CF>, Error<PC::Error>> {
         let index_pvk = PreparedIndexVerifierKeyVar::<F, CF, PC, PCG, PR, R>::prepare(&index_vk)?;
         Self::prepared_verify(&index_pvk, public_input, proof)
