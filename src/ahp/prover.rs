@@ -369,8 +369,15 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let mask_poly_time = start_timer!(|| "Computing mask polynomial");
         let mask_poly_degree = 3 * domain_h.size() + 2 * zk_bound - 3;
         let mut mask_poly = DensePolynomial::rand(mask_poly_degree, rng);
-        let scaled_sigma_1 = (mask_poly.divide_by_vanishing_poly(domain_h).unwrap().1)[0];
-        mask_poly[0] -= &scaled_sigma_1;
+
+        let nh = domain_h.size();
+        let upper_bound = mask_poly_degree / nh;
+        let mut r_0 = F::zero();
+        for i in 0..upper_bound + 1 {
+            r_0 += mask_poly[nh * i];
+        }
+
+        mask_poly[0] -= &r_0;
         end_timer!(mask_poly_time);
 
         let msg = ProverMsg::EmptyMessage;
