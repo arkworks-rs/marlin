@@ -11,11 +11,13 @@ use crate::{ToString, Vec};
 use ark_ff::{Field, PrimeField, Zero};
 use ark_poly::{
     univariate::DensePolynomial, EvaluationDomain, Evaluations as EvaluationsOnDomain,
-    GeneralEvaluationDomain, Polynomial, UVPolynomial,
+    GeneralEvaluationDomain, Polynomial, DenseUVPolynomial,
 };
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError,
 };
+use ark_serialize::Compress;
+use ark_serialize::Validate;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
 use ark_std::rand::RngCore;
 use ark_std::{
@@ -72,86 +74,31 @@ pub enum ProverMsg<F: Field> {
     FieldElements(Vec<F>),
 }
 
-impl<F: Field> ark_ff::ToBytes for ProverMsg<F> {
-    fn write<W: Write>(&self, w: W) -> ark_std::io::Result<()> {
-        match self {
-            ProverMsg::EmptyMessage => Ok(()),
-            ProverMsg::FieldElements(field_elems) => field_elems.write(w),
-        }
-    }
-}
-
 impl<F: Field> CanonicalSerialize for ProverMsg<F> {
-    fn serialize<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
+    fn serialize_with_mode<W: Write>(&self, mut writer: W, compress: Compress) -> Result<(), SerializationError> {
         let res: Option<Vec<F>> = match self {
             ProverMsg::EmptyMessage => None,
-            ProverMsg::FieldElements(v) => Some(v.clone()),
+            ProverMsg::FieldElements(v) => v.serialize_with_mode(writer, compress),
         };
-        res.serialize(&mut writer)
+        Ok(res)
     }
 
-    fn serialized_size(&self) -> usize {
+    fn serialized_size(&self, compress: Compress) -> usize {
         let res: Option<Vec<F>> = match self {
-            ProverMsg::EmptyMessage => None,
-            ProverMsg::FieldElements(v) => Some(v.clone()),
+            ProverMsg::EmptyMessage => 0,
+            ProverMsg::FieldElements(v) => v.serialized_size(compress),
         };
-        res.serialized_size()
-    }
-
-    fn serialize_unchecked<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
-        let res: Option<Vec<F>> = match self {
-            ProverMsg::EmptyMessage => None,
-            ProverMsg::FieldElements(v) => Some(v.clone()),
-        };
-        res.serialize_unchecked(&mut writer)
-    }
-
-    fn serialize_uncompressed<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
-        let res: Option<Vec<F>> = match self {
-            ProverMsg::EmptyMessage => None,
-            ProverMsg::FieldElements(v) => Some(v.clone()),
-        };
-        res.serialize_uncompressed(&mut writer)
-    }
-
-    fn uncompressed_size(&self) -> usize {
-        let res: Option<Vec<F>> = match self {
-            ProverMsg::EmptyMessage => None,
-            ProverMsg::FieldElements(v) => Some(v.clone()),
-        };
-        res.uncompressed_size()
+        Ok(res)
     }
 }
 
 impl<F: Field> CanonicalDeserialize for ProverMsg<F> {
-    fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
-        let res = Option::<Vec<F>>::deserialize(&mut reader)?;
-
-        if let Some(res) = res {
-            Ok(ProverMsg::FieldElements(res))
-        } else {
-            Ok(ProverMsg::EmptyMessage)
-        }
-    }
-
-    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
-        let res = Option::<Vec<F>>::deserialize_unchecked(&mut reader)?;
-
-        if let Some(res) = res {
-            Ok(ProverMsg::FieldElements(res))
-        } else {
-            Ok(ProverMsg::EmptyMessage)
-        }
-    }
-
-    fn deserialize_uncompressed<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
-        let res = Option::<Vec<F>>::deserialize_uncompressed(&mut reader)?;
-
-        if let Some(res) = res {
-            Ok(ProverMsg::FieldElements(res))
-        } else {
-            Ok(ProverMsg::EmptyMessage)
-        }
+    fn deserialize_with_mode<R: Read>(&self, mut reader: R, compress:Compress, validate: Validate) -> Result<Self, SerializationError> {
+        let res: Option<Vec<F>> = match self {
+            ProverMsg::EmptyMessage => None,
+            ProverMsg::FieldElements(v) => v.deserialize_with_mode(reader, compress, validate),
+        };
+        Ok(res)
     }
 }
 

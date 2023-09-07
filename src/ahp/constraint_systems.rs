@@ -6,11 +6,8 @@ use crate::BTreeMap;
 use ark_ff::{Field, PrimeField};
 use ark_poly::{EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain};
 use ark_relations::{lc, r1cs::ConstraintSystemRef};
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
-use ark_std::{
-    cfg_iter_mut,
-    io::{Read, Write},
-};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_std::cfg_iter_mut;
 use derivative::Derivative;
 
 /* ************************************************************************* */

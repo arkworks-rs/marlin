@@ -334,7 +334,7 @@ mod tests {
     use ark_ff::{One, UniformRand, Zero};
     use ark_poly::{
         univariate::{DenseOrSparsePolynomial, DensePolynomial},
-        Polynomial, UVPolynomial,
+        Polynomial, DenseUVPolynomial,
     };
 
     #[test]

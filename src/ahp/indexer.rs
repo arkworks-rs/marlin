@@ -12,7 +12,7 @@ use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError, SynthesisMode,
 };
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::{
     io::{Read, Write},
     marker::PhantomData,
@@ -60,11 +60,20 @@ impl<F> IndexInfo<F> {
     }
 }
 
-impl<F: PrimeField> ark_ff::ToBytes for IndexInfo<F> {
-    fn write<W: Write>(&self, mut w: W) -> ark_std::io::Result<()> {
-        (self.num_variables as u64).write(&mut w)?;
-        (self.num_constraints as u64).write(&mut w)?;
-        (self.num_non_zero as u64).write(&mut w)
+impl<F: PrimeField> CanonicalSerialize for IndexInfo<F> {
+    fn serialize_with_mode<W: Write>(
+            &self,
+            writer: W,
+            compress: ark_serialize::Compress,
+        ) -> Result<(), ark_serialize::SerializationError> {
+        
+        (self.num_variables as u64).write(&mut writer)?;
+        (self.num_constraints as u64).write(&mut writer)?;
+        (self.num_non_zero as u64).write(&mut writer)
+    }
+    
+    fn serialized_size(&self) -> usize {
+        3 * ark_std::mem::size_of::<u64>()
     }
 }
 

@@ -8,17 +8,17 @@
 //! matrices are square). Furthermore, Marlin only supports instances where the
 //! public inputs are of size one less than a power of 2 (i.e., 2^n - 1).
 #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
-#![deny(trivial_numeric_casts, private_in_public)]
+#![deny(trivial_numeric_casts)]
 #![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
 #![deny(unused_attributes, unused_imports, unused_mut, missing_docs)]
 #![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
-#![deny(unused_comparisons, bare_trait_objects, unused_must_use, const_err)]
+#![deny(unused_comparisons, bare_trait_objects, unused_must_use)]
 #![forbid(unsafe_code)]
 
 #[macro_use]
 extern crate ark_std;
 
-use ark_ff::{to_bytes, PrimeField, UniformRand};
+use ark_ff::{PrimeField, UniformRand};
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::Evaluations;
 use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
@@ -33,6 +33,7 @@ use ark_std::{
     vec,
     vec::Vec,
 };
+use ark_serialize::CanonicalSerialize;
 
 #[cfg(not(feature = "std"))]
 macro_rules! eprintln {
@@ -40,6 +41,30 @@ macro_rules! eprintln {
     ($($arg: tt)*) => {};
 }
 
+/// Takes as input a sequence of structs, and converts them to a series of
+/// bytes. All traits that implement `Bytes` can be automatically converted to
+/// bytes in this manner.
+#[macro_export]
+macro_rules! to_bytes {
+    ($($x:expr),*) => ({
+        let mut buf = $crate::vec![];
+        {$crate::push_to_vec!(buf, $($x),*)}.map(|_| buf)
+    });
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! push_to_vec {
+    ($buf:expr, $y:expr, $($x:expr),*) => ({
+        {
+            $crate::CanonicalSerialize::write(&$y, &mut $buf)
+        }.and({$crate::push_to_vec!($buf, $($x),*)})
+    });
+
+    ($buf:expr, $x:expr) => ({
+        $crate::CanonicalSerialize::write(&$x, &mut $buf)
+    })
+}
 /// Implements a Fiat-Shamir based Rng that allows one to incrementally update
 /// the seed based on new messages in the proof transcript.
 pub mod rng;

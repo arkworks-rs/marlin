@@ -4,10 +4,10 @@ use crate::Vec;
 use ark_ff::PrimeField;
 use ark_poly::univariate::DensePolynomial;
 use ark_poly_commit::{BatchLCProof, PolynomialCommitment};
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::{
     format,
-    io::{Read, Write},
+    io::Write,
 };
 
 /* ************************************************************************* */
@@ -33,12 +33,24 @@ pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F, DensePoly
     pub verifier_key: PC::VerifierKey,
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> ark_ff::ToBytes
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> CanonicalSerialize
     for IndexVerifierKey<F, PC>
 {
-    fn write<W: Write>(&self, mut w: W) -> ark_std::io::Result<()> {
-        self.index_info.write(&mut w)?;
-        self.index_comms.write(&mut w)
+    fn serialize_with_mode<W: Write>(
+            &self,
+            writer: W,
+            compress: ark_serialize::Compress,
+        ) -> Result<(), ark_serialize::SerializationError> {
+        self.index_info.serialize_with_mode(writer, compress)?;
+        self.index_comms.serialize_with_mode(writer, compress)?;
+        self.verifier_key.serialize_with_mode(writer, compress)?;
+        Ok(())
+    }
+    
+    fn serialized_size(&self, compress: ark_serialize::Compress) -> usize {
+        self.index_info.serialized_size(compress)
+            + self.index_comms.serialized_size(compress)
+            + self.verifier_key.serialized_size(compress)
     }
 }
 
@@ -136,19 +148,19 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> Proof<F, PC
         for c in self.commitments.iter().flat_map(|c| c) {
             if !c.has_degree_bound() {
                 num_comms_without_degree_bounds += 1;
-                size_bytes_comms_without_degree_bounds += c.serialized_size();
+                size_bytes_comms_without_degree_bounds += c.compressed_size();
             } else {
                 num_comms_with_degree_bounds += 1;
-                size_bytes_comms_with_degree_bounds += c.serialized_size();
+                size_bytes_comms_with_degree_bounds += c.compressed_size();
             }
         }
 
         let proofs: Vec<PC::Proof> = self.pc_proof.proof.clone().into();
         let num_proofs = proofs.len();
-        let size_bytes_proofs = self.pc_proof.proof.serialized_size();
+        let size_bytes_proofs = self.pc_proof.proof.compressed_size();
 
         let num_evals = self.evaluations.len();
-        let evals_size_in_bytes = self.evaluations.serialized_size();
+        let evals_size_in_bytes = self.evaluations.compressed_size();
         let num_prover_messages: usize = self
             .prover_messages
             .iter()
@@ -157,8 +169,8 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> Proof<F, PC
                 ProverMsg::FieldElements(elems) => elems.len(),
             })
             .sum();
-        let prover_msg_size_in_bytes = self.prover_messages.serialized_size();
-        let arg_size = self.serialized_size();
+        let prover_msg_size_in_bytes = self.prover_messages.compressed_size();
+        let arg_size = self.compressed_size();
         let stats = format!(
             "Argument size in bytes: {}\n\n\
              Number of commitments without degree bounds: {}\n\
