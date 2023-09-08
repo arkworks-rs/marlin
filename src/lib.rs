@@ -34,6 +34,7 @@ use ark_std::{
     vec::Vec,
 };
 use ark_serialize::CanonicalSerialize;
+use crate::rng::FiatShamirRng;
 
 #[cfg(not(feature = "std"))]
 macro_rules! eprintln {
@@ -68,8 +69,7 @@ macro_rules! push_to_vec {
 /// Implements a Fiat-Shamir based Rng that allows one to incrementally update
 /// the seed based on new messages in the proof transcript.
 pub mod rng;
-use rng::FiatShamirRng;
-pub use rng::SimpleHashFiatShamirRng;
+// pub use rng::*;
 
 mod error;
 pub use error::*;
