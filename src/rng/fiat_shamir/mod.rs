@@ -1,9 +1,9 @@
 use crate::rng::{CryptographicSpongeParameters, CryptographicSpongeWithRate};
 use crate::Vec;
 use ark_ff::{BigInteger, PrimeField, ToConstraintField};
-use ark_nonnative_field::params::{get_params, OptimizationType};
-use ark_nonnative_field::AllocatedNonNativeFieldVar;
-use ark_sponge::{Absorb, CryptographicSponge};
+use ark_r1cs_std::fields::nonnative::params::{get_params, OptimizationType};
+use ark_r1cs_std::fields::nonnative::AllocatedNonNativeFieldVar;
+use ark_crypto_primitives::sponge::{Absorb, CryptographicSponge};
 use ark_std::io::{Read, Result as IoResult, Write};
 use ark_std::marker::PhantomData;
 use ark_std::rand::{RngCore, SeedableRng};
@@ -199,9 +199,9 @@ impl<F: PrimeField, CF: PrimeField, D: Digest> Read for FiatShamirChaChaRng<F, C
 impl<F: PrimeField, CF: PrimeField, D: Digest> CryptographicSponge
     for FiatShamirChaChaRng<F, CF, D>
 {
-    type Parameters = ();
+    type Config = ();
 
-    fn new(_params: &Self::Parameters) -> Self {
+    fn new(_params: &Self::Config) -> Self {
         let seed = [0; 32];
         let r = ChaChaRng::from_seed(seed);
 
@@ -278,7 +278,7 @@ impl<F: PrimeField, CF: PrimeField, S: CryptographicSponge> From<S>
 impl<F: PrimeField, CF: PrimeField, S: CryptographicSpongeWithRate> Default
     for FiatShamirSpongeRng<F, CF, S>
 where
-    <S as CryptographicSponge>::Parameters: CryptographicSpongeParameters,
+    <S as CryptographicSponge>::Config: CryptographicSpongeParameters,
 {
     fn default() -> Self {
         S::with_default_rate().into()
@@ -288,9 +288,9 @@ where
 impl<F: PrimeField, CF: PrimeField, S: CryptographicSponge> CryptographicSponge
     for FiatShamirSpongeRng<F, CF, S>
 {
-    type Parameters = S::Parameters;
+    type Config = S::Config;
 
-    fn new(params: &Self::Parameters) -> Self {
+    fn new(params: &Self::Config) -> Self {
         S::new(params).into()
     }
 
@@ -311,7 +311,7 @@ impl<F: PrimeField, CF: PrimeField, S: CryptographicSpongeWithRate> FiatShamirRn
     for FiatShamirSpongeRng<F, CF, S>
 where
     CF: Absorb,
-    <S as CryptographicSponge>::Parameters: CryptographicSpongeParameters,
+    <S as CryptographicSponge>::Config: CryptographicSpongeParameters,
 {
     fn absorb_nonnative(&mut self, elems: &[F], ty: OptimizationType) {
         // FIXME ignoring faulty elements; maybe panic?
@@ -515,7 +515,7 @@ impl<F: PrimeField, CF: PrimeField, S: CryptographicSpongeWithRate> Write
     for FiatShamirSpongeRng<F, CF, S>
 where
     CF: Absorb,
-    <S as CryptographicSponge>::Parameters: CryptographicSpongeParameters,
+    <S as CryptographicSponge>::Config: CryptographicSpongeParameters,
 {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
         self.absorb(&buf);

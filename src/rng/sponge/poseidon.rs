@@ -1,17 +1,17 @@
 use core::marker::PhantomData;
 
 use ark_ff::{FpConfig, PrimeField};
-use ark_nonnative_field::{
+use ark_r1cs_std::fields::nonnative::{
     params::OptimizationType, AllocatedNonNativeFieldVar, NonNativeFieldVar,
 };
 use ark_r1cs_std::fields::fp::FpVar;
 use ark_r1cs_std::prelude::UInt8;
 use ark_r1cs_std::{alloc::AllocVar, boolean::Boolean};
 use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
-use ark_sponge::constraints::AbsorbGadget;
-use ark_sponge::{
+use ark_crypto_primitives::sponge::constraints::AbsorbGadget;
+use ark_crypto_primitives::sponge::{
     constraints::CryptographicSpongeVar,
-    poseidon::{constraints::PoseidonSpongeVar, PoseidonParameters, PoseidonSponge},
+    poseidon::{constraints::PoseidonSpongeVar, PoseidonConfig, PoseidonSponge},
     CryptographicSponge,
 };
 
@@ -45,7 +45,7 @@ impl<F: PrimeField> CryptographicSpongeWithRate for PoseidonSponge<F> {
     }
 }
 
-impl<F: PrimeField> CryptographicSpongeParameters for PoseidonParameters<F> {
+impl<F: PrimeField> CryptographicSpongeParameters for PoseidonConfig<F> {
     fn from_rate(rate: usize) -> Self {
         PoseidonParametersWithDefaultRate::from_rate(rate).params
     }
@@ -104,7 +104,7 @@ where
 
         if !src_limbs.is_empty() {
             let params =
-                ark_nonnative_field::params::get_params(F::size_in_bits(), CF::size_in_bits(), ty);
+                ark_r1cs_std::fields::nonnative::params::get_params(F::size_in_bits(), CF::size_in_bits(), ty);
 
             let adjustment_factor_lookup_table = {
                 let mut table = Vec::<CF>::new();
@@ -160,7 +160,7 @@ where
 /// Parameters and RNG used
 #[derive(Clone, Debug)]
 pub struct PoseidonParametersWithDefaultRate<F: PrimeField> {
-    pub params: PoseidonParameters<F>,
+    pub params: PoseidonConfig<F>,
 }
 
 impl<F: PrimeField> PoseidonParametersWithDefaultRate<F> {
@@ -168,8 +168,8 @@ impl<F: PrimeField> PoseidonParametersWithDefaultRate<F> {
     pub const DEFAULT_RATE: usize = 4;
 }
 
-impl<F: PrimeField> From<PoseidonParameters<F>> for PoseidonParametersWithDefaultRate<F> {
-    fn from(params: PoseidonParameters<F>) -> Self {
+impl<F: PrimeField> From<PoseidonConfig<F>> for PoseidonParametersWithDefaultRate<F> {
+    fn from(params: PoseidonConfig<F>) -> Self {
         Self { params }
     }
 }
@@ -199,7 +199,7 @@ impl<F: PrimeField> CryptographicSpongeParameters for PoseidonParametersWithDefa
         let mds = vec![mds; rate + capacity];
         let mds = vec![mds; rate + capacity];
 
-        PoseidonParameters::new(full_rounds, partial_rounds, alpha, mds, ark).into()
+        PoseidonConfig::new(full_rounds, partial_rounds, alpha, mds, ark).into()
     }
 }
 
@@ -216,13 +216,13 @@ impl<F: PrimeField> From<PoseidonSponge<F>> for PoseidonSpongeWithDefaultRate<F>
 }
 
 impl<F: PrimeField> CryptographicSponge for PoseidonSpongeWithDefaultRate<F> {
-    type Parameters = PoseidonParametersWithDefaultRate<F>;
+    type Config = PoseidonParametersWithDefaultRate<F>;
 
-    fn new(p: &Self::Parameters) -> Self {
+    fn new(p: &Self::Config) -> Self {
         PoseidonSponge::new(&p.params).into()
     }
 
-    fn absorb(&mut self, input: &impl ark_sponge::Absorb) {
+    fn absorb(&mut self, input: &impl ark_crypto_primitives::sponge::Absorb) {
         self.s.absorb(input)
     }
 

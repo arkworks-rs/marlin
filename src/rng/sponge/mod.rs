@@ -1,7 +1,7 @@
 use ark_ff::PrimeField;
-use ark_nonnative_field::{params::OptimizationType, NonNativeFieldVar};
+use ark_r1cs_std::fields::nonnative::{params::OptimizationType, NonNativeFieldVar};
 use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
-use ark_sponge::{constraints::CryptographicSpongeVar, CryptographicSponge};
+use ark_crypto_primitives::sponge::{constraints::CryptographicSpongeVar, CryptographicSponge};
 
 pub mod poseidon;
 
@@ -11,7 +11,7 @@ pub trait CryptographicSpongeParameters {
 
 pub trait CryptographicSpongeWithRate: CryptographicSponge
 where
-    <Self as CryptographicSponge>::Parameters: CryptographicSpongeParameters,
+    <Self as CryptographicSponge>::Config: CryptographicSpongeParameters,
 {
     fn default_rate() -> usize;
 
@@ -23,7 +23,7 @@ where
 
     fn from_rate(rate: usize) -> Self {
         let params =
-            <<Self as CryptographicSponge>::Parameters as CryptographicSpongeParameters>::from_rate(
+            <<Self as CryptographicSponge>::Config as CryptographicSpongeParameters>::from_rate(
                 rate,
             );
 

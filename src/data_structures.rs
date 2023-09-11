@@ -5,17 +5,15 @@ use ark_ff::PrimeField;
 use ark_poly::univariate::DensePolynomial;
 use ark_poly_commit::{BatchLCProof, PolynomialCommitment};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-use ark_std::{
-    format,
-    io::Write,
-};
+use ark_crypto_primitives::sponge::CryptographicSponge;
+use ark_std::format;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
 /* ************************************************************************* */
 
 /// The universal public parameters for the argument system.
-pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F, DensePolynomial<F>>>::UniversalParams;
+pub type UniversalSRS<F, PC, S> = <PC as PolynomialCommitment<F, DensePolynomial<F>,S>>::UniversalParams;
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -23,7 +21,7 @@ pub type UniversalSRS<F, PC> = <PC as PolynomialCommitment<F, DensePolynomial<F>
 
 /// Verification key for a specific index (i.e., R1CS matrices).
 #[derive(CanonicalSerialize, CanonicalDeserialize)]
-pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> {
+pub struct IndexVerifierKey<F: PrimeField, S:CryptographicSponge, PC: PolynomialCommitment<F, DensePolynomial<F>, S>> {
     /// Stores information about the size of the index, as well as its field of
     /// definition.
     pub index_info: IndexInfo<F>,
@@ -33,29 +31,8 @@ pub struct IndexVerifierKey<F: PrimeField, PC: PolynomialCommitment<F, DensePoly
     pub verifier_key: PC::VerifierKey,
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> CanonicalSerialize
-    for IndexVerifierKey<F, PC>
-{
-    fn serialize_with_mode<W: Write>(
-            &self,
-            writer: W,
-            compress: ark_serialize::Compress,
-        ) -> Result<(), ark_serialize::SerializationError> {
-        self.index_info.serialize_with_mode(writer, compress)?;
-        self.index_comms.serialize_with_mode(writer, compress)?;
-        self.verifier_key.serialize_with_mode(writer, compress)?;
-        Ok(())
-    }
-    
-    fn serialized_size(&self, compress: ark_serialize::Compress) -> usize {
-        self.index_info.serialized_size(compress)
-            + self.index_comms.serialized_size(compress)
-            + self.verifier_key.serialized_size(compress)
-    }
-}
-
-impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> Clone
-    for IndexVerifierKey<F, PC>
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S:CryptographicSponge> Clone
+    for IndexVerifierKey<F, S, PC>
 {
     fn clone(&self) -> Self {
         Self {
@@ -66,7 +43,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> Clone
     }
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> IndexVerifierKey<F, PC> {
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>,S>, S:CryptographicSponge> IndexVerifierKey<F,S, PC> {
     /// Iterate over the commitments to indexed polynomials in `self`.
     pub fn iter(&self) -> impl Iterator<Item = &PC::Commitment> {
         self.index_comms.iter()
@@ -79,9 +56,9 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> IndexVerifi
 
 /// Proving key for a specific index (i.e., R1CS matrices).
 #[derive(CanonicalSerialize, CanonicalDeserialize)]
-pub struct IndexProverKey<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> {
+pub struct IndexProverKey<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>,S>,S:CryptographicSponge> {
     /// The index verifier key.
-    pub index_vk: IndexVerifierKey<F, PC>,
+    pub index_vk: IndexVerifierKey<F,S,PC>,
     /// The randomness for the index polynomial commitments.
     pub index_comm_rands: Vec<PC::Randomness>,
     /// The index itself.
@@ -90,7 +67,7 @@ pub struct IndexProverKey<F: PrimeField, PC: PolynomialCommitment<F, DensePolyno
     pub committer_key: PC::CommitterKey,
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> Clone for IndexProverKey<F, PC>
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>,S>,S:CryptographicSponge> Clone for IndexProverKey<F,PC,S>
 where
     PC::Commitment: Clone,
 {
@@ -110,7 +87,7 @@ where
 
 /// A zkSNARK proof.
 #[derive(CanonicalSerialize, CanonicalDeserialize)]
-pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> {
+pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>,S>,S:CryptographicSponge> {
     /// Commitments to the polynomials produced by the AHP prover.
     pub commitments: Vec<Vec<PC::Commitment>>,
     /// Evaluations of these polynomials.
@@ -118,16 +95,16 @@ pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>>
     /// The field elements sent by the prover.
     pub prover_messages: Vec<ProverMsg<F>>,
     /// An evaluation proof from the polynomial commitment.
-    pub pc_proof: BatchLCProof<F, DensePolynomial<F>, PC>,
+    pub pc_proof: BatchLCProof<F, DensePolynomial<F>>,
 }
 
-impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>> Proof<F, PC> {
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>,S>,S:CryptographicSponge> Proof<F, PC,S> {
     /// Construct a new proof.
     pub fn new(
         commitments: Vec<Vec<PC::Commitment>>,
         evaluations: Vec<F>,
         prover_messages: Vec<ProverMsg<F>>,
-        pc_proof: BatchLCProof<F, DensePolynomial<F>, PC>,
+        pc_proof: BatchLCProof<F, DensePolynomial<F>>,
     ) -> Self {
         Self {
             commitments,

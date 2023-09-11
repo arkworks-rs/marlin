@@ -18,7 +18,7 @@ use ark_relations::r1cs::{
 };
 use ark_serialize::Compress;
 use ark_serialize::Validate;
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError, Valid};
 use ark_std::rand::RngCore;
 use ark_std::{
     cfg_into_iter, cfg_iter, cfg_iter_mut,
@@ -92,6 +92,14 @@ impl<F: Field> CanonicalSerialize for ProverMsg<F> {
     }
 }
 
+impl<F:Field> Valid for ProverMsg<F>{
+    fn check_valid(&self) -> Result<(), SerializationError> {
+        match self {
+            ProverMsg::EmptyMessage => Ok(()),
+            ProverMsg::FieldElements(v) => v.check_valid(),
+        }
+    }
+}
 impl<F: Field> CanonicalDeserialize for ProverMsg<F> {
     fn deserialize_with_mode<R: Read>(&self, mut reader: R, compress:Compress, validate: Validate) -> Result<Self, SerializationError> {
         let res: Option<Vec<F>> = match self {

@@ -415,7 +415,7 @@ mod tests {
                 .coeffs
                 .iter()
                 .filter_map(|f| if !f.is_zero() {
-                    Some(f.into_repr())
+                    Some(f)
                 } else {
                     None
                 })
@@ -447,7 +447,7 @@ mod tests {
                 .coeffs
                 .iter()
                 .filter_map(|f| if !f.is_zero() {
-                    Some(f.into_repr())
+                    Some(f)
                 } else {
                     None
                 })

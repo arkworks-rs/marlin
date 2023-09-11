@@ -2,8 +2,8 @@ use crate::rng::CryptographicSpongeVarNonNative;
 use crate::rng::CryptographicSpongeParameters;
 use crate::{overhead,Vec};
 use ark_ff::PrimeField;
-use ark_nonnative_field::params::{get_params, OptimizationType};
-use ark_nonnative_field::{AllocatedNonNativeFieldVar, NonNativeFieldVar};
+use ark_r1cs_std::fields::nonnative::params::{get_params, OptimizationType};
+use ark_r1cs_std::fields::nonnative::{AllocatedNonNativeFieldVar, NonNativeFieldVar};
 use ark_r1cs_std::{
     alloc::AllocVar,
     bits::{uint8::UInt8, ToBitsGadget},
@@ -16,8 +16,8 @@ use ark_relations::lc;
 use ark_relations::r1cs::{
     ConstraintSystemRef, LinearCombination, OptimizationGoal, SynthesisError,
 };
-use ark_sponge::constraints::{AbsorbGadget, CryptographicSpongeVar};
-use ark_sponge::CryptographicSponge;
+use ark_crypto_primitives::sponge::constraints::{AbsorbGadget, CryptographicSpongeVar};
+use ark_crypto_primitives::sponge::CryptographicSponge;
 use core::marker::PhantomData;
 
 /// Vars for a RNG for use in a Fiat-Shamir transform.
