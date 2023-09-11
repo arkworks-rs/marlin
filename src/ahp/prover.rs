@@ -93,15 +93,15 @@ impl<F: Field> CanonicalSerialize for ProverMsg<F> {
 }
 
 impl<F:Field> Valid for ProverMsg<F>{
-    fn check_valid(&self) -> Result<(), SerializationError> {
+    fn check(&self) -> Result<(), SerializationError> {
         match self {
             ProverMsg::EmptyMessage => Ok(()),
-            ProverMsg::FieldElements(v) => v.check_valid(),
+            ProverMsg::FieldElements(v) => v.check(),
         }
     }
 }
 impl<F: Field> CanonicalDeserialize for ProverMsg<F> {
-    fn deserialize_with_mode<R: Read>(&self, mut reader: R, compress:Compress, validate: Validate) -> Result<Self, SerializationError> {
+    fn deserialize_with_mode<R: Read>(mut reader: R, compress:Compress, validate: Validate) -> Result<Self, SerializationError> {
         let res: Option<Vec<F>> = match self {
             ProverMsg::EmptyMessage => None,
             ProverMsg::FieldElements(v) => v.deserialize_with_mode(reader, compress, validate),
