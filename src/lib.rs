@@ -58,12 +58,12 @@ macro_rules! to_bytes {
 macro_rules! push_to_vec {
     ($buf:expr, $y:expr, $($x:expr),*) => ({
         {
-            $crate::CanonicalSerialize::write(&$y, &mut $buf)
+            $y.serialize_compressed(&mut $buf)
         }.and({$crate::push_to_vec!($buf, $($x),*)})
     });
 
     ($buf:expr, $x:expr) => ({
-        $crate::CanonicalSerialize::write(&$x, &mut $buf)
+        $x.serialize_compressed(&mut $buf)
     })
 }
 /// Implements a Fiat-Shamir based Rng that allows one to incrementally update
@@ -85,15 +85,15 @@ use ahp::EvaluationsProvider;
 #[cfg(test)]
 mod test;
 
-/// The compiled argument system.
-pub struct Marlin<F: PrimeField,FSF:PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: FiatShamirRng<F,FSF>>(
+/// The compiled argument system.FiatShamiRng
+pub struct Marlin<F: PrimeField,FSF:PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: FiatShamirRng>(
     #[doc(hidden)] PhantomData<F>,
     #[doc(hidden)] PhantomData<FSF>,
     #[doc(hidden)] PhantomData<PC>,
     #[doc(hidden)] PhantomData<FS>,
 );
 
-impl<F: PrimeField,FSF:PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: FiatShamirRng<F,FSF>>
+impl<F: PrimeField,FSF:PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: FiatShamirRng>
     Marlin<F,FSF, PC, FS>
 {
     /// The personalization string for this protocol. Used to personalize the

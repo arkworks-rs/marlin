@@ -22,6 +22,7 @@ edition = "2018"
 [dependencies]
 ark-serialize = { version = "^0.4.0", default-features = false, features = [ "derive" ] }
 ark-ff = { version = "^0.4.0", default-features = false }
+ark-ec = { version = "^0.4.0", default-features = false }
 ark-std = { version = "^0.4.0", default-features = false }
 ark-poly = { version = "^0.4.0", default-features = false }
 ark-relations = { version = "^0.4.0", default-features = false }

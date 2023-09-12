@@ -115,18 +115,19 @@ impl<F: Field> ConstraintSynthesizer<F> for OutlineTestCircuit<F> {
 
 mod marlin {
     use super::*;
-    use crate::{Marlin, rng::FiatShamirChaChaRng};
+    use crate::{Marlin, rng::SimpleHashFiatShamirRng};
 
     use ark_bls12_381::{Bls12_381, Fr};
     use ark_ff::UniformRand;
-    use ark_poly::univariate::DensePolynomial;
+    use ark_poly::polynomial::univariate::DensePolynomial;
     use ark_poly_commit::marlin_pc::MarlinKZG10;
     use ark_std::ops::MulAssign;
-    use rand_chacha::ChaChaRng;
+    use ark_ec::pairing::Pairing;
 
-    type FS = FiatShamirChaChaRng<Bls12_381,Bls12_381, ChaChaRng>;
-    type MultiPC = MarlinKZG10<Bls12_381, DensePolynomial<Fr>, FS>;
-    type MarlinInst = Marlin<Fr, Bls12_381,MultiPC, FS>;
+    type BF = <Bls12_381 as Pairing>::BaseField;
+    type FS = SimpleHashFiatShamirRng<BF,BF>;
+    type MultiPC = MarlinKZG10<Bls12_381, DensePolynomial<<Bls12_381 as Pairing>::ScalarField>, FS>;
+    type MarlinInst = Marlin<BF, BF,MultiPC, FS>;
 
     fn test_circuit(num_constraints: usize, num_variables: usize) {
         let rng = &mut ark_std::test_rng();

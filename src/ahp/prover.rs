@@ -76,20 +76,21 @@ pub enum ProverMsg<F: Field> {
 
 impl<F: Field> CanonicalSerialize for ProverMsg<F> {
     fn serialize_with_mode<W: Write>(&self, mut writer: W, compress: Compress) -> Result<(), SerializationError> {
-        let res: Option<Vec<F>> = match self {
+        let res = match self {
             ProverMsg::EmptyMessage => None,
-            ProverMsg::FieldElements(v) => v.serialize_with_mode(writer, compress),
+            ProverMsg::FieldElements(v) => Some(v.clone()),
         };
-        Ok(res)
+        res.serialize_with_mode(writer, compress);
+        Ok(())
     }
 
     fn serialized_size(&self, compress: Compress) -> usize {
         let res: Option<Vec<F>> = match self {
-            ProverMsg::EmptyMessage => 0,
-            ProverMsg::FieldElements(v) => v.serialized_size(compress),
+            ProverMsg::EmptyMessage => None,
+            ProverMsg::FieldElements(v) => Some(v.clone()),
         };
-        Ok(res)
-    }
+        res.serialized_size(compress)
+}
 }
 
 impl<F:Field> Valid for ProverMsg<F>{
@@ -102,12 +103,13 @@ impl<F:Field> Valid for ProverMsg<F>{
 }
 impl<F: Field> CanonicalDeserialize for ProverMsg<F> {
     fn deserialize_with_mode<R: Read>(mut reader: R, compress:Compress, validate: Validate) -> Result<Self, SerializationError> {
-        let res: Option<Vec<F>> = match self {
-            ProverMsg::EmptyMessage => None,
-            ProverMsg::FieldElements(v) => v.deserialize_with_mode(reader, compress, validate),
-        };
-        Ok(res)
-    }
+        let res = Option::<Vec<F>>::deserialize_with_mode(reader, compress, validate)?;
+        if let Some(res) = res {
+            Ok(ProverMsg::FieldElements(res))
+        } else {
+            Ok(ProverMsg::EmptyMessage)
+        }
+}
 }
 
 /// The first set of prover oracles.
