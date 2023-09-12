@@ -18,6 +18,7 @@
 #[macro_use]
 extern crate ark_std;
 
+use ark_crypto_primitives::sponge::CryptographicSponge;
 use ark_ff::{PrimeField, UniformRand};
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::Evaluations;
@@ -35,7 +36,7 @@ use ark_std::{
     vec::Vec,
 };
 use ark_serialize::CanonicalSerialize;
-use crate::rng::FiatShamirRng;
+use ark_crypto_primitives::sponge::poseidon::{PoseidonSponge, PoseidonDefaultConfig, PoseidonConfig};
 
 #[cfg(not(feature = "std"))]
 macro_rules! eprintln {
@@ -70,7 +71,8 @@ macro_rules! push_to_vec {
 /// Implements a Fiat-Shamir based Rng that allows one to incrementally update
 /// the seed based on new messages in the proof transcript.
 pub mod rng;
-// pub use rng::*;
+pub use rng::*;
+
 
 mod error;
 pub use error::*;
@@ -87,14 +89,14 @@ use ahp::EvaluationsProvider;
 mod test;
 
 /// The compiled argument system.FiatShamiRng
-pub struct Marlin<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: FiatShamirRng>(
+pub struct Marlin<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>,S>, S: DefaultSpongeRNG>(
     #[doc(hidden)] PhantomData<F>,
     #[doc(hidden)] PhantomData<PC>,
-    #[doc(hidden)] PhantomData<FS>,
+    #[doc(hidden)] PhantomData<S>,
 );
 
-impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: FiatShamirRng>
-    Marlin<F, PC, FS>
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: DefaultSpongeRNG>
+    Marlin<F, PC, S>
 {
     /// The personalization string for this protocol. Used to personalize the
     /// Fiat-Shamir rng.
@@ -107,7 +109,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: Fia
         num_variables: usize,
         num_non_zero: usize,
         rng: &mut R,
-    ) -> Result<UniversalSRS<F, PC, FS>, Error<PC::Error>> {
+    ) -> Result<UniversalSRS<F, PC, S>, Error<PC::Error>> {
         let max_degree = AHPForR1CS::<F>::max_degree(num_constraints, num_variables, num_non_zero)?;
         let setup_time = start_timer!(|| {
             format!(
@@ -124,9 +126,9 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: Fia
     /// Generate the index-specific (i.e., circuit-specific) prover and verifier
     /// keys. This is a deterministic algorithm that anyone can rerun.
     pub fn index<C: ConstraintSynthesizer<F>>(
-        srs: &UniversalSRS<F, PC, FS>,
+        srs: &UniversalSRS<F, PC, S>,
         c: C,
-    ) -> Result<(IndexProverKey<F,PC,FS>, IndexVerifierKey<F,FS,PC>), Error<PC::Error>> {
+    ) -> Result<(IndexProverKey<F,PC,S>, IndexVerifierKey<F,S,PC>), Error<PC::Error>> {
         let index_time = start_timer!(|| "Marlin::Index");
 
         // TODO: Add check that c is in the correct mode.
@@ -175,18 +177,19 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: Fia
 
     /// Create a zkSNARK asserting that the constraint system is satisfied.
     pub fn prove<C: ConstraintSynthesizer<F>, R: RngCore>(
-        index_pk: &IndexProverKey<F,PC,FS>,
+        index_pk: &IndexProverKey<F,PC,S>,
         c: C,
-        zk_rng: &mut R,
-    ) -> Result<Proof<F, PC, FS>, Error<PC::Error>> {
+        zk_rng: &mut R
+    ) -> Result<Proof<F, PC, S>, Error<PC::Error>> {
         let prover_time = start_timer!(|| "Marlin::Prover");
         // Add check that c is in the correct mode.
 
         let prover_init_state = AHPForR1CS::prover_init(&index_pk.index, c)?;
         let public_input = prover_init_state.public_input();
-        let mut fs_rng = FS::initialize(
-            &to_bytes![&Self::PROTOCOL_NAME, &index_pk.index_vk, &public_input].unwrap(),
-        );
+        let init_bytes =&to_bytes![&Self::PROTOCOL_NAME, &index_pk.index_vk, &public_input].unwrap();
+        let mut fs_rng = S::default();
+        fs_rng.absorb(init_bytes);
+        
 
         // --------------------------------------------------------------------
         // First round
@@ -312,8 +315,8 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: Fia
         let evaluations = evaluations.into_iter().map(|x| x.1).collect::<Vec<F>>();
         end_timer!(eval_time);
 
-        fs_rng.absorb(&evaluations);
-        let mut opening_challenge = ChallengeGenerator::new_univariate(&mut fs_rng);
+        fs_rng.absorb(&to_bytes![&evaluations].unwrap());
+        let mut opening_challenge = ChallengeGenerator::<F, _>::new_multivariate(fs_rng);
 
         let pc_proof = PC::open_combinations(
             &index_pk.committer_key,
@@ -339,9 +342,9 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: Fia
     /// Verify that a proof for the constrain system defined by `C` asserts that
     /// all constraints are satisfied.
     pub fn verify<R: RngCore>(
-        index_vk: &IndexVerifierKey<F,FS,PC>,
+        index_vk: &IndexVerifierKey<F,S,PC>,
         public_input: &[F],
-        proof: &Proof<F, PC,FS>,
+        proof: &Proof<F, PC,S>,
         rng: &mut R,
     ) -> Result<bool, Error<PC::Error>> {
         let verifier_time = start_timer!(|| "Marlin::Verify");
@@ -358,8 +361,8 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: Fia
             unpadded_input
         };
 
-        let mut fs_rng =
-            FS::initialize(&to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap());
+        let mut fs_rng = S::default();
+        fs_rng.absorb(&to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap());
 
         // --------------------------------------------------------------------
         // First round
@@ -413,7 +416,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: Fia
         let (query_set, verifier_state) =
             AHPForR1CS::verifier_query_set(verifier_state, &mut fs_rng);
 
-        fs_rng.absorb(&proof.evaluations);
+        fs_rng.absorb(&to_bytes![&proof.evaluations].unwrap());
         let mut opening_challenge = ChallengeGenerator::new_univariate(&mut fs_rng);
 
         let mut evaluations = Evaluations::new();

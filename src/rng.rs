@@ -63,6 +63,10 @@ impl<F:PrimeField> Default for SimplePoseidonRng<F> {
     }
 }
 
+pub trait DefaultSpongeRNG : Default + CryptographicSponge + RngCore{}
+
+impl<F:PrimeField> DefaultSpongeRNG for SimplePoseidonRng<F> {}
+
 
 /// Generate default parameters (bls381-fr-only) for alpha = 17, state-size = 8
 fn poseidon_parameters_for_test<F: PrimeField>() -> PoseidonConfig<F> {
