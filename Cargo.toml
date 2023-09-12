@@ -26,7 +26,8 @@ ark-ec = { version = "^0.4.0", default-features = false }
 ark-std = { version = "^0.4.0", default-features = false }
 ark-poly = { version = "^0.4.0", default-features = false }
 ark-relations = { version = "^0.4.0", default-features = false }
-ark-poly-commit = { version = "^0.4.0", default-features = false }
+#ark-poly-commit = { version = "^0.4.0", default-features = false }
+ark-poly-commit = {path = "../poly-commit"}
 ark-r1cs-std = { version = "^0.4.0", default-features = false }
 ark-crypto-primitives = { version = "^0.4.0", default-features = false, features = [ "r1cs" ] }
 

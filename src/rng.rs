@@ -28,7 +28,7 @@ impl<F:PrimeField> RngCore for SimplePoseidonRng<F> {
 
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        self.0.squeeze_bytes(dest.len()).iter().enumerate().map(|(i, x)| dest[i] = *x );
+        dest.copy_from_slice(self.0.squeeze_bytes(dest.len()).as_slice());
     }
 
     #[inline]

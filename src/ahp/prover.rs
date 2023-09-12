@@ -80,7 +80,7 @@ impl<F: Field> CanonicalSerialize for ProverMsg<F> {
             ProverMsg::EmptyMessage => None,
             ProverMsg::FieldElements(v) => Some(v.clone()),
         };
-        res.serialize_with_mode(writer, compress);
+        res.serialize_with_mode(writer, compress)?;
         Ok(())
     }
 
