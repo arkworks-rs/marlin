@@ -122,12 +122,14 @@ mod marlin {
     use ark_poly::polynomial::univariate::DensePolynomial;
     use ark_poly_commit::marlin_pc::MarlinKZG10;
     use ark_std::ops::MulAssign;
-    use ark_ec::pairing::Pairing;
+    use ark_ec::{pairing::Pairing, bls12::Bls12};
+    use blake2::Blake2s;
+    use rand_chacha::ChaChaRng;
 
     type BF = <Bls12_381 as Pairing>::BaseField;
-    type FS = SimpleHashFiatShamirRng<BF,BF>;
-    type MultiPC = MarlinKZG10<Bls12_381, DensePolynomial<<Bls12_381 as Pairing>::ScalarField>, FS>;
-    type MarlinInst = Marlin<BF, BF,MultiPC, FS>;
+    type FS = SimpleHashFiatShamirRng<Blake2s,ChaChaRng>;
+    type MultiPC = MarlinKZG10<Bls12_381, DensePolynomial<Fr>, FS>;
+    type MarlinInst = Marlin<Fr, MultiPC, FS>;
 
     fn test_circuit(num_constraints: usize, num_variables: usize) {
         let rng = &mut ark_std::test_rng();
