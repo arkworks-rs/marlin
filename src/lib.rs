@@ -21,6 +21,7 @@ extern crate ark_std;
 use ark_ff::{PrimeField, UniformRand};
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::Evaluations;
+use ark_poly_commit::challenge::ChallengeGenerator;
 use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
 use ark_relations::r1cs::ConstraintSynthesizer;
 use ark_std::rand::RngCore;
@@ -312,7 +313,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: Fia
         end_timer!(eval_time);
 
         fs_rng.absorb(&evaluations);
-        let opening_challenge: F = u128::rand(&mut fs_rng).into();
+        let mut opening_challenge = ChallengeGenerator::new_univariate(&mut fs_rng);
 
         let pc_proof = PC::open_combinations(
             &index_pk.committer_key,
@@ -320,7 +321,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: Fia
             polynomials,
             &labeled_comms,
             &query_set,
-            opening_challenge,
+            &mut opening_challenge,
             &comm_rands,
             Some(zk_rng),
         )
@@ -413,7 +414,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: Fia
             AHPForR1CS::verifier_query_set(verifier_state, &mut fs_rng);
 
         fs_rng.absorb(&proof.evaluations);
-        let opening_challenge: F = u128::rand(&mut fs_rng).into();
+        let mut opening_challenge = ChallengeGenerator::new_univariate(&mut fs_rng);
 
         let mut evaluations = Evaluations::new();
         let mut evaluation_labels = Vec::new();
@@ -442,7 +443,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, FS>, FS: Fia
             &query_set,
             &evaluations,
             &proof.pc_proof,
-            opening_challenge,
+            &mut opening_challenge,
             rng,
         )
         .map_err(Error::from_pc_err)?;

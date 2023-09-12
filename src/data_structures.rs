@@ -95,7 +95,7 @@ pub struct Proof<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>,S
     /// The field elements sent by the prover.
     pub prover_messages: Vec<ProverMsg<F>>,
     /// An evaluation proof from the polynomial commitment.
-    pub pc_proof: BatchLCProof<F, DensePolynomial<F>>,
+    pub pc_proof: BatchLCProof<F, PC::BatchProof>,
 }
 
 impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>,S>,S:CryptographicSponge> Proof<F, PC,S> {
@@ -104,7 +104,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>,S>,S:Cryptogr
         commitments: Vec<Vec<PC::Commitment>>,
         evaluations: Vec<F>,
         prover_messages: Vec<ProverMsg<F>>,
-        pc_proof: BatchLCProof<F, DensePolynomial<F>>,
+        pc_proof: BatchLCProof<F, PC::BatchProof>,
     ) -> Self {
         Self {
             commitments,
