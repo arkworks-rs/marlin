@@ -204,8 +204,9 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
         )
         .map_err(Error::from_pc_err)?;
         end_timer!(first_round_comm_time);
+        let fcinput = first_comms.clone().iter().map(|p| p.commitment().clone()).collect::<Vec<_>>();
 
-        fs_rng.absorb(&to_bytes![first_comms, prover_first_msg].unwrap());
+        fs_rng.absorb(&to_bytes![fcinput, prover_first_msg].unwrap());
 
         let (verifier_first_msg, verifier_state) =
             AHPForR1CS::verifier_first_round(index_pk.index_vk.index_info, &mut fs_rng)?;
@@ -226,7 +227,8 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
         .map_err(Error::from_pc_err)?;
         end_timer!(second_round_comm_time);
 
-        fs_rng.absorb(&to_bytes![second_comms, prover_second_msg].unwrap());
+        let scinput = second_comms.clone().iter().map(|p| p.commitment().clone()).collect::<Vec<_>>();
+        fs_rng.absorb(&to_bytes![scinput, prover_second_msg].unwrap());
 
         let (verifier_second_msg, verifier_state) =
             AHPForR1CS::verifier_second_round(verifier_state, &mut fs_rng);
@@ -246,7 +248,9 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
         .map_err(Error::from_pc_err)?;
         end_timer!(third_round_comm_time);
 
-        fs_rng.absorb(&to_bytes![third_comms, prover_third_msg].unwrap());
+
+        let tcinput = third_comms.clone().iter().map(|p| p.commitment().clone()).collect::<Vec<_>>();
+        fs_rng.absorb(&to_bytes![tcinput, prover_third_msg].unwrap());
 
         let verifier_state = AHPForR1CS::verifier_third_round(verifier_state, &mut fs_rng);
         // --------------------------------------------------------------------
@@ -376,7 +380,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
         // --------------------------------------------------------------------
         // Second round
         let second_comms = &proof.commitments[1];
-        fs_rng.absorb(&to_bytes![second_comms, proof.prover_messages[1]].unwrap());
+        fs_rng.absorb(&to_bytes![second_comms.to_owned(), proof.prover_messages[1]].unwrap());
 
         let (_, verifier_state) = AHPForR1CS::verifier_second_round(verifier_state, &mut fs_rng);
         // --------------------------------------------------------------------
@@ -384,7 +388,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
         // --------------------------------------------------------------------
         // Third round
         let third_comms = &proof.commitments[2];
-        fs_rng.absorb(&to_bytes![third_comms, proof.prover_messages[2]].unwrap());
+        fs_rng.absorb(&to_bytes![third_comms.to_owned(), proof.prover_messages[2]].unwrap());
 
         let verifier_state = AHPForR1CS::verifier_third_round(verifier_state, &mut fs_rng);
         // --------------------------------------------------------------------
