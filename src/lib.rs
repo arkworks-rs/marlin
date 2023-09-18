@@ -420,7 +420,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
             AHPForR1CS::verifier_query_set(verifier_state, &mut fs_rng);
 
         fs_rng.absorb(&to_bytes![&proof.evaluations].unwrap());
-        let mut opening_challenge = ChallengeGenerator::new_univariate(&mut fs_rng);
+        let mut opening_challenge = ChallengeGenerator::new_multivariate(fs_rng);
 
         let mut evaluations = Evaluations::new();
         let mut evaluation_labels = Vec::new();
