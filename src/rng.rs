@@ -1,11 +1,11 @@
 use crate::Vec;
 use ark_crypto_primitives::sponge::{CryptographicSponge, Absorb};
 use ark_crypto_primitives::sponge::poseidon::{PoseidonSponge, PoseidonConfig};
-use ark_ff::{Field, PrimeField};
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-use ark_std::convert::From;
-use ark_std::marker::PhantomData;
-use ark_std::rand::{RngCore, SeedableRng};
+use ark_ff::{PrimeField};
+
+
+
+use ark_std::rand::{RngCore};
 use digest::Digest;
 
 /// A simple `FiatShamirRng` that refreshes its seed by hashing together the previous seed

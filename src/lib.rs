@@ -7,7 +7,7 @@
 //! is the same as the number of constraints (i.e., where the constraint
 //! matrices are square). Furthermore, Marlin only supports instances where the
 //! public inputs are of size one less than a power of 2 (i.e., 2^n - 1).
-#![deny(unused_import_braces, unused_qualifications, trivial_casts)]
+// #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
 #![deny(trivial_numeric_casts)]
 #![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
 // #![deny(unused_attributes, unused_imports, unused_mut, missing_docs)]
@@ -19,7 +19,7 @@
 extern crate ark_std;
 
 use ark_crypto_primitives::sponge::CryptographicSponge;
-use ark_ff::{PrimeField, UniformRand};
+use ark_ff::{PrimeField};
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::Evaluations;
 use ark_poly_commit::challenge::ChallengeGenerator;
@@ -36,7 +36,7 @@ use ark_std::{
     vec::Vec,
 };
 use ark_serialize::CanonicalSerialize;
-use ark_crypto_primitives::sponge::poseidon::{PoseidonSponge, PoseidonDefaultConfig, PoseidonConfig};
+
 
 #[cfg(not(feature = "std"))]
 macro_rules! eprintln {
@@ -186,9 +186,8 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
 
         let prover_init_state = AHPForR1CS::prover_init(&index_pk.index, c)?;
         let public_input = prover_init_state.public_input();
-        let init_bytes =&to_bytes![&Self::PROTOCOL_NAME, &index_pk.index_vk, &public_input].unwrap();
         let mut fs_rng = S::default();
-        fs_rng.absorb(init_bytes);
+        fs_rng.absorb(&to_bytes![&Self::PROTOCOL_NAME, &index_pk.index_vk, &public_input].unwrap());
         
 
         // --------------------------------------------------------------------
@@ -368,7 +367,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
         // First round
 
         let first_comms = &proof.commitments[0];
-        fs_rng.absorb(&to_bytes![first_comms, proof.prover_messages[0]].unwrap());
+        fs_rng.absorb(&to_bytes![first_comms.to_owned(), proof.prover_messages[0]].unwrap());
 
         let (_, verifier_state) =
             AHPForR1CS::verifier_first_round(index_vk.index_info, &mut fs_rng)?;

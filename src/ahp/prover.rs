@@ -75,7 +75,7 @@ pub enum ProverMsg<F: Field> {
 }
 
 impl<F: Field> CanonicalSerialize for ProverMsg<F> {
-    fn serialize_with_mode<W: Write>(&self, mut writer: W, compress: Compress) -> Result<(), SerializationError> {
+    fn serialize_with_mode<W: Write>(&self, writer: W, compress: Compress) -> Result<(), SerializationError> {
         let res = match self {
             ProverMsg::EmptyMessage => None,
             ProverMsg::FieldElements(v) => Some(v.clone()),
@@ -102,7 +102,7 @@ impl<F:Field> Valid for ProverMsg<F>{
     }
 }
 impl<F: Field> CanonicalDeserialize for ProverMsg<F> {
-    fn deserialize_with_mode<R: Read>(mut reader: R, compress:Compress, validate: Validate) -> Result<Self, SerializationError> {
+    fn deserialize_with_mode<R: Read>(reader: R, compress:Compress, validate: Validate) -> Result<Self, SerializationError> {
         let res = Option::<Vec<F>>::deserialize_with_mode(reader, compress, validate)?;
         if let Some(res) = res {
             Ok(ProverMsg::FieldElements(res))
