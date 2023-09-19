@@ -7,10 +7,10 @@
 //! is the same as the number of constraints (i.e., where the constraint
 //! matrices are square). Furthermore, Marlin only supports instances where the
 //! public inputs are of size one less than a power of 2 (i.e., 2^n - 1).
-// #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
+#![deny(unused_import_braces, unused_qualifications, trivial_casts)]
 #![deny(trivial_numeric_casts)]
 #![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
-// #![deny(unused_attributes, unused_imports, unused_mut, missing_docs)]
+#![deny(unused_attributes, unused_imports, unused_mut, missing_docs)]
 #![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
 #![deny(unused_comparisons, bare_trait_objects, unused_must_use)]
 #![forbid(unsafe_code)]
@@ -19,14 +19,15 @@
 extern crate ark_std;
 
 use ark_crypto_primitives::sponge::CryptographicSponge;
-use ark_ff::{PrimeField};
+use ark_ff::PrimeField;
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
-use ark_poly_commit::Evaluations;
 use ark_poly_commit::challenge::ChallengeGenerator;
+use ark_poly_commit::Evaluations;
 use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
 use ark_relations::r1cs::ConstraintSynthesizer;
 use ark_std::rand::RngCore;
 
+use ark_serialize::CanonicalSerialize;
 use ark_std::{
     collections::BTreeMap,
     format,
@@ -35,8 +36,6 @@ use ark_std::{
     vec,
     vec::Vec,
 };
-use ark_serialize::CanonicalSerialize;
-
 
 #[cfg(not(feature = "std"))]
 macro_rules! eprintln {
@@ -73,7 +72,6 @@ macro_rules! push_to_vec {
 pub mod rng;
 pub use rng::*;
 
-
 mod error;
 pub use error::*;
 
@@ -89,7 +87,11 @@ use ahp::EvaluationsProvider;
 mod test;
 
 /// The compiled argument system.FiatShamiRng
-pub struct Marlin<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>,S>, S: DefaultSpongeRNG>(
+pub struct Marlin<
+    F: PrimeField,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
+    S: DefaultSpongeRNG,
+>(
     #[doc(hidden)] PhantomData<F>,
     #[doc(hidden)] PhantomData<PC>,
     #[doc(hidden)] PhantomData<S>,
@@ -128,7 +130,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
     pub fn index<C: ConstraintSynthesizer<F>>(
         srs: &UniversalSRS<F, PC, S>,
         c: C,
-    ) -> Result<(IndexProverKey<F,PC,S>, IndexVerifierKey<F,S,PC>), Error<PC::Error>> {
+    ) -> Result<(IndexProverKey<F, PC, S>, IndexVerifierKey<F, S, PC>), Error<PC::Error>> {
         let index_time = start_timer!(|| "Marlin::Index");
 
         // TODO: Add check that c is in the correct mode.
@@ -177,9 +179,9 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
 
     /// Create a zkSNARK asserting that the constraint system is satisfied.
     pub fn prove<C: ConstraintSynthesizer<F>, R: RngCore>(
-        index_pk: &IndexProverKey<F,PC,S>,
+        index_pk: &IndexProverKey<F, PC, S>,
         c: C,
-        zk_rng: &mut R
+        zk_rng: &mut R,
     ) -> Result<Proof<F, PC, S>, Error<PC::Error>> {
         let prover_time = start_timer!(|| "Marlin::Prover");
         // Add check that c is in the correct mode.
@@ -188,7 +190,6 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
         let public_input = prover_init_state.public_input();
         let mut fs_rng = S::default();
         fs_rng.absorb(&to_bytes![&Self::PROTOCOL_NAME, &index_pk.index_vk, &public_input].unwrap());
-        
 
         // --------------------------------------------------------------------
         // First round
@@ -204,7 +205,11 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
         )
         .map_err(Error::from_pc_err)?;
         end_timer!(first_round_comm_time);
-        let fcinput = first_comms.clone().iter().map(|p| p.commitment().clone()).collect::<Vec<_>>();
+        let fcinput = first_comms
+            .clone()
+            .iter()
+            .map(|p| p.commitment().clone())
+            .collect::<Vec<_>>();
 
         fs_rng.absorb(&to_bytes![fcinput, prover_first_msg].unwrap());
 
@@ -227,7 +232,11 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
         .map_err(Error::from_pc_err)?;
         end_timer!(second_round_comm_time);
 
-        let scinput = second_comms.clone().iter().map(|p| p.commitment().clone()).collect::<Vec<_>>();
+        let scinput = second_comms
+            .clone()
+            .iter()
+            .map(|p| p.commitment().clone())
+            .collect::<Vec<_>>();
         fs_rng.absorb(&to_bytes![scinput, prover_second_msg].unwrap());
 
         let (verifier_second_msg, verifier_state) =
@@ -248,8 +257,11 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
         .map_err(Error::from_pc_err)?;
         end_timer!(third_round_comm_time);
 
-
-        let tcinput = third_comms.clone().iter().map(|p| p.commitment().clone()).collect::<Vec<_>>();
+        let tcinput = third_comms
+            .clone()
+            .iter()
+            .map(|p| p.commitment().clone())
+            .collect::<Vec<_>>();
         fs_rng.absorb(&to_bytes![tcinput, prover_third_msg].unwrap());
 
         let verifier_state = AHPForR1CS::verifier_third_round(verifier_state, &mut fs_rng);
@@ -345,9 +357,9 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
     /// Verify that a proof for the constrain system defined by `C` asserts that
     /// all constraints are satisfied.
     pub fn verify<R: RngCore>(
-        index_vk: &IndexVerifierKey<F,S,PC>,
+        index_vk: &IndexVerifierKey<F, S, PC>,
         public_input: &[F],
-        proof: &Proof<F, PC,S>,
+        proof: &Proof<F, PC, S>,
         rng: &mut R,
     ) -> Result<bool, Error<PC::Error>> {
         let verifier_time = start_timer!(|| "Marlin::Verify");

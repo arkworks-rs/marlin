@@ -334,7 +334,7 @@ mod tests {
     use ark_ff::{One, UniformRand, Zero};
     use ark_poly::{
         univariate::{DenseOrSparsePolynomial, DensePolynomial},
-        Polynomial, DenseUVPolynomial,
+        DenseUVPolynomial, Polynomial,
     };
 
     #[test]
@@ -414,11 +414,7 @@ mod tests {
             divisor
                 .coeffs
                 .iter()
-                .filter_map(|f| if !f.is_zero() {
-                    Some(f)
-                } else {
-                    None
-                })
+                .filter_map(|f| if !f.is_zero() { Some(f) } else { None })
                 .collect::<Vec<_>>()
         );
 
@@ -446,11 +442,7 @@ mod tests {
             quotient
                 .coeffs
                 .iter()
-                .filter_map(|f| if !f.is_zero() {
-                    Some(f)
-                } else {
-                    None
-                })
+                .filter_map(|f| if !f.is_zero() { Some(f) } else { None })
                 .collect::<Vec<_>>()
         );
 

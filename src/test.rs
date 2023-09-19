@@ -115,18 +115,18 @@ impl<F: Field> ConstraintSynthesizer<F> for OutlineTestCircuit<F> {
 
 mod marlin {
     use super::*;
+    use crate::rng::{SimplePoseidonRng};
     use crate::Marlin;
-    use crate::rng::{DefaultSpongeRNG, SimplePoseidonRng};
-    use ark_crypto_primitives::sponge::poseidon::PoseidonSponge;
+    
 
     use ark_bls12_381::{Bls12_381, Fr};
+    use ark_ec::{pairing::Pairing};
     use ark_ff::UniformRand;
     use ark_poly::polynomial::univariate::DensePolynomial;
     use ark_poly_commit::marlin_pc::MarlinKZG10;
     use ark_std::ops::MulAssign;
-    use ark_ec::{pairing::Pairing, bls12::Bls12};
-    use blake2::Blake2s;
-    use rand_chacha::ChaChaRng;
+    
+    
 
     type BF = <Bls12_381 as Pairing>::BaseField;
     type S = SimplePoseidonRng<BF>;

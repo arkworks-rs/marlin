@@ -7,7 +7,7 @@ use crate::ahp::{
     AHPForR1CS, Error, LabeledPolynomial,
 };
 use crate::Vec;
-use ark_ff::{PrimeField, Field};
+use ark_ff::{Field, PrimeField};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError, SynthesisMode,
@@ -25,7 +25,7 @@ use crate::ahp::constraint_systems::{
 /// entries in any of the constraint matrices.
 #[derive(Derivative, CanonicalSerialize, CanonicalDeserialize)]
 #[derivative(Clone(bound = ""), Copy(bound = ""))]
-pub struct IndexInfo<F:Field> {
+pub struct IndexInfo<F: Field> {
     /// The total number of variables in the constraint system.
     pub num_variables: usize,
     /// The number of constraints.
@@ -39,7 +39,7 @@ pub struct IndexInfo<F:Field> {
     f: PhantomData<F>,
 }
 
-impl<F:Field> IndexInfo<F> {
+impl<F: Field> IndexInfo<F> {
     /// Construct a new index info
     pub fn new(
         num_variables: usize,

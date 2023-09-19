@@ -10,8 +10,8 @@ use crate::ahp::constraint_systems::{
 use crate::{ToString, Vec};
 use ark_ff::{Field, PrimeField, Zero};
 use ark_poly::{
-    univariate::DensePolynomial, EvaluationDomain, Evaluations as EvaluationsOnDomain,
-    GeneralEvaluationDomain, Polynomial, DenseUVPolynomial,
+    univariate::DensePolynomial, DenseUVPolynomial, EvaluationDomain,
+    Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain, Polynomial,
 };
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError,
@@ -75,7 +75,11 @@ pub enum ProverMsg<F: Field> {
 }
 
 impl<F: Field> CanonicalSerialize for ProverMsg<F> {
-    fn serialize_with_mode<W: Write>(&self, writer: W, compress: Compress) -> Result<(), SerializationError> {
+    fn serialize_with_mode<W: Write>(
+        &self,
+        writer: W,
+        compress: Compress,
+    ) -> Result<(), SerializationError> {
         let res = match self {
             ProverMsg::EmptyMessage => None,
             ProverMsg::FieldElements(v) => Some(v.clone()),
@@ -90,10 +94,10 @@ impl<F: Field> CanonicalSerialize for ProverMsg<F> {
             ProverMsg::FieldElements(v) => Some(v.clone()),
         };
         res.serialized_size(compress)
-}
+    }
 }
 
-impl<F:Field> Valid for ProverMsg<F>{
+impl<F: Field> Valid for ProverMsg<F> {
     fn check(&self) -> Result<(), SerializationError> {
         match self {
             ProverMsg::EmptyMessage => Ok(()),
@@ -102,14 +106,18 @@ impl<F:Field> Valid for ProverMsg<F>{
     }
 }
 impl<F: Field> CanonicalDeserialize for ProverMsg<F> {
-    fn deserialize_with_mode<R: Read>(reader: R, compress:Compress, validate: Validate) -> Result<Self, SerializationError> {
+    fn deserialize_with_mode<R: Read>(
+        reader: R,
+        compress: Compress,
+        validate: Validate,
+    ) -> Result<Self, SerializationError> {
         let res = Option::<Vec<F>>::deserialize_with_mode(reader, compress, validate)?;
         if let Some(res) = res {
             Ok(ProverMsg::FieldElements(res))
         } else {
             Ok(ProverMsg::EmptyMessage)
         }
-}
+    }
 }
 
 /// The first set of prover oracles.

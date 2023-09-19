@@ -1,29 +1,35 @@
 use crate::Vec;
-use ark_crypto_primitives::sponge::{CryptographicSponge, Absorb};
-use ark_crypto_primitives::sponge::poseidon::{PoseidonSponge, PoseidonConfig};
-use ark_ff::{PrimeField};
+use ark_crypto_primitives::sponge::poseidon::{PoseidonConfig, PoseidonSponge};
+use ark_crypto_primitives::sponge::{Absorb, CryptographicSponge};
+use ark_ff::PrimeField;
 
-
-
-use ark_std::rand::{RngCore};
+use ark_std::rand::RngCore;
 use digest::Digest;
 
 /// A simple `FiatShamirRng` that refreshes its seed by hashing together the previous seed
 /// and the new seed material.
-/// Exposes a particular instantiation of the Poseidon sponge 
+/// Exposes a particular instantiation of the Poseidon sponge
 
 #[derive(Clone)]
-pub struct SimplePoseidonRng<F:PrimeField>(PoseidonSponge<F>);
+pub struct SimplePoseidonRng<F: PrimeField>(PoseidonSponge<F>);
 
-impl<F:PrimeField> RngCore for SimplePoseidonRng<F> {
+impl<F: PrimeField> RngCore for SimplePoseidonRng<F> {
     #[inline]
     fn next_u32(&mut self) -> u32 {
-        self.0.squeeze_bits(32).iter().rev().fold(0, |acc, &bit| (acc << 1) | (bit as u32))
+        self.0
+            .squeeze_bits(32)
+            .iter()
+            .rev()
+            .fold(0, |acc, &bit| (acc << 1) | (bit as u32))
     }
 
     #[inline]
     fn next_u64(&mut self) -> u64 {
-        self.0.squeeze_bits(64).iter().rev().fold(0, |acc, &bit| (acc << 1) | (bit as u64))
+        self.0
+            .squeeze_bits(64)
+            .iter()
+            .rev()
+            .fold(0, |acc, &bit| (acc << 1) | (bit as u64))
     }
 
     #[inline]
@@ -37,7 +43,7 @@ impl<F:PrimeField> RngCore for SimplePoseidonRng<F> {
     }
 }
 
-impl<F:PrimeField> CryptographicSponge for SimplePoseidonRng<F> {
+impl<F: PrimeField> CryptographicSponge for SimplePoseidonRng<F> {
     type Config = PoseidonConfig<F>;
 
     fn new(params: &Self::Config) -> Self {
@@ -57,16 +63,15 @@ impl<F:PrimeField> CryptographicSponge for SimplePoseidonRng<F> {
     }
 }
 
-impl<F:PrimeField> Default for SimplePoseidonRng<F> {
+impl<F: PrimeField> Default for SimplePoseidonRng<F> {
     fn default() -> Self {
         Self(PoseidonSponge::new(&poseidon_parameters_for_test()))
     }
 }
 
-pub trait DefaultSpongeRNG : Default + CryptographicSponge + RngCore{}
+pub trait DefaultSpongeRNG: Default + CryptographicSponge + RngCore {}
 
-impl<F:PrimeField> DefaultSpongeRNG for SimplePoseidonRng<F> {}
-
+impl<F: PrimeField> DefaultSpongeRNG for SimplePoseidonRng<F> {}
 
 /// Generate default parameters (bls381-fr-only) for alpha = 17, state-size = 8
 fn poseidon_parameters_for_test<F: PrimeField>() -> PoseidonConfig<F> {
