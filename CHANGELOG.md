@@ -14,6 +14,11 @@
 
 ### Bug fixes
 
+## v0.4.0
+
+- Change dependency to version `0.4.0` of other arkwork-rs crates.
+- Fiat-Shamir transformation for the AHP uses the Poseidon sponge function.
+
 ## v0.3.0
 
 - Change dependency to version `0.3.0` of other arkworks-rs crates.
