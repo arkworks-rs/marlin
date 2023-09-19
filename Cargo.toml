@@ -32,10 +32,9 @@ ark-crypto-primitives = { version = "^0.4.0", default-features = false, features
 rayon = { version = "1", optional = true }
 digest = { version = "0.9" }
 derivative = { version = "2", features = ["use_core"] }
-rand_chacha = { version = "^0.3.1", default-features = false }
-tracing = { version = "0.1", default-features = false, features = [ "attributes" ] }
 
 [dev-dependencies]
+rand_chacha = { version = "^0.3.0", default-features = false }
 blake2 = { version = "0.9", default-features = false }
 ark-bls12-381 = { version = "^0.4.0", default-features = false, features = [ "curve" ] }
 ark-mnt4-298 = { version = "^0.4.0", default-features = false, features = ["r1cs", "curve"] }
