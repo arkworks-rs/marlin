@@ -4,7 +4,6 @@ use ark_crypto_primitives::sponge::{Absorb, CryptographicSponge};
 use ark_ff::PrimeField;
 
 use ark_std::rand::RngCore;
-use digest::Digest;
 
 /// A simple `FiatShamirRng` that refreshes its seed by hashing together the previous seed
 /// and the new seed material.
@@ -63,12 +62,14 @@ impl<F: PrimeField> CryptographicSponge for SimplePoseidonRng<F> {
     }
 }
 
+/// Instantiate Poseidon sponge with default parameters
 impl<F: PrimeField> Default for SimplePoseidonRng<F> {
     fn default() -> Self {
         Self(PoseidonSponge::new(&poseidon_parameters_for_test()))
     }
 }
 
+/// Mock trait for use in Marlin prover
 pub trait DefaultSpongeRNG: Default + CryptographicSponge + RngCore {}
 
 impl<F: PrimeField> DefaultSpongeRNG for SimplePoseidonRng<F> {}

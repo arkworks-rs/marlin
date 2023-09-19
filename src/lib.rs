@@ -18,7 +18,6 @@
 #[macro_use]
 extern crate ark_std;
 
-use ark_crypto_primitives::sponge::CryptographicSponge;
 use ark_ff::PrimeField;
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::challenge::ChallengeGenerator;

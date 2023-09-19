@@ -115,12 +115,12 @@ impl<F: Field> ConstraintSynthesizer<F> for OutlineTestCircuit<F> {
 
 mod marlin {
     use super::*;
-    use crate::rng::{SimplePoseidonRng};
+    use crate::rng::SimplePoseidonRng;
     use crate::Marlin;
     
 
     use ark_bls12_381::{Bls12_381, Fr};
-    use ark_ec::{pairing::Pairing};
+    use ark_ec::pairing::Pairing;
     use ark_ff::UniformRand;
     use ark_poly::polynomial::univariate::DensePolynomial;
     use ark_poly_commit::marlin_pc::MarlinKZG10;
