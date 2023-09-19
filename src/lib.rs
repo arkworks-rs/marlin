@@ -129,7 +129,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
     pub fn index<C: ConstraintSynthesizer<F>>(
         srs: &UniversalSRS<F, PC, S>,
         c: C,
-    ) -> Result<(IndexProverKey<F, PC, S>, IndexVerifierKey<F, S, PC>), Error<PC::Error>> {
+    ) -> Result<(IndexProverKey<F, PC, S>, IndexVerifierKey<F, PC, S>), Error<PC::Error>> {
         let index_time = start_timer!(|| "Marlin::Index");
 
         // TODO: Add check that c is in the correct mode.
@@ -356,7 +356,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
     /// Verify that a proof for the constrain system defined by `C` asserts that
     /// all constraints are satisfied.
     pub fn verify<R: RngCore>(
-        index_vk: &IndexVerifierKey<F, S, PC>,
+        index_vk: &IndexVerifierKey<F, PC, S>,
         public_input: &[F],
         proof: &Proof<F, PC, S>,
         rng: &mut R,

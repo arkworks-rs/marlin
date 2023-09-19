@@ -24,8 +24,8 @@ pub type UniversalSRS<F, PC, S> =
 #[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct IndexVerifierKey<
     F: PrimeField,
-    S: CryptographicSponge,
     PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
+    S: CryptographicSponge,
 > {
     /// Stores information about the size of the index, as well as its field of
     /// definition.
@@ -37,7 +37,7 @@ pub struct IndexVerifierKey<
 }
 
 impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: CryptographicSponge>
-    Clone for IndexVerifierKey<F, S, PC>
+    Clone for IndexVerifierKey<F, PC, S>
 {
     fn clone(&self) -> Self {
         Self {
@@ -49,7 +49,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Crypt
 }
 
 impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: CryptographicSponge>
-    IndexVerifierKey<F, S, PC>
+    IndexVerifierKey<F, PC, S>
 {
     /// Iterate over the commitments to indexed polynomials in `self`.
     pub fn iter(&self) -> impl Iterator<Item = &PC::Commitment> {
@@ -69,7 +69,7 @@ pub struct IndexProverKey<
     S: CryptographicSponge,
 > {
     /// The index verifier key.
-    pub index_vk: IndexVerifierKey<F, S, PC>,
+    pub index_vk: IndexVerifierKey<F, PC, S>,
     /// The randomness for the index polynomial commitments.
     pub index_comm_rands: Vec<PC::Randomness>,
     /// The index itself.
