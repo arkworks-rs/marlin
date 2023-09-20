@@ -205,7 +205,6 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
         .map_err(Error::from_pc_err)?;
         end_timer!(first_round_comm_time);
         let fcinput = first_comms
-            .clone()
             .iter()
             .map(|p| p.commitment().clone())
             .collect::<Vec<_>>();
@@ -232,7 +231,6 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
         end_timer!(second_round_comm_time);
 
         let scinput = second_comms
-            .clone()
             .iter()
             .map(|p| p.commitment().clone())
             .collect::<Vec<_>>();
@@ -257,7 +255,6 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
         end_timer!(third_round_comm_time);
 
         let tcinput = third_comms
-            .clone()
             .iter()
             .map(|p| p.commitment().clone())
             .collect::<Vec<_>>();

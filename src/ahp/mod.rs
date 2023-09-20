@@ -414,7 +414,7 @@ mod tests {
             divisor
                 .coeffs
                 .iter()
-                .filter_map(|f| if !f.is_zero() { Some(f) } else { None })
+                .filter(|f| !f.is_zero())
                 .collect::<Vec<_>>()
         );
 
@@ -442,7 +442,7 @@ mod tests {
             quotient
                 .coeffs
                 .iter()
-                .filter_map(|f| if !f.is_zero() { Some(f) } else { None })
+                .filter(|f| !f.is_zero())
                 .collect::<Vec<_>>()
         );
 
