@@ -72,13 +72,13 @@ impl<F: PrimeField> Default for SimplePoseidonRng<F> {
     fn default() -> Self {
         // let default = 
         // Self(PoseidonSponge::new(&poseidon_parameters_for_test()))
-        let (alpha, rate, full_rounds, partial_rounds) = (17,2,8,33);
+        let (alpha, rate, full_rounds, partial_rounds) = (17,2,8,29);
         let (ark,mds) = find_poseidon_ark_and_mds(
             F::MODULUS_BIT_SIZE as u64,
-            alpha,
             rate,
             full_rounds,
             partial_rounds,
+            0,
         );
     let config = PoseidonConfig {
         full_rounds:full_rounds as usize,
@@ -86,8 +86,8 @@ impl<F: PrimeField> Default for SimplePoseidonRng<F> {
         alpha:alpha as u64,
         ark,
         mds,
-        rate:rate as usize,
-        capacity:2,
+        rate,
+        capacity:1,
     };
     SimplePoseidonRng(PoseidonSponge::new(&config))
     }
