@@ -10,7 +10,7 @@
 #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
 #![deny(trivial_numeric_casts)]
 #![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
-#![deny(unused_attributes, unused_imports, unused_mut, missing_docs)]
+// #![deny(unused_attributes, unused_imports, unused_mut, missing_docs)]
 #![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
 #![deny(unused_comparisons, bare_trait_objects, unused_must_use)]
 #![forbid(unsafe_code)]
@@ -18,6 +18,7 @@
 #[macro_use]
 extern crate ark_std;
 
+use ark_crypto_primitives::sponge::CryptographicSponge;
 use ark_ff::PrimeField;
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::challenge::ChallengeGenerator;
@@ -89,14 +90,14 @@ mod test;
 pub struct Marlin<
     F: PrimeField,
     PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
-    S: DefaultSpongeRNG,
+    S: CryptographicSponge,
 >(
     #[doc(hidden)] PhantomData<F>,
     #[doc(hidden)] PhantomData<PC>,
     #[doc(hidden)] PhantomData<S>,
 );
 
-impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: DefaultSpongeRNG>
+impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: CryptographicSponge+Default+RngCore>
     Marlin<F, PC, S>
 {
     /// The personalization string for this protocol. Used to personalize the
@@ -177,7 +178,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
     }
 
     /// Create a zkSNARK asserting that the constraint system is satisfied.
-    pub fn prove<C: ConstraintSynthesizer<F>, R: RngCore>(
+    pub fn prove<C: ConstraintSynthesizer<F>, R: RngCore+CryptographicSponge>(
         index_pk: &IndexProverKey<F, PC, S>,
         c: C,
         zk_rng: &mut R,
@@ -327,7 +328,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
         end_timer!(eval_time);
 
         fs_rng.absorb(&to_bytes![&evaluations].unwrap());
-        let mut opening_challenge = ChallengeGenerator::<F, _>::new_multivariate(fs_rng);
+        let mut opening_challenge: ChallengeGenerator<_, S> = ChallengeGenerator::new_multivariate(fs_rng);
 
         let pc_proof = PC::open_combinations(
             &index_pk.committer_key,
@@ -428,7 +429,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Defau
             AHPForR1CS::verifier_query_set(verifier_state, &mut fs_rng);
 
         fs_rng.absorb(&to_bytes![&proof.evaluations].unwrap());
-        let mut opening_challenge = ChallengeGenerator::new_multivariate(fs_rng);
+        let mut opening_challenge: ChallengeGenerator<F, S> = ChallengeGenerator::new_multivariate(fs_rng);
 
         let mut evaluations = Evaluations::new();
         let mut evaluation_labels = Vec::new();

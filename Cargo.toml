@@ -32,6 +32,7 @@ ark-crypto-primitives = { version = "^0.4.0", default-features = false, features
 rayon = { version = "1", optional = true }
 digest = { version = "0.9" }
 derivative = { version = "2", features = ["use_core"] }
+itertools = "0.11.0"
 
 [dev-dependencies]
 rand_chacha = { version = "^0.3.0", default-features = false }
@@ -50,7 +51,7 @@ debug = true
 panic = 'abort'
 
 [profile.test]
-opt-level = 3
+opt-level = 0
 debug-assertions = true
 incremental = true
 debug = true

@@ -1,7 +1,9 @@
 #![allow(non_snake_case)]
 
+use itertools::Itertools;
 use crate::ahp::indexer::IndexInfo;
 use crate::ahp::*;
+use ark_crypto_primitives::sponge::CryptographicSponge;
 use ark_std::rand::RngCore;
 
 use ark_ff::PrimeField;
@@ -41,7 +43,7 @@ pub struct VerifierSecondMsg<F> {
 
 impl<F: PrimeField> AHPForR1CS<F> {
     /// Output the first message and next round state.
-    pub fn verifier_first_round<R: RngCore>(
+    pub fn verifier_first_round<R: CryptographicSponge + RngCore>(
         index_info: IndexInfo<F>,
         rng: &mut R,
     ) -> Result<(VerifierFirstMsg<F>, VerifierState<F>), Error> {
@@ -49,16 +51,14 @@ impl<F: PrimeField> AHPForR1CS<F> {
             return Err(Error::NonSquareMatrix);
         }
 
-        let domain_h = GeneralEvaluationDomain::new(index_info.num_constraints)
+        let domain_h: GeneralEvaluationDomain<F> = GeneralEvaluationDomain::new(index_info.num_constraints)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
         let domain_k = GeneralEvaluationDomain::new(index_info.num_non_zero)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
-        let alpha = domain_h.sample_element_outside_domain(rng);
-        let eta_a = F::rand(rng);
-        let eta_b = F::rand(rng);
-        let eta_c = F::rand(rng);
+        let alpha = domain_h.sample_element_outside_domain(rng).to_owned();
+        let (eta_a, eta_b, eta_c)= rng.squeeze_field_elements(3).iter().map(|x: &F| x.to_owned()).collect_tuple().unwrap();
 
         let msg = VerifierFirstMsg {
             alpha,
@@ -91,11 +91,12 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the third message and next round state.
-    pub fn verifier_third_round<R: RngCore>(
+    pub fn verifier_third_round<R: CryptographicSponge>(
         mut state: VerifierState<F>,
         rng: &mut R,
     ) -> VerifierState<F> {
-        state.gamma = Some(F::rand(rng));
+        let gamma = rng.squeeze_field_elements(1).pop();
+        state.gamma = gamma;
         state
     }
 

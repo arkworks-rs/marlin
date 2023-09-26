@@ -8,6 +8,7 @@ use crate::ahp::constraint_systems::{
     make_matrices_square_for_prover, pad_input_for_indexer_and_prover, unformat_public_input,
 };
 use crate::{ToString, Vec};
+use ark_crypto_primitives::sponge::CryptographicSponge;
 use ark_ff::{Field, PrimeField, Zero};
 use ark_poly::{
     univariate::DensePolynomial, DenseUVPolynomial, EvaluationDomain,
@@ -24,6 +25,7 @@ use ark_std::{
     cfg_into_iter, cfg_iter, cfg_iter_mut,
     io::{Read, Write},
 };
+use itertools::Itertools;
 
 /// State for the AHP prover.
 pub struct ProverState<'a, F: PrimeField> {
@@ -271,7 +273,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the first round message and the next state.
-    pub fn prover_first_round<'a, R: RngCore>(
+    pub fn prover_first_round<'a, R: CryptographicSponge + RngCore>(
         mut state: ProverState<'a, F>,
         rng: &mut R,
     ) -> Result<(ProverMsg<F>, ProverFirstOracles<F>, ProverState<'a, F>), Error> {
@@ -312,9 +314,11 @@ impl<F: PrimeField> AHPForR1CS<F> {
             })
             .collect();
 
+
+        let (f1,f2,f3)= rng.squeeze_field_elements(3).iter().map(|x: &F| x.to_owned()).collect_tuple().unwrap();
         let w_poly = &EvaluationsOnDomain::from_vec_and_domain(w_poly_evals, domain_h)
             .interpolate()
-            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+            + &(&DensePolynomial::from_coefficients_slice(&[f1]) * &v_H);
         let (w_poly, remainder) = w_poly.divide_by_vanishing_poly(domain_x).unwrap();
         assert!(remainder.is_zero());
         end_timer!(w_poly_time);
@@ -322,13 +326,13 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let z_a_poly_time = start_timer!(|| "Computing z_A polynomial");
         let z_a = state.z_a.clone().unwrap();
         let z_a_poly = &EvaluationsOnDomain::from_vec_and_domain(z_a, domain_h).interpolate()
-            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+            + &(&DensePolynomial::from_coefficients_slice(&[f2]) * &v_H);
         end_timer!(z_a_poly_time);
 
         let z_b_poly_time = start_timer!(|| "Computing z_B polynomial");
         let z_b = state.z_b.clone().unwrap();
         let z_b_poly = &EvaluationsOnDomain::from_vec_and_domain(z_b, domain_h).interpolate()
-            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+            + &(&DensePolynomial::from_coefficients_slice(&[f3]) * &v_H);
         end_timer!(z_b_poly_time);
 
         let mask_poly_time = start_timer!(|| "Computing mask polynomial");
