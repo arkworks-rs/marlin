@@ -1,9 +1,7 @@
-use core::default;
-
 use crate::Vec;
-use ark_crypto_primitives::sponge::poseidon::{PoseidonConfig, PoseidonDefaultConfigField, PoseidonSponge, PoseidonDefaultConfigEntry, find_poseidon_ark_and_mds};
+use ark_crypto_primitives::sponge::poseidon::{PoseidonConfig, PoseidonSponge, find_poseidon_ark_and_mds};
 use ark_crypto_primitives::sponge::{Absorb, CryptographicSponge};
-use ark_ff::{PrimeField,Fp, Field};
+use ark_ff::PrimeField;
 
 use ark_std::rand::RngCore;
 
