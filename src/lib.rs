@@ -18,7 +18,8 @@
 #[macro_use]
 extern crate ark_std;
 
-use ark_crypto_primitives::sponge::CryptographicSponge;
+use ark_crypto_primitives::absorb;
+use ark_crypto_primitives::sponge::{Absorb, CryptographicSponge};
 use ark_ff::PrimeField;
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
 use ark_poly_commit::challenge::ChallengeGenerator;
@@ -83,6 +84,8 @@ pub mod ahp;
 pub use ahp::AHPForR1CS;
 use ahp::EvaluationsProvider;
 
+use crate::ahp::prover::ProverMsg;
+
 #[cfg(test)]
 mod test;
 
@@ -97,7 +100,7 @@ pub struct Marlin<
     #[doc(hidden)] PhantomData<S>,
 );
 
-impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: CryptographicSponge+Default+RngCore>
+impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: CryptographicSponge+Default+RngCore>
     Marlin<F, PC, S>
 {
     /// The personalization string for this protocol. Used to personalize the
@@ -189,7 +192,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Crypt
         let prover_init_state = AHPForR1CS::prover_init(&index_pk.index, c)?;
         let public_input = prover_init_state.public_input();
         let mut fs_rng = S::default();
-        fs_rng.absorb(&to_bytes![&Self::PROTOCOL_NAME, &index_pk.index_vk, &public_input].unwrap());
+        absorb!(&mut fs_rng, &Self::PROTOCOL_NAME, &to_bytes!(&index_pk.index_vk).unwrap(), &public_input);
 
         // --------------------------------------------------------------------
         // First round
@@ -210,7 +213,10 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Crypt
             .map(|p| p.commitment().clone())
             .collect::<Vec<_>>();
 
-        fs_rng.absorb(&to_bytes![fcinput, prover_first_msg].unwrap());
+        match prover_first_msg {
+            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes![fcinput].unwrap(), elems);},
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes![fcinput].unwrap()),
+        }
 
         let (verifier_first_msg, verifier_state) =
             AHPForR1CS::verifier_first_round(index_pk.index_vk.index_info, &mut fs_rng)?;
@@ -235,7 +241,10 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Crypt
             .iter()
             .map(|p| p.commitment().clone())
             .collect::<Vec<_>>();
-        fs_rng.absorb(&to_bytes![scinput, prover_second_msg].unwrap());
+        match prover_second_msg {
+            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes![scinput].unwrap(), elems);},
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes![scinput].unwrap()),
+        }
 
         let (verifier_second_msg, verifier_state) =
             AHPForR1CS::verifier_second_round(verifier_state, &mut fs_rng);
@@ -259,7 +268,10 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Crypt
             .iter()
             .map(|p| p.commitment().clone())
             .collect::<Vec<_>>();
-        fs_rng.absorb(&to_bytes![tcinput, prover_third_msg].unwrap());
+        match prover_third_msg {
+            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes![tcinput].unwrap(), elems);},
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes![tcinput].unwrap()),
+        }
 
         let verifier_state = AHPForR1CS::verifier_third_round(verifier_state, &mut fs_rng);
         // --------------------------------------------------------------------
@@ -327,7 +339,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Crypt
         let evaluations = evaluations.into_iter().map(|x| x.1).collect::<Vec<F>>();
         end_timer!(eval_time);
 
-        fs_rng.absorb(&to_bytes![&evaluations].unwrap());
+        fs_rng.absorb(&evaluations);
         let mut opening_challenge: ChallengeGenerator<_, S> = ChallengeGenerator::new_multivariate(fs_rng);
 
         let pc_proof = PC::open_combinations(
@@ -376,12 +388,15 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Crypt
         let mut fs_rng = S::default();
         fs_rng.absorb(&to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap());
 
+
         // --------------------------------------------------------------------
         // First round
 
         let first_comms = &proof.commitments[0];
-        fs_rng.absorb(&to_bytes![first_comms.to_owned(), proof.prover_messages[0]].unwrap());
-
+        match &proof.prover_messages[0] {
+            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes![first_comms].unwrap(), elems);},
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes![first_comms].unwrap()),
+        }
         let (_, verifier_state) =
             AHPForR1CS::verifier_first_round(index_vk.index_info, &mut fs_rng)?;
         // --------------------------------------------------------------------
@@ -389,7 +404,10 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Crypt
         // --------------------------------------------------------------------
         // Second round
         let second_comms = &proof.commitments[1];
-        fs_rng.absorb(&to_bytes![second_comms.to_owned(), proof.prover_messages[1]].unwrap());
+        match &proof.prover_messages[1] {
+            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes![second_comms].unwrap(), elems);},
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes![second_comms].unwrap()),
+        }
 
         let (_, verifier_state) = AHPForR1CS::verifier_second_round(verifier_state, &mut fs_rng);
         // --------------------------------------------------------------------
@@ -397,7 +415,10 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Crypt
         // --------------------------------------------------------------------
         // Third round
         let third_comms = &proof.commitments[2];
-        fs_rng.absorb(&to_bytes![third_comms.to_owned(), proof.prover_messages[2]].unwrap());
+        match &proof.prover_messages[2] {
+            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes![third_comms].unwrap(), elems);},
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes![third_comms].unwrap()),
+        }
 
         let verifier_state = AHPForR1CS::verifier_third_round(verifier_state, &mut fs_rng);
         // --------------------------------------------------------------------
@@ -428,7 +449,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: Crypt
         let (query_set, verifier_state) =
             AHPForR1CS::verifier_query_set(verifier_state, &mut fs_rng);
 
-        fs_rng.absorb(&to_bytes![&proof.evaluations].unwrap());
+        fs_rng.absorb(&proof.evaluations);
         let mut opening_challenge: ChallengeGenerator<F, S> = ChallengeGenerator::new_multivariate(fs_rng);
 
         let mut evaluations = Evaluations::new();
