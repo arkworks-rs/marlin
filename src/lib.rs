@@ -10,7 +10,7 @@
 #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
 #![deny(trivial_numeric_casts)]
 #![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
-// #![deny(unused_attributes, unused_imports, unused_mut, missing_docs)]
+#![deny(unused_attributes, unused_imports, unused_mut, missing_docs)]
 #![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
 #![deny(unused_comparisons, bare_trait_objects, unused_must_use)]
 #![forbid(unsafe_code)]
@@ -81,8 +81,11 @@ pub struct Marlin<
     #[doc(hidden)] PhantomData<S>,
 );
 
-impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S: CryptographicSponge+Default+RngCore>
-    Marlin<F, PC, S>
+impl<
+        F: PrimeField + Absorb,
+        PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
+        S: CryptographicSponge + Default + RngCore,
+    > Marlin<F, PC, S>
 {
     /// The personalization string for this protocol. Used to personalize the
     /// Fiat-Shamir rng.
@@ -162,7 +165,7 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
     }
 
     /// Create a zkSNARK asserting that the constraint system is satisfied.
-    pub fn prove<C: ConstraintSynthesizer<F>, R: RngCore+CryptographicSponge>(
+    pub fn prove<C: ConstraintSynthesizer<F>, R: RngCore + CryptographicSponge>(
         index_pk: &IndexProverKey<F, PC, S>,
         c: C,
         zk_rng: &mut R,
@@ -173,7 +176,12 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
         let prover_init_state = AHPForR1CS::prover_init(&index_pk.index, c)?;
         let public_input = prover_init_state.public_input();
         let mut fs_rng = S::default();
-        absorb!(&mut fs_rng, &Self::PROTOCOL_NAME, to_bytes(&index_pk.index_vk), &public_input);
+        absorb!(
+            &mut fs_rng,
+            &Self::PROTOCOL_NAME,
+            to_bytes(&index_pk.index_vk),
+            &public_input
+        );
 
         // --------------------------------------------------------------------
         // First round
@@ -195,7 +203,9 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
             .collect::<Vec<_>>();
 
         match prover_first_msg {
-            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes(&fcinput), &elems);},
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(&fcinput), &elems);
+            }
             ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(&fcinput)),
         }
 
@@ -223,7 +233,9 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
             .map(|p| p.commitment().clone())
             .collect::<Vec<_>>();
         match prover_second_msg {
-            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes(&scinput), elems);},
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(&scinput), elems);
+            }
             ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(&scinput)),
         }
 
@@ -250,7 +262,9 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
             .map(|p| p.commitment().clone())
             .collect::<Vec<_>>();
         match prover_third_msg {
-            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes(&tcinput), elems);},
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(&tcinput), elems);
+            }
             ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(&tcinput)),
         }
 
@@ -321,7 +335,8 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
         end_timer!(eval_time);
 
         fs_rng.absorb(&evaluations);
-        let mut opening_challenge: ChallengeGenerator<_, S> = ChallengeGenerator::new_multivariate(fs_rng);
+        let mut opening_challenge: ChallengeGenerator<_, S> =
+            ChallengeGenerator::new_multivariate(fs_rng);
 
         let pc_proof = PC::open_combinations(
             &index_pk.committer_key,
@@ -367,15 +382,21 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
         };
 
         let mut fs_rng = S::default();
-        absorb!(&mut fs_rng, &Self::PROTOCOL_NAME, &to_bytes(index_vk), &public_input);
-
+        absorb!(
+            &mut fs_rng,
+            &Self::PROTOCOL_NAME,
+            &to_bytes(index_vk),
+            &public_input
+        );
 
         // --------------------------------------------------------------------
         // First round
 
         let first_comms = &proof.commitments[0];
         match &proof.prover_messages[0] {
-            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes(first_comms), elems);},
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(first_comms), elems);
+            }
             ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(first_comms)),
         }
         let (_, verifier_state) =
@@ -386,7 +407,9 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
         // Second round
         let second_comms = &proof.commitments[1];
         match &proof.prover_messages[1] {
-            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes(second_comms), elems);},
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(second_comms), elems);
+            }
             ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(second_comms)),
         }
 
@@ -397,7 +420,9 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
         // Third round
         let third_comms = &proof.commitments[2];
         match &proof.prover_messages[2] {
-            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes(third_comms), elems);},
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(third_comms), elems);
+            }
             ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(third_comms)),
         }
 
@@ -431,7 +456,8 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
             AHPForR1CS::verifier_query_set(verifier_state, &mut fs_rng);
 
         fs_rng.absorb(&proof.evaluations);
-        let mut opening_challenge: ChallengeGenerator<F, S> = ChallengeGenerator::new_multivariate(fs_rng);
+        let mut opening_challenge: ChallengeGenerator<F, S> =
+            ChallengeGenerator::new_multivariate(fs_rng);
 
         let mut evaluations = Evaluations::new();
         let mut evaluation_labels = Vec::new();

@@ -1,10 +1,10 @@
 #![allow(non_snake_case)]
 
-use itertools::Itertools;
 use crate::ahp::indexer::IndexInfo;
 use crate::ahp::*;
 use ark_crypto_primitives::sponge::CryptographicSponge;
 use ark_std::rand::RngCore;
+use itertools::Itertools;
 
 use ark_ff::PrimeField;
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
@@ -51,14 +51,20 @@ impl<F: PrimeField> AHPForR1CS<F> {
             return Err(Error::NonSquareMatrix);
         }
 
-        let domain_h: GeneralEvaluationDomain<F> = GeneralEvaluationDomain::new(index_info.num_constraints)
-            .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        let domain_h: GeneralEvaluationDomain<F> =
+            GeneralEvaluationDomain::new(index_info.num_constraints)
+                .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
         let domain_k = GeneralEvaluationDomain::new(index_info.num_non_zero)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
 
         let alpha = domain_h.sample_element_outside_domain(rng).to_owned();
-        let (eta_a, eta_b, eta_c)= rng.squeeze_field_elements(3).iter().map(|x: &F| x.to_owned()).collect_tuple().unwrap();
+        let (eta_a, eta_b, eta_c) = rng
+            .squeeze_field_elements(3)
+            .iter()
+            .map(|x: &F| x.to_owned())
+            .collect_tuple()
+            .unwrap();
 
         let msg = VerifierFirstMsg {
             alpha,

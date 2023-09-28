@@ -293,7 +293,7 @@ mod tests {
     use super::*;
     use ark_crypto_primitives::sponge::CryptographicSponge;
     use ark_relations::r1cs::Matrix;
-    use ark_std::{collections::BTreeMap, UniformRand};
+    use ark_std::collections::BTreeMap;
 
     use ark_bls12_381::Fr as F;
     use ark_ff::{One, Zero};
@@ -377,7 +377,12 @@ mod tests {
         let mut rng_seed = ark_std::test_rng();
         let mut rng: SimplePoseidonRng<F> = SimplePoseidonRng::default();
         rng.absorb(&rng_seed.next_u64());
-        let (eta_a, eta_b, eta_c)= rng.squeeze_field_elements(3).iter().map(|x: &F| x.to_owned()).collect_tuple().unwrap();
+        let (eta_a, eta_b, eta_c) = rng
+            .squeeze_field_elements(3)
+            .iter()
+            .map(|x: &F| x.to_owned())
+            .collect_tuple()
+            .unwrap();
         for (k_index, k) in interpolation_domain.elements().enumerate() {
             let row_val = joint_arith.row.evaluate(&k);
             let col_val = joint_arith.col.evaluate(&k);

@@ -314,8 +314,12 @@ impl<F: PrimeField> AHPForR1CS<F> {
             })
             .collect();
 
-
-        let (f1,f2,f3)= rng.squeeze_field_elements(3).iter().map(|x: &F| x.to_owned()).collect_tuple().unwrap();
+        let (f1, f2, f3) = rng
+            .squeeze_field_elements(3)
+            .iter()
+            .map(|x: &F| x.to_owned())
+            .collect_tuple()
+            .unwrap();
         let w_poly = &EvaluationsOnDomain::from_vec_and_domain(w_poly_evals, domain_h)
             .interpolate()
             + &(&DensePolynomial::from_coefficients_slice(&[f1]) * &v_H);

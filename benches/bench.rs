@@ -3,7 +3,8 @@
 // where N is the number of threads you want to use (N = 1 for single-thread).
 
 use ark_bls12_381::{Bls12_381, Fr as BlsFr};
-use ark_ec::pairing::Pairing;
+
+use ark_crypto_primitives::sponge::CryptographicSponge;
 use ark_ff::PrimeField;
 use ark_marlin::{Marlin, SimplePoseidonRng};
 use ark_mnt4_298::{Fr as MNT4Fr, MNT4_298};
@@ -16,11 +17,8 @@ use ark_relations::{
     lc,
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
 };
-use ark_std::{ops::Mul, UniformRand, rand::RngCore};
-use ark_crypto_primitives::sponge::CryptographicSponge;
+use ark_std::{ops::Mul, rand::RngCore};
 use itertools::Itertools;
-
-
 
 const NUM_PROVE_REPEATITIONS: usize = 10;
 const NUM_VERIFY_REPEATITIONS: usize = 50;
@@ -74,7 +72,12 @@ macro_rules! marlin_prove_bench {
         let mut rng_seed = ark_std::test_rng();
         let mut rng: SimplePoseidonRng<$bench_field> = SimplePoseidonRng::default();
         rng.absorb(&rng_seed.next_u64());
-        let (a,b)= rng.squeeze_field_elements(2).iter().map(|x: &$bench_field| x.to_owned()).collect_tuple().unwrap();
+        let (a, b) = rng
+            .squeeze_field_elements(2)
+            .iter()
+            .map(|x: &$bench_field| x.to_owned())
+            .collect_tuple()
+            .unwrap();
         let c = DummyCircuit::<$bench_field> {
             a: Some(a),
             b: Some(b),
@@ -131,7 +134,12 @@ macro_rules! marlin_verify_bench {
         let mut rng_seed = ark_std::test_rng();
         let mut rng: SimplePoseidonRng<$bench_field> = SimplePoseidonRng::default();
         rng.absorb(&rng_seed.next_u64());
-        let (a,b)= rng.squeeze_field_elements(2).iter().map(|x: &$bench_field| x.to_owned()).collect_tuple().unwrap();
+        let (a, b) = rng
+            .squeeze_field_elements(2)
+            .iter()
+            .map(|x: &$bench_field| x.to_owned())
+            .collect_tuple()
+            .unwrap();
         let c = DummyCircuit::<$bench_field> {
             a: Some(a),
             b: Some(b),

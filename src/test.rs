@@ -116,18 +116,15 @@ impl<F: Field> ConstraintSynthesizer<F> for OutlineTestCircuit<F> {
 mod marlin {
     use super::*;
     use crate::rng::SimplePoseidonRng;
-    use ark_crypto_primitives::sponge::CryptographicSponge;
     use crate::Marlin;
+    use ark_crypto_primitives::sponge::CryptographicSponge;
     use itertools::Itertools;
-    
 
     use ark_bls12_381::{Bls12_381, Fr};
     use ark_poly::polynomial::univariate::DensePolynomial;
     use ark_poly_commit::marlin_pc::MarlinKZG10;
     use ark_std::ops::MulAssign;
     use ark_std::rand::RngCore;
-    
-    
 
     type S = SimplePoseidonRng<Fr>;
     type MultiPC = MarlinKZG10<Bls12_381, DensePolynomial<Fr>, S>;
@@ -141,8 +138,12 @@ mod marlin {
         let universal_srs = MarlinInst::universal_setup(100, 25, 300, &mut rng).unwrap();
 
         for _ in 0..100 {
-
-            let (a,b) = rng.squeeze_field_elements(2).iter().map(|x: &Fr| x.to_owned()).collect_tuple().unwrap();
+            let (a, b) = rng
+                .squeeze_field_elements(2)
+                .iter()
+                .map(|x: &Fr| x.to_owned())
+                .collect_tuple()
+                .unwrap();
             let mut c = a;
             c.mul_assign(&b);
             let mut d = c;

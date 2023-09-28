@@ -1,5 +1,7 @@
 use crate::Vec;
-use ark_crypto_primitives::sponge::poseidon::{PoseidonConfig, PoseidonSponge, find_poseidon_ark_and_mds};
+use ark_crypto_primitives::sponge::poseidon::{
+    find_poseidon_ark_and_mds, PoseidonConfig, PoseidonSponge,
+};
 use ark_crypto_primitives::sponge::{Absorb, CryptographicSponge};
 use ark_ff::PrimeField;
 
@@ -8,7 +10,6 @@ use ark_std::rand::RngCore;
 /// A simple `FiatShamirRng` that refreshes its seed by hashing together the previous seed
 /// and the new seed material.
 /// Exposes a particular instantiation of the Poseidon sponge
-
 
 #[derive(Clone)]
 pub struct SimplePoseidonRng<F: PrimeField>(PoseidonSponge<F>);
@@ -62,33 +63,31 @@ impl<F: PrimeField> CryptographicSponge for SimplePoseidonRng<F> {
         self.0.squeeze_bits(num_bits)
     }
 }
-
-/// Mock trait for use in Marlin prover
 pub trait DefaultSpongeRNG: Default + CryptographicSponge + RngCore {}
 
 impl<F: PrimeField> DefaultSpongeRNG for SimplePoseidonRng<F> {}
 /// Instantiate Poseidon sponge with default parameters
 impl<F: PrimeField> Default for SimplePoseidonRng<F> {
     fn default() -> Self {
-        // let default = 
+        // let default =
         // Self(PoseidonSponge::new(&poseidon_parameters_for_test()))
-        let (alpha, rate, full_rounds, partial_rounds) = (17,2,8,29);
-        let (ark,mds) = find_poseidon_ark_and_mds(
+        let (alpha, rate, full_rounds, partial_rounds) = (17, 2, 8, 29);
+        let (ark, mds) = find_poseidon_ark_and_mds(
             F::MODULUS_BIT_SIZE as u64,
             rate,
             full_rounds,
             partial_rounds,
             0,
         );
-    let config = PoseidonConfig {
-        full_rounds:full_rounds as usize,
-        partial_rounds:partial_rounds as usize,
-        alpha:alpha as u64,
-        ark,
-        mds,
-        rate,
-        capacity:1,
-    };
-    SimplePoseidonRng(PoseidonSponge::new(&config))
+        let config = PoseidonConfig {
+            full_rounds: full_rounds as usize,
+            partial_rounds: partial_rounds as usize,
+            alpha: alpha as u64,
+            ark,
+            mds,
+            rate,
+            capacity: 1,
+        };
+        SimplePoseidonRng(PoseidonSponge::new(&config))
     }
 }
