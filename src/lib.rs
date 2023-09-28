@@ -214,7 +214,7 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
             .collect::<Vec<_>>();
 
         match prover_first_msg {
-            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes![fcinput].unwrap(), elems);},
+            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes![fcinput].unwrap(), &elems);},
             ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes![fcinput].unwrap()),
         }
 
@@ -386,7 +386,7 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
         };
 
         let mut fs_rng = S::default();
-        fs_rng.absorb(&to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap());
+        absorb!(&mut fs_rng, &Self::PROTOCOL_NAME, &to_bytes!(&index_vk).unwrap(), &public_input);
 
 
         // --------------------------------------------------------------------

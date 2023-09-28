@@ -122,8 +122,6 @@ mod marlin {
     
 
     use ark_bls12_381::{Bls12_381, Fr};
-    use ark_ec::pairing::Pairing;
-    use ark_ff::UniformRand;
     use ark_poly::polynomial::univariate::DensePolynomial;
     use ark_poly_commit::marlin_pc::MarlinKZG10;
     use ark_std::ops::MulAssign;
@@ -131,8 +129,7 @@ mod marlin {
     
     
 
-    type BF = <Bls12_381 as Pairing>::BaseField;
-    type S = SimplePoseidonRng<BF>;
+    type S = SimplePoseidonRng<Fr>;
     type MultiPC = MarlinKZG10<Bls12_381, DensePolynomial<Fr>, S>;
     type MarlinInst = Marlin<Fr, MultiPC, S>;
 
