@@ -63,9 +63,7 @@ impl<F: PrimeField> CryptographicSponge for SimplePoseidonRng<F> {
         self.0.squeeze_bits(num_bits)
     }
 }
-pub trait DefaultSpongeRNG: Default + CryptographicSponge + RngCore {}
 
-impl<F: PrimeField> DefaultSpongeRNG for SimplePoseidonRng<F> {}
 /// Instantiate Poseidon sponge with default parameters
 impl<F: PrimeField> Default for SimplePoseidonRng<F> {
     fn default() -> Self {
