@@ -44,29 +44,10 @@ macro_rules! eprintln {
     ($($arg: tt)*) => {};
 }
 
-/// Takes as input a sequence of structs, and converts them to a series of
-/// bytes. All traits that implement `Bytes` can be automatically converted to
-/// bytes in this manner.
-#[macro_export]
-macro_rules! to_bytes {
-    ($($x:expr),*) => ({
-        let mut buf = $crate::vec![];
-        {$crate::push_to_vec!(buf, $($x),*)}.map(|_| buf)
-    });
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! push_to_vec {
-    ($buf:expr, $y:expr, $($x:expr),*) => ({
-        {
-            $y.serialize_compressed(&mut $buf)
-        }.and({$crate::push_to_vec!($buf, $($x),*)})
-    });
-
-    ($buf:expr, $x:expr) => ({
-        $x.serialize_compressed(&mut $buf)
-    })
+fn to_bytes<T: CanonicalSerialize>(x: &T) -> Vec<u8> {
+    let mut buf = Vec::new();
+    x.serialize_compressed(&mut buf).unwrap();
+    buf
 }
 /// Implements a Fiat-Shamir based Rng that allows one to incrementally update
 /// the seed based on new messages in the proof transcript.
@@ -192,7 +173,7 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
         let prover_init_state = AHPForR1CS::prover_init(&index_pk.index, c)?;
         let public_input = prover_init_state.public_input();
         let mut fs_rng = S::default();
-        absorb!(&mut fs_rng, &Self::PROTOCOL_NAME, &to_bytes!(&index_pk.index_vk).unwrap(), &public_input);
+        absorb!(&mut fs_rng, &Self::PROTOCOL_NAME, to_bytes(&index_pk.index_vk), &public_input);
 
         // --------------------------------------------------------------------
         // First round
@@ -214,8 +195,8 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
             .collect::<Vec<_>>();
 
         match prover_first_msg {
-            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes![fcinput].unwrap(), &elems);},
-            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes![fcinput].unwrap()),
+            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes(&fcinput), &elems);},
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(&fcinput)),
         }
 
         let (verifier_first_msg, verifier_state) =
@@ -242,8 +223,8 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
             .map(|p| p.commitment().clone())
             .collect::<Vec<_>>();
         match prover_second_msg {
-            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes![scinput].unwrap(), elems);},
-            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes![scinput].unwrap()),
+            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes(&scinput), elems);},
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(&scinput)),
         }
 
         let (verifier_second_msg, verifier_state) =
@@ -269,8 +250,8 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
             .map(|p| p.commitment().clone())
             .collect::<Vec<_>>();
         match prover_third_msg {
-            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes![tcinput].unwrap(), elems);},
-            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes![tcinput].unwrap()),
+            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes(&tcinput), elems);},
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(&tcinput)),
         }
 
         let verifier_state = AHPForR1CS::verifier_third_round(verifier_state, &mut fs_rng);
@@ -386,7 +367,7 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
         };
 
         let mut fs_rng = S::default();
-        absorb!(&mut fs_rng, &Self::PROTOCOL_NAME, &to_bytes!(&index_vk).unwrap(), &public_input);
+        absorb!(&mut fs_rng, &Self::PROTOCOL_NAME, &to_bytes(index_vk), &public_input);
 
 
         // --------------------------------------------------------------------
@@ -394,8 +375,8 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
 
         let first_comms = &proof.commitments[0];
         match &proof.prover_messages[0] {
-            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes![first_comms].unwrap(), elems);},
-            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes![first_comms].unwrap()),
+            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes(first_comms), elems);},
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(first_comms)),
         }
         let (_, verifier_state) =
             AHPForR1CS::verifier_first_round(index_vk.index_info, &mut fs_rng)?;
@@ -405,8 +386,8 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
         // Second round
         let second_comms = &proof.commitments[1];
         match &proof.prover_messages[1] {
-            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes![second_comms].unwrap(), elems);},
-            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes![second_comms].unwrap()),
+            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes(second_comms), elems);},
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(second_comms)),
         }
 
         let (_, verifier_state) = AHPForR1CS::verifier_second_round(verifier_state, &mut fs_rng);
@@ -416,8 +397,8 @@ impl<F: PrimeField+Absorb, PC: PolynomialCommitment<F, DensePolynomial<F>, S>, S
         // Third round
         let third_comms = &proof.commitments[2];
         match &proof.prover_messages[2] {
-            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes![third_comms].unwrap(), elems);},
-            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes![third_comms].unwrap()),
+            ProverMsg::FieldElements(ref elems) => {absorb!(&mut fs_rng, &to_bytes(third_comms), elems);},
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(third_comms)),
         }
 
         let verifier_state = AHPForR1CS::verifier_third_round(verifier_state, &mut fs_rng);
