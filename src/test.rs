@@ -169,6 +169,7 @@ mod marlin {
         }
     }
 
+
     #[test]
     fn prove_and_verify_with_tall_matrix_big() {
         let num_constraints = 100;
@@ -235,5 +236,46 @@ mod marlin {
 
         assert!(MarlinInst::verify(&index_vk, &inputs, &proof, &mut rng).unwrap());
         println!("Called verifier");
+    }
+
+    #[test]
+    /// Test fast proof and verify
+    fn fast_prove_and_test() {
+        let mut rng_seed = ark_std::test_rng();
+        let mut rng: SimplePoseidonRng<Fr> = SimplePoseidonRng::default();
+        rng.absorb(&rng_seed.next_u64());
+
+        let universal_srs = MarlinInst::universal_setup(150, 150, 150, &mut rng).unwrap();
+
+        for _ in 0..100 {
+            let (a, b) = rng
+                .squeeze_field_elements(2)
+                .iter()
+                .map(|x: &Fr| x.to_owned())
+                .collect_tuple()
+                .unwrap();
+            let mut c = a;
+            c.mul_assign(&b);
+            let mut d = c;
+            d.mul_assign(&b);
+
+            let circ = Circuit {
+                a: Some(a),
+                b: Some(b),
+                num_constraints:20,
+                num_variables:100,
+            };
+
+            let (index_pk, index_vk) = MarlinInst::index(&universal_srs, circ.clone()).unwrap();
+            println!("Called index");
+
+            let proof = MarlinInst::prove(&index_pk, circ, &mut rng).unwrap();
+            println!("Called prover");
+
+            assert!(MarlinInst::verify(&index_vk, &[c, d], &proof, &mut rng).unwrap());
+            println!("Called verifier");
+            println!("\nShould not verify (i.e. verifier messages should print below):");
+            assert!(!MarlinInst::verify(&index_vk, &[a, a], &proof, &mut rng).unwrap());
+    };
     }
 }
