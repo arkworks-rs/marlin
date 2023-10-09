@@ -7,16 +7,13 @@ use crate::ahp::{
     AHPForR1CS, Error, LabeledPolynomial,
 };
 use crate::Vec;
-use ark_ff::PrimeField;
+use ark_ff::{Field, PrimeField};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError, SynthesisMode,
 };
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
-use ark_std::{
-    io::{Read, Write},
-    marker::PhantomData,
-};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_std::marker::PhantomData;
 use derivative::Derivative;
 
 use crate::ahp::constraint_systems::{
@@ -28,7 +25,7 @@ use crate::ahp::constraint_systems::{
 /// entries in any of the constraint matrices.
 #[derive(Derivative, CanonicalSerialize, CanonicalDeserialize)]
 #[derivative(Clone(bound = ""), Copy(bound = ""))]
-pub struct IndexInfo<F> {
+pub struct IndexInfo<F: Field> {
     /// The total number of variables in the constraint system.
     pub num_variables: usize,
     /// The number of constraints.
@@ -42,7 +39,7 @@ pub struct IndexInfo<F> {
     f: PhantomData<F>,
 }
 
-impl<F> IndexInfo<F> {
+impl<F: Field> IndexInfo<F> {
     /// Construct a new index info
     pub fn new(
         num_variables: usize,
@@ -57,14 +54,6 @@ impl<F> IndexInfo<F> {
             num_instance_variables,
             f: PhantomData,
         }
-    }
-}
-
-impl<F: PrimeField> ark_ff::ToBytes for IndexInfo<F> {
-    fn write<W: Write>(&self, mut w: W) -> ark_std::io::Result<()> {
-        (self.num_variables as u64).write(&mut w)?;
-        (self.num_constraints as u64).write(&mut w)?;
-        (self.num_non_zero as u64).write(&mut w)
     }
 }
 

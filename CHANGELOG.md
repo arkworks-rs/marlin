@@ -14,6 +14,13 @@
 
 ### Bug fixes
 
+## v0.4.0
+
+- Change dependency to version `0.4.0` of other arkwork-rs crates.
+- Fiat-Shamir transformation for the AHP uses the Poseidon sponge function.
+- Introduced fast_prove and fast_verify methods for PrimeFields that also implement the Absorb trait.
+- Added RngCore and CryptographicSponge traits for rng sources.
+
 ## v0.3.0
 
 - Change dependency to version `0.3.0` of other arkworks-rs crates.

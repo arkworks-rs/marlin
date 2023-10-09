@@ -8,23 +8,27 @@
 //! matrices are square). Furthermore, Marlin only supports instances where the
 //! public inputs are of size one less than a power of 2 (i.e., 2^n - 1).
 #![deny(unused_import_braces, unused_qualifications, trivial_casts)]
-#![deny(trivial_numeric_casts, private_in_public)]
+#![deny(trivial_numeric_casts)]
 #![deny(stable_features, unreachable_pub, non_shorthand_field_patterns)]
 #![deny(unused_attributes, unused_imports, unused_mut, missing_docs)]
 #![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
-#![deny(unused_comparisons, bare_trait_objects, unused_must_use, const_err)]
+#![deny(unused_comparisons, bare_trait_objects, unused_must_use)]
 #![forbid(unsafe_code)]
 
 #[macro_use]
 extern crate ark_std;
 
-use ark_ff::{to_bytes, PrimeField, UniformRand};
+use ark_crypto_primitives::absorb;
+use ark_crypto_primitives::sponge::{Absorb, CryptographicSponge};
+use ark_ff::PrimeField;
 use ark_poly::{univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain};
+use ark_poly_commit::challenge::ChallengeGenerator;
 use ark_poly_commit::Evaluations;
 use ark_poly_commit::{LabeledCommitment, PCUniversalParams, PolynomialCommitment};
 use ark_relations::r1cs::ConstraintSynthesizer;
 use ark_std::rand::RngCore;
 
+use ark_serialize::CanonicalSerialize;
 use ark_std::{
     collections::BTreeMap,
     format,
@@ -40,11 +44,15 @@ macro_rules! eprintln {
     ($($arg: tt)*) => {};
 }
 
+fn to_bytes<T: CanonicalSerialize>(x: &T) -> Vec<u8> {
+    let mut buf = Vec::new();
+    x.serialize_compressed(&mut buf).unwrap();
+    buf
+}
 /// Implements a Fiat-Shamir based Rng that allows one to incrementally update
 /// the seed based on new messages in the proof transcript.
 pub mod rng;
-use rng::FiatShamirRng;
-pub use rng::SimpleHashFiatShamirRng;
+pub use rng::*;
 
 mod error;
 pub use error::*;
@@ -57,18 +65,28 @@ pub mod ahp;
 pub use ahp::AHPForR1CS;
 use ahp::EvaluationsProvider;
 
+use crate::ahp::prover::ProverMsg;
+
 #[cfg(test)]
 mod test;
 
+/// Marker trait for when we can use fast absord of field elements
 /// The compiled argument system.
-pub struct Marlin<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatShamirRng>(
+pub struct Marlin<
+    F: PrimeField,
+    PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
+    S: CryptographicSponge,
+>(
     #[doc(hidden)] PhantomData<F>,
     #[doc(hidden)] PhantomData<PC>,
-    #[doc(hidden)] PhantomData<FS>,
+    #[doc(hidden)] PhantomData<S>,
 );
 
-impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatShamirRng>
-    Marlin<F, PC, FS>
+impl<
+        F: PrimeField,
+        PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
+        S: CryptographicSponge + Default + RngCore,
+    > Marlin<F, PC, S>
 {
     /// The personalization string for this protocol. Used to personalize the
     /// Fiat-Shamir rng.
@@ -81,7 +99,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         num_variables: usize,
         num_non_zero: usize,
         rng: &mut R,
-    ) -> Result<UniversalSRS<F, PC>, Error<PC::Error>> {
+    ) -> Result<UniversalSRS<F, PC, S>, Error<PC::Error>> {
         let max_degree = AHPForR1CS::<F>::max_degree(num_constraints, num_variables, num_non_zero)?;
         let setup_time = start_timer!(|| {
             format!(
@@ -98,9 +116,9 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
     /// Generate the index-specific (i.e., circuit-specific) prover and verifier
     /// keys. This is a deterministic algorithm that anyone can rerun.
     pub fn index<C: ConstraintSynthesizer<F>>(
-        srs: &UniversalSRS<F, PC>,
+        srs: &UniversalSRS<F, PC, S>,
         c: C,
-    ) -> Result<(IndexProverKey<F, PC>, IndexVerifierKey<F, PC>), Error<PC::Error>> {
+    ) -> Result<(IndexProverKey<F, PC, S>, IndexVerifierKey<F, PC, S>), Error<PC::Error>> {
         let index_time = start_timer!(|| "Marlin::Index");
 
         // TODO: Add check that c is in the correct mode.
@@ -146,20 +164,23 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
 
         Ok((index_pk, index_vk))
     }
-
     /// Create a zkSNARK asserting that the constraint system is satisfied.
-    pub fn prove<C: ConstraintSynthesizer<F>, R: RngCore>(
-        index_pk: &IndexProverKey<F, PC>,
+    pub fn prove<C: ConstraintSynthesizer<F>, R: RngCore + CryptographicSponge>(
+        index_pk: &IndexProverKey<F, PC, S>,
         c: C,
         zk_rng: &mut R,
-    ) -> Result<Proof<F, PC>, Error<PC::Error>> {
+    ) -> Result<Proof<F, PC, S>, Error<PC::Error>> {
         let prover_time = start_timer!(|| "Marlin::Prover");
         // Add check that c is in the correct mode.
 
         let prover_init_state = AHPForR1CS::prover_init(&index_pk.index, c)?;
         let public_input = prover_init_state.public_input();
-        let mut fs_rng = FS::initialize(
-            &to_bytes![&Self::PROTOCOL_NAME, &index_pk.index_vk, &public_input].unwrap(),
+        let mut fs_rng = S::default();
+        absorb!(
+            &mut fs_rng,
+            &Self::PROTOCOL_NAME,
+            to_bytes(&index_pk.index_vk),
+            &to_bytes(&public_input)
         );
 
         // --------------------------------------------------------------------
@@ -176,8 +197,17 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         )
         .map_err(Error::from_pc_err)?;
         end_timer!(first_round_comm_time);
+        let fcinput = first_comms
+            .iter()
+            .map(|p| p.commitment().clone())
+            .collect::<Vec<_>>();
 
-        fs_rng.absorb(&to_bytes![first_comms, prover_first_msg].unwrap());
+        match prover_first_msg {
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(&fcinput), &to_bytes(elems));
+            }
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(&fcinput)),
+        }
 
         let (verifier_first_msg, verifier_state) =
             AHPForR1CS::verifier_first_round(index_pk.index_vk.index_info, &mut fs_rng)?;
@@ -198,7 +228,16 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         .map_err(Error::from_pc_err)?;
         end_timer!(second_round_comm_time);
 
-        fs_rng.absorb(&to_bytes![second_comms, prover_second_msg].unwrap());
+        let scinput = second_comms
+            .iter()
+            .map(|p| p.commitment().clone())
+            .collect::<Vec<_>>();
+        match prover_second_msg {
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(&scinput), &to_bytes(elems));
+            }
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(&scinput)),
+        }
 
         let (verifier_second_msg, verifier_state) =
             AHPForR1CS::verifier_second_round(verifier_state, &mut fs_rng);
@@ -218,7 +257,361 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         .map_err(Error::from_pc_err)?;
         end_timer!(third_round_comm_time);
 
-        fs_rng.absorb(&to_bytes![third_comms, prover_third_msg].unwrap());
+        let tcinput = third_comms
+            .iter()
+            .map(|p| p.commitment().clone())
+            .collect::<Vec<_>>();
+        match prover_third_msg {
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(&tcinput), &to_bytes(elems));
+            }
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(&tcinput)),
+        }
+
+        let verifier_state = AHPForR1CS::verifier_third_round(verifier_state, &mut fs_rng);
+        // --------------------------------------------------------------------
+
+        // Gather prover polynomials in one vector.
+        let polynomials: Vec<_> = index_pk
+            .index
+            .iter()
+            .chain(prover_first_oracles.iter())
+            .chain(prover_second_oracles.iter())
+            .chain(prover_third_oracles.iter())
+            .collect();
+
+        // Gather commitments in one vector.
+        #[rustfmt::skip]
+        let commitments = vec![
+            first_comms.iter().map(|p| p.commitment().clone()).collect(),
+            second_comms.iter().map(|p| p.commitment().clone()).collect(),
+            third_comms.iter().map(|p| p.commitment().clone()).collect(),
+        ];
+        let labeled_comms: Vec<_> = index_pk
+            .index_vk
+            .iter()
+            .cloned()
+            .zip(&AHPForR1CS::<F>::INDEXER_POLYNOMIALS)
+            .map(|(c, l)| LabeledCommitment::new(l.to_string(), c, None))
+            .chain(first_comms.iter().cloned())
+            .chain(second_comms.iter().cloned())
+            .chain(third_comms.iter().cloned())
+            .collect();
+
+        // Gather commitment randomness together.
+        let comm_rands: Vec<PC::Randomness> = index_pk
+            .index_comm_rands
+            .clone()
+            .into_iter()
+            .chain(first_comm_rands)
+            .chain(second_comm_rands)
+            .chain(third_comm_rands)
+            .collect();
+
+        // Compute the AHP verifier's query set.
+        let (query_set, verifier_state) =
+            AHPForR1CS::verifier_query_set(verifier_state, &mut fs_rng);
+        let lc_s = AHPForR1CS::construct_linear_combinations(
+            &public_input,
+            &polynomials,
+            &verifier_state,
+        )?;
+
+        let eval_time = start_timer!(|| "Evaluating linear combinations over query set");
+        let mut evaluations = Vec::new();
+        for (label, (_, point)) in &query_set {
+            let lc = lc_s
+                .iter()
+                .find(|lc| &lc.label == label)
+                .ok_or(ahp::Error::MissingEval(label.to_string()))?;
+            let eval = polynomials.get_lc_eval(&lc, *point)?;
+            if !AHPForR1CS::<F>::LC_WITH_ZERO_EVAL.contains(&lc.label.as_ref()) {
+                evaluations.push((label.to_string(), eval));
+            }
+        }
+
+        evaluations.sort_by(|a, b| a.0.cmp(&b.0));
+        let evaluations = evaluations.into_iter().map(|x| x.1).collect::<Vec<F>>();
+        end_timer!(eval_time);
+
+        fs_rng.absorb(&to_bytes(&evaluations));
+        let mut opening_challenge: ChallengeGenerator<_, S> =
+            ChallengeGenerator::new_multivariate(fs_rng);
+
+        let pc_proof = PC::open_combinations(
+            &index_pk.committer_key,
+            &lc_s,
+            polynomials,
+            &labeled_comms,
+            &query_set,
+            &mut opening_challenge,
+            &comm_rands,
+            Some(zk_rng),
+        )
+        .map_err(Error::from_pc_err)?;
+
+        // Gather prover messages together.
+        let prover_messages = vec![prover_first_msg, prover_second_msg, prover_third_msg];
+
+        let proof = Proof::new(commitments, evaluations, prover_messages, pc_proof);
+        proof.print_size_info();
+        end_timer!(prover_time);
+        Ok(proof)
+    }
+
+    /// Verify that a proof for the constrain system defined by `C` asserts that
+    /// all constraints are satisfied.
+    pub fn verify<R: RngCore>(
+        index_vk: &IndexVerifierKey<F, PC, S>,
+        public_input: &[F],
+        proof: &Proof<F, PC, S>,
+        rng: &mut R,
+    ) -> Result<bool, Error<PC::Error>> {
+        let verifier_time = start_timer!(|| "Marlin::Verify");
+
+        let public_input = {
+            let domain_x = GeneralEvaluationDomain::<F>::new(public_input.len() + 1).unwrap();
+
+            let mut unpadded_input = public_input.to_vec();
+            unpadded_input.resize(
+                core::cmp::max(public_input.len(), domain_x.size() - 1),
+                F::zero(),
+            );
+
+            unpadded_input
+        };
+
+        let mut fs_rng = S::default();
+        absorb!(
+            &mut fs_rng,
+            &Self::PROTOCOL_NAME,
+            &to_bytes(index_vk),
+            &to_bytes(&public_input)
+        );
+
+        // --------------------------------------------------------------------
+        // First round
+
+        let first_comms = &proof.commitments[0];
+        match &proof.prover_messages[0] {
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(first_comms), &to_bytes(elems));
+            }
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(first_comms)),
+        }
+        let (_, verifier_state) =
+            AHPForR1CS::verifier_first_round(index_vk.index_info, &mut fs_rng)?;
+        // --------------------------------------------------------------------
+
+        // --------------------------------------------------------------------
+        // Second round
+        let second_comms = &proof.commitments[1];
+        match &proof.prover_messages[1] {
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(second_comms), &to_bytes(elems));
+            }
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(second_comms)),
+        }
+
+        let (_, verifier_state) = AHPForR1CS::verifier_second_round(verifier_state, &mut fs_rng);
+        // --------------------------------------------------------------------
+
+        // --------------------------------------------------------------------
+        // Third round
+        let third_comms = &proof.commitments[2];
+        match &proof.prover_messages[2] {
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(third_comms), &to_bytes(elems));
+            }
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(third_comms)),
+        }
+
+        let verifier_state = AHPForR1CS::verifier_third_round(verifier_state, &mut fs_rng);
+        // --------------------------------------------------------------------
+
+        // Collect degree bounds for commitments. Indexed polynomials have *no*
+        // degree bounds because we know the committed index polynomial has the
+        // correct degree.
+        let index_info = index_vk.index_info;
+        let degree_bounds = vec![None; index_vk.index_comms.len()]
+            .into_iter()
+            .chain(AHPForR1CS::prover_first_round_degree_bounds(&index_info))
+            .chain(AHPForR1CS::prover_second_round_degree_bounds(&index_info))
+            .chain(AHPForR1CS::prover_third_round_degree_bounds(&index_info))
+            .collect::<Vec<_>>();
+
+        // Gather commitments in one vector.
+        let commitments: Vec<_> = index_vk
+            .iter()
+            .chain(first_comms)
+            .chain(second_comms)
+            .chain(third_comms)
+            .cloned()
+            .zip(AHPForR1CS::<F>::polynomial_labels())
+            .zip(degree_bounds)
+            .map(|((c, l), d)| LabeledCommitment::new(l, c, d))
+            .collect();
+
+        let (query_set, verifier_state) =
+            AHPForR1CS::verifier_query_set(verifier_state, &mut fs_rng);
+
+        fs_rng.absorb(&to_bytes(&proof.evaluations));
+        let mut opening_challenge: ChallengeGenerator<F, S> =
+            ChallengeGenerator::new_multivariate(fs_rng);
+
+        let mut evaluations = Evaluations::new();
+        let mut evaluation_labels = Vec::new();
+        for (poly_label, (_, point)) in query_set.iter().cloned() {
+            if AHPForR1CS::<F>::LC_WITH_ZERO_EVAL.contains(&poly_label.as_ref()) {
+                evaluations.insert((poly_label, point), F::zero());
+            } else {
+                evaluation_labels.push((poly_label, point));
+            }
+        }
+        evaluation_labels.sort_by(|a, b| a.0.cmp(&b.0));
+        for (q, eval) in evaluation_labels.into_iter().zip(&proof.evaluations) {
+            evaluations.insert(q, *eval);
+        }
+
+        let lc_s = AHPForR1CS::construct_linear_combinations(
+            &public_input,
+            &evaluations,
+            &verifier_state,
+        )?;
+
+        let evaluations_are_correct = PC::check_combinations(
+            &index_vk.verifier_key,
+            &lc_s,
+            &commitments,
+            &query_set,
+            &evaluations,
+            &proof.pc_proof,
+            &mut opening_challenge,
+            rng,
+        )
+        .map_err(Error::from_pc_err)?;
+
+        if !evaluations_are_correct {
+            eprintln!("PC::Check failed");
+        }
+        end_timer!(verifier_time, || format!(
+            " PC::Check for AHP Verifier linear equations: {}",
+            evaluations_are_correct
+        ));
+        Ok(evaluations_are_correct)
+    }
+}
+
+impl<
+        F: PrimeField + Absorb,
+        PC: PolynomialCommitment<F, DensePolynomial<F>, S>,
+        S: CryptographicSponge + Default + RngCore,
+    > Marlin<F, PC, S>
+{
+    /// Create a zkSNARK asserting that the constraint system is satisfied.
+    /// Uses fast absorption of field elements into sponge
+    pub fn fast_prove<C: ConstraintSynthesizer<F>, R: RngCore + CryptographicSponge>(
+        index_pk: &IndexProverKey<F, PC, S>,
+        c: C,
+        zk_rng: &mut R,
+    ) -> Result<Proof<F, PC, S>, Error<PC::Error>> {
+        let prover_time = start_timer!(|| "Marlin::Prover");
+        // Add check that c is in the correct mode.
+
+        let prover_init_state = AHPForR1CS::prover_init(&index_pk.index, c)?;
+        let public_input = prover_init_state.public_input();
+        let mut fs_rng = S::default();
+        absorb!(
+            &mut fs_rng,
+            &Self::PROTOCOL_NAME,
+            to_bytes(&index_pk.index_vk),
+            &public_input
+        );
+
+        // --------------------------------------------------------------------
+        // First round
+
+        let (prover_first_msg, prover_first_oracles, prover_state) =
+            AHPForR1CS::prover_first_round(prover_init_state, zk_rng)?;
+
+        let first_round_comm_time = start_timer!(|| "Committing to first round polys");
+        let (first_comms, first_comm_rands) = PC::commit(
+            &index_pk.committer_key,
+            prover_first_oracles.iter(),
+            Some(zk_rng),
+        )
+        .map_err(Error::from_pc_err)?;
+        end_timer!(first_round_comm_time);
+        let fcinput = first_comms
+            .iter()
+            .map(|p| p.commitment().clone())
+            .collect::<Vec<_>>();
+
+        match prover_first_msg {
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(&fcinput), &elems);
+            }
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(&fcinput)),
+        }
+
+        let (verifier_first_msg, verifier_state) =
+            AHPForR1CS::verifier_first_round(index_pk.index_vk.index_info, &mut fs_rng)?;
+        // --------------------------------------------------------------------
+
+        // --------------------------------------------------------------------
+        // Second round
+
+        let (prover_second_msg, prover_second_oracles, prover_state) =
+            AHPForR1CS::prover_second_round(&verifier_first_msg, prover_state, zk_rng);
+
+        let second_round_comm_time = start_timer!(|| "Committing to second round polys");
+        let (second_comms, second_comm_rands) = PC::commit(
+            &index_pk.committer_key,
+            prover_second_oracles.iter(),
+            Some(zk_rng),
+        )
+        .map_err(Error::from_pc_err)?;
+        end_timer!(second_round_comm_time);
+
+        let scinput = second_comms
+            .iter()
+            .map(|p| p.commitment().clone())
+            .collect::<Vec<_>>();
+        match prover_second_msg {
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(&scinput), elems);
+            }
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(&scinput)),
+        }
+
+        let (verifier_second_msg, verifier_state) =
+            AHPForR1CS::verifier_second_round(verifier_state, &mut fs_rng);
+        // --------------------------------------------------------------------
+
+        // --------------------------------------------------------------------
+        // Third round
+        let (prover_third_msg, prover_third_oracles) =
+            AHPForR1CS::prover_third_round(&verifier_second_msg, prover_state, zk_rng)?;
+
+        let third_round_comm_time = start_timer!(|| "Committing to third round polys");
+        let (third_comms, third_comm_rands) = PC::commit(
+            &index_pk.committer_key,
+            prover_third_oracles.iter(),
+            Some(zk_rng),
+        )
+        .map_err(Error::from_pc_err)?;
+        end_timer!(third_round_comm_time);
+
+        let tcinput = third_comms
+            .iter()
+            .map(|p| p.commitment().clone())
+            .collect::<Vec<_>>();
+        match prover_third_msg {
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(&tcinput), elems);
+            }
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(&tcinput)),
+        }
 
         let verifier_state = AHPForR1CS::verifier_third_round(verifier_state, &mut fs_rng);
         // --------------------------------------------------------------------
@@ -287,7 +680,8 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         end_timer!(eval_time);
 
         fs_rng.absorb(&evaluations);
-        let opening_challenge: F = u128::rand(&mut fs_rng).into();
+        let mut opening_challenge: ChallengeGenerator<_, S> =
+            ChallengeGenerator::new_multivariate(fs_rng);
 
         let pc_proof = PC::open_combinations(
             &index_pk.committer_key,
@@ -295,7 +689,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
             polynomials,
             &labeled_comms,
             &query_set,
-            opening_challenge,
+            &mut opening_challenge,
             &comm_rands,
             Some(zk_rng),
         )
@@ -312,10 +706,11 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
 
     /// Verify that a proof for the constrain system defined by `C` asserts that
     /// all constraints are satisfied.
-    pub fn verify<R: RngCore>(
-        index_vk: &IndexVerifierKey<F, PC>,
+    /// Uses fast absorption of field elements into sponge
+    pub fn fast_verify<R: RngCore>(
+        index_vk: &IndexVerifierKey<F, PC, S>,
         public_input: &[F],
-        proof: &Proof<F, PC>,
+        proof: &Proof<F, PC, S>,
         rng: &mut R,
     ) -> Result<bool, Error<PC::Error>> {
         let verifier_time = start_timer!(|| "Marlin::Verify");
@@ -332,15 +727,24 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
             unpadded_input
         };
 
-        let mut fs_rng =
-            FS::initialize(&to_bytes![&Self::PROTOCOL_NAME, &index_vk, &public_input].unwrap());
+        let mut fs_rng = S::default();
+        absorb!(
+            &mut fs_rng,
+            &Self::PROTOCOL_NAME,
+            &to_bytes(index_vk),
+            &public_input
+        );
 
         // --------------------------------------------------------------------
         // First round
 
         let first_comms = &proof.commitments[0];
-        fs_rng.absorb(&to_bytes![first_comms, proof.prover_messages[0]].unwrap());
-
+        match &proof.prover_messages[0] {
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(first_comms), elems);
+            }
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(first_comms)),
+        }
         let (_, verifier_state) =
             AHPForR1CS::verifier_first_round(index_vk.index_info, &mut fs_rng)?;
         // --------------------------------------------------------------------
@@ -348,7 +752,12 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         // --------------------------------------------------------------------
         // Second round
         let second_comms = &proof.commitments[1];
-        fs_rng.absorb(&to_bytes![second_comms, proof.prover_messages[1]].unwrap());
+        match &proof.prover_messages[1] {
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(second_comms), elems);
+            }
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(second_comms)),
+        }
 
         let (_, verifier_state) = AHPForR1CS::verifier_second_round(verifier_state, &mut fs_rng);
         // --------------------------------------------------------------------
@@ -356,7 +765,12 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
         // --------------------------------------------------------------------
         // Third round
         let third_comms = &proof.commitments[2];
-        fs_rng.absorb(&to_bytes![third_comms, proof.prover_messages[2]].unwrap());
+        match &proof.prover_messages[2] {
+            ProverMsg::FieldElements(ref elems) => {
+                absorb!(&mut fs_rng, &to_bytes(third_comms), elems);
+            }
+            ProverMsg::EmptyMessage => fs_rng.absorb(&to_bytes(third_comms)),
+        }
 
         let verifier_state = AHPForR1CS::verifier_third_round(verifier_state, &mut fs_rng);
         // --------------------------------------------------------------------
@@ -388,7 +802,8 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
             AHPForR1CS::verifier_query_set(verifier_state, &mut fs_rng);
 
         fs_rng.absorb(&proof.evaluations);
-        let opening_challenge: F = u128::rand(&mut fs_rng).into();
+        let mut opening_challenge: ChallengeGenerator<F, S> =
+            ChallengeGenerator::new_multivariate(fs_rng);
 
         let mut evaluations = Evaluations::new();
         let mut evaluation_labels = Vec::new();
@@ -417,7 +832,7 @@ impl<F: PrimeField, PC: PolynomialCommitment<F, DensePolynomial<F>>, FS: FiatSha
             &query_set,
             &evaluations,
             &proof.pc_proof,
-            opening_challenge,
+            &mut opening_challenge,
             rng,
         )
         .map_err(Error::from_pc_err)?;

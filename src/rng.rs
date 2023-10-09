@@ -1,80 +1,91 @@
 use crate::Vec;
-use ark_ff::{FromBytes, ToBytes};
-use ark_std::convert::From;
-use ark_std::marker::PhantomData;
-use ark_std::rand::{RngCore, SeedableRng};
-use digest::Digest;
+use ark_crypto_primitives::sponge::poseidon::{
+    find_poseidon_ark_and_mds, PoseidonConfig, PoseidonSponge,
+};
+use ark_crypto_primitives::sponge::{Absorb, CryptographicSponge};
+use ark_ff::PrimeField;
 
-/// An RNG suitable for Fiat-Shamir transforms
-pub trait FiatShamirRng: RngCore {
-    /// Create a new `Self` with an initial input
-    fn initialize<'a, T: 'a + ToBytes>(initial_input: &'a T) -> Self;
-    /// Absorb new inputs into state
-    fn absorb<'a, T: 'a + ToBytes>(&mut self, new_input: &'a T);
-}
+use ark_std::rand::RngCore;
 
 /// A simple `FiatShamirRng` that refreshes its seed by hashing together the previous seed
 /// and the new seed material.
-pub struct SimpleHashFiatShamirRng<D: Digest, R: RngCore + SeedableRng> {
-    r: R,
-    seed: [u8; 32],
-    #[doc(hidden)]
-    digest: PhantomData<D>,
-}
+/// Exposes a particular instantiation of the Poseidon sponge
 
-impl<D: Digest, R: RngCore + SeedableRng> RngCore for SimpleHashFiatShamirRng<D, R> {
+#[derive(Clone)]
+pub struct SimplePoseidonRng<F: PrimeField>(PoseidonSponge<F>);
+
+impl<F: PrimeField> RngCore for SimplePoseidonRng<F> {
     #[inline]
     fn next_u32(&mut self) -> u32 {
-        self.r.next_u32()
+        self.0
+            .squeeze_bits(32)
+            .iter()
+            .rev()
+            .fold(0, |acc, &bit| (acc << 1) | (bit as u32))
     }
 
     #[inline]
     fn next_u64(&mut self) -> u64 {
-        self.r.next_u64()
+        self.0
+            .squeeze_bits(64)
+            .iter()
+            .rev()
+            .fold(0, |acc, &bit| (acc << 1) | (bit as u64))
     }
 
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        self.r.fill_bytes(dest);
+        dest.copy_from_slice(self.0.squeeze_bytes(dest.len()).as_slice());
     }
 
     #[inline]
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), ark_std::rand::Error> {
-        Ok(self.r.fill_bytes(dest))
+        Ok(self.fill_bytes(dest))
     }
 }
 
-impl<D: Digest, R: RngCore + SeedableRng> FiatShamirRng for SimpleHashFiatShamirRng<D, R>
-where
-    R::Seed: From<[u8; 32]>,
-{
-    /// Create a new `Self` by initializing with a fresh seed.
-    /// `self.seed = H(initial_input)`.
-    #[inline]
-    fn initialize<'a, T: 'a + ToBytes>(initial_input: &'a T) -> Self {
-        let mut bytes = Vec::new();
-        initial_input
-            .write(&mut bytes)
-            .expect("failed to convert to bytes");
-        let seed = FromBytes::read(D::digest(&bytes).as_ref()).expect("failed to get [u8; 32]");
-        let r = R::from_seed(<R::Seed>::from(seed));
-        Self {
-            r,
-            seed: seed,
-            digest: PhantomData,
-        }
+impl<F: PrimeField> CryptographicSponge for SimplePoseidonRng<F> {
+    type Config = PoseidonConfig<F>;
+
+    fn new(params: &Self::Config) -> Self {
+        Self(PoseidonSponge::new(params))
     }
 
-    /// Refresh `self.seed` with new material. Achieved by setting
-    /// `self.seed = H(new_input || self.seed)`.
-    #[inline]
-    fn absorb<'a, T: 'a + ToBytes>(&mut self, new_input: &'a T) {
-        let mut bytes = Vec::new();
-        new_input
-            .write(&mut bytes)
-            .expect("failed to convert to bytes");
-        bytes.extend_from_slice(&self.seed);
-        self.seed = FromBytes::read(D::digest(&bytes).as_ref()).expect("failed to get [u8; 32]");
-        self.r = R::from_seed(<R::Seed>::from(self.seed));
+    fn absorb(&mut self, input: &impl Absorb) {
+        self.0.absorb(input);
+    }
+
+    fn squeeze_bytes(&mut self, num_bytes: usize) -> Vec<u8> {
+        self.0.squeeze_bytes(num_bytes)
+    }
+
+    fn squeeze_bits(&mut self, num_bits: usize) -> Vec<bool> {
+        self.0.squeeze_bits(num_bits)
+    }
+}
+
+/// Instantiate Poseidon sponge with default parameters
+impl<F: PrimeField> Default for SimplePoseidonRng<F> {
+    fn default() -> Self {
+        // let default =
+        // Self(PoseidonSponge::new(&poseidon_parameters_for_test()))
+        let (alpha, rate, full_rounds, partial_rounds) = (17, 2, 8, 29);
+        let (ark, mds) = find_poseidon_ark_and_mds(
+            F::MODULUS_BIT_SIZE as u64,
+            rate,
+            full_rounds,
+            partial_rounds,
+            0,
+        );
+        let config = PoseidonConfig {
+            full_rounds: full_rounds as usize,
+            partial_rounds: partial_rounds as usize,
+            alpha: alpha as u64,
+            ark,
+            mds,
+            rate,
+            capacity: 1,
+        };
+        SimplePoseidonRng(PoseidonSponge::new(&config))
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "ark-marlin"
-version = "0.3.0"
+version = "0.4.0"
 authors = [
   "Alessandro Chiesa <alexch@berkeley.edu>",
   "Mary Maller <mary.maller.15@ucl.ac.uk>",
@@ -17,28 +17,31 @@ keywords = ["cryptography", "commitments", "zkSNARK"]
 categories = ["cryptography"]
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-ark-serialize = { version = "^0.3.0", default-features = false, features = [ "derive" ] }
-ark-ff = { version = "^0.3.0", default-features = false }
-ark-std = { version = "^0.3.0", default-features = false }
-ark-poly = { version = "^0.3.0", default-features = false }
-ark-relations = { version = "^0.3.0", default-features = false }
-ark-poly-commit = { version = "^0.3.0", default-features = false }
+ark-serialize = { version = "^0.4.0", default-features = false, features = [ "derive" ] }
+ark-ff = { version = "^0.4.0", default-features = false }
+ark-ec = { version = "^0.4.0", default-features = false }
+ark-std = { version = "^0.4.0", default-features = false }
+ark-poly = { version = "^0.4.0", default-features = false }
+ark-relations = { version = "^0.4.0", default-features = false }
+ark-poly-commit = { version = "^0.4.0", default-features = false }
+ark-crypto-primitives = { version = "^0.4.0", default-features = false, features = [ "r1cs" ] }
 
 rayon = { version = "1", optional = true }
 digest = { version = "0.9" }
 derivative = { version = "2", features = ["use_core"] }
+itertools = "0.11.0"
 
 [dev-dependencies]
-rand_chacha = { version = "0.3.0", default-features = false }
+rand_chacha = { version = "^0.3.0", default-features = false }
 blake2 = { version = "0.9", default-features = false }
-ark-bls12-381 = { version = "^0.3.0", default-features = false, features = [ "curve" ] }
-ark-mnt4-298 = { version = "^0.3.0", default-features = false, features = ["r1cs", "curve"] }
-ark-mnt6-298 = { version = "^0.3.0", default-features = false, features = ["r1cs"] }
-ark-mnt4-753 = { version = "^0.3.0", default-features = false, features = ["r1cs", "curve"] }
-ark-mnt6-753 = { version = "^0.3.0", default-features = false, features = ["r1cs"] }
+ark-bls12-381 = { version = "^0.4.0", default-features = false, features = [ "curve" ] }
+ark-mnt4-298 = { version = "^0.4.0", default-features = false, features = ["r1cs", "curve"] }
+ark-mnt6-298 = { version = "^0.4.0", default-features = false, features = ["r1cs"] }
+ark-mnt4-753 = { version = "^0.4.0", default-features = false, features = ["r1cs", "curve"] }
+ark-mnt6-753 = { version = "^0.4.0", default-features = false, features = ["r1cs"] }
 
 [profile.release]
 opt-level = 3

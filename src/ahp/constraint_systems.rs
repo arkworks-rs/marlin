@@ -6,11 +6,8 @@ use crate::BTreeMap;
 use ark_ff::{Field, PrimeField};
 use ark_poly::{EvaluationDomain, Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain};
 use ark_relations::{lc, r1cs::ConstraintSystemRef};
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
-use ark_std::{
-    cfg_iter_mut,
-    io::{Read, Write},
-};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_std::cfg_iter_mut;
 use derivative::Derivative;
 
 /* ************************************************************************* */
@@ -291,13 +288,18 @@ pub(crate) fn make_matrices_square_for_prover<F: PrimeField>(cs: ConstraintSyste
 
 #[cfg(test)]
 mod tests {
+    use crate::SimplePoseidonRng;
+
     use super::*;
+    use ark_crypto_primitives::sponge::CryptographicSponge;
     use ark_relations::r1cs::Matrix;
-    use ark_std::{collections::BTreeMap, UniformRand};
+    use ark_std::collections::BTreeMap;
 
     use ark_bls12_381::Fr as F;
     use ark_ff::{One, Zero};
     use ark_poly::EvaluationDomain;
+    use itertools::Itertools;
+    use rand_chacha::rand_core::RngCore;
 
     fn entry(matrix: &Matrix<F>, row: usize, col: usize) -> F {
         matrix[row]
@@ -372,10 +374,15 @@ mod tests {
             .zip(output_domain.batch_eval_unnormalized_bivariate_lagrange_poly_with_same_inputs())
             .collect();
 
-        let mut rng = ark_std::test_rng();
-        let eta_a = F::rand(&mut rng);
-        let eta_b = F::rand(&mut rng);
-        let eta_c = F::rand(&mut rng);
+        let mut rng_seed = ark_std::test_rng();
+        let mut rng: SimplePoseidonRng<F> = SimplePoseidonRng::default();
+        rng.absorb(&rng_seed.next_u64());
+        let (eta_a, eta_b, eta_c) = rng
+            .squeeze_field_elements(3)
+            .iter()
+            .map(|x: &F| x.to_owned())
+            .collect_tuple()
+            .unwrap();
         for (k_index, k) in interpolation_domain.elements().enumerate() {
             let row_val = joint_arith.row.evaluate(&k);
             let col_val = joint_arith.col.evaluate(&k);

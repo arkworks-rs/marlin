@@ -8,20 +8,24 @@ use crate::ahp::constraint_systems::{
     make_matrices_square_for_prover, pad_input_for_indexer_and_prover, unformat_public_input,
 };
 use crate::{ToString, Vec};
+use ark_crypto_primitives::sponge::CryptographicSponge;
 use ark_ff::{Field, PrimeField, Zero};
 use ark_poly::{
-    univariate::DensePolynomial, EvaluationDomain, Evaluations as EvaluationsOnDomain,
-    GeneralEvaluationDomain, Polynomial, UVPolynomial,
+    univariate::DensePolynomial, DenseUVPolynomial, EvaluationDomain,
+    Evaluations as EvaluationsOnDomain, GeneralEvaluationDomain, Polynomial,
 };
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, SynthesisError,
 };
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
+use ark_serialize::Compress;
+use ark_serialize::Validate;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError, Valid};
 use ark_std::rand::RngCore;
 use ark_std::{
     cfg_into_iter, cfg_iter, cfg_iter_mut,
     io::{Read, Write},
 };
+use itertools::Itertools;
 
 /// State for the AHP prover.
 pub struct ProverState<'a, F: PrimeField> {
@@ -72,81 +76,44 @@ pub enum ProverMsg<F: Field> {
     FieldElements(Vec<F>),
 }
 
-impl<F: Field> ark_ff::ToBytes for ProverMsg<F> {
-    fn write<W: Write>(&self, w: W) -> ark_std::io::Result<()> {
+impl<F: Field> CanonicalSerialize for ProverMsg<F> {
+    fn serialize_with_mode<W: Write>(
+        &self,
+        writer: W,
+        compress: Compress,
+    ) -> Result<(), SerializationError> {
+        let res = match self {
+            ProverMsg::EmptyMessage => None,
+            ProverMsg::FieldElements(v) => Some(v.clone()),
+        };
+        res.serialize_with_mode(writer, compress)?;
+        Ok(())
+    }
+
+    fn serialized_size(&self, compress: Compress) -> usize {
+        let res: Option<Vec<F>> = match self {
+            ProverMsg::EmptyMessage => None,
+            ProverMsg::FieldElements(v) => Some(v.clone()),
+        };
+        res.serialized_size(compress)
+    }
+}
+
+impl<F: Field> Valid for ProverMsg<F> {
+    fn check(&self) -> Result<(), SerializationError> {
         match self {
             ProverMsg::EmptyMessage => Ok(()),
-            ProverMsg::FieldElements(field_elems) => field_elems.write(w),
+            ProverMsg::FieldElements(v) => v.check(),
         }
     }
 }
-
-impl<F: Field> CanonicalSerialize for ProverMsg<F> {
-    fn serialize<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
-        let res: Option<Vec<F>> = match self {
-            ProverMsg::EmptyMessage => None,
-            ProverMsg::FieldElements(v) => Some(v.clone()),
-        };
-        res.serialize(&mut writer)
-    }
-
-    fn serialized_size(&self) -> usize {
-        let res: Option<Vec<F>> = match self {
-            ProverMsg::EmptyMessage => None,
-            ProverMsg::FieldElements(v) => Some(v.clone()),
-        };
-        res.serialized_size()
-    }
-
-    fn serialize_unchecked<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
-        let res: Option<Vec<F>> = match self {
-            ProverMsg::EmptyMessage => None,
-            ProverMsg::FieldElements(v) => Some(v.clone()),
-        };
-        res.serialize_unchecked(&mut writer)
-    }
-
-    fn serialize_uncompressed<W: Write>(&self, mut writer: W) -> Result<(), SerializationError> {
-        let res: Option<Vec<F>> = match self {
-            ProverMsg::EmptyMessage => None,
-            ProverMsg::FieldElements(v) => Some(v.clone()),
-        };
-        res.serialize_uncompressed(&mut writer)
-    }
-
-    fn uncompressed_size(&self) -> usize {
-        let res: Option<Vec<F>> = match self {
-            ProverMsg::EmptyMessage => None,
-            ProverMsg::FieldElements(v) => Some(v.clone()),
-        };
-        res.uncompressed_size()
-    }
-}
-
 impl<F: Field> CanonicalDeserialize for ProverMsg<F> {
-    fn deserialize<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
-        let res = Option::<Vec<F>>::deserialize(&mut reader)?;
-
-        if let Some(res) = res {
-            Ok(ProverMsg::FieldElements(res))
-        } else {
-            Ok(ProverMsg::EmptyMessage)
-        }
-    }
-
-    fn deserialize_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
-        let res = Option::<Vec<F>>::deserialize_unchecked(&mut reader)?;
-
-        if let Some(res) = res {
-            Ok(ProverMsg::FieldElements(res))
-        } else {
-            Ok(ProverMsg::EmptyMessage)
-        }
-    }
-
-    fn deserialize_uncompressed<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
-        let res = Option::<Vec<F>>::deserialize_uncompressed(&mut reader)?;
-
+    fn deserialize_with_mode<R: Read>(
+        reader: R,
+        compress: Compress,
+        validate: Validate,
+    ) -> Result<Self, SerializationError> {
+        let res = Option::<Vec<F>>::deserialize_with_mode(reader, compress, validate)?;
         if let Some(res) = res {
             Ok(ProverMsg::FieldElements(res))
         } else {
@@ -306,7 +273,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
     }
 
     /// Output the first round message and the next state.
-    pub fn prover_first_round<'a, R: RngCore>(
+    pub fn prover_first_round<'a, R: CryptographicSponge + RngCore>(
         mut state: ProverState<'a, F>,
         rng: &mut R,
     ) -> Result<(ProverMsg<F>, ProverFirstOracles<F>, ProverState<'a, F>), Error> {
@@ -347,9 +314,15 @@ impl<F: PrimeField> AHPForR1CS<F> {
             })
             .collect();
 
+        let (f1, f2, f3) = rng
+            .squeeze_field_elements(3)
+            .iter()
+            .map(|x: &F| x.to_owned())
+            .collect_tuple()
+            .unwrap();
         let w_poly = &EvaluationsOnDomain::from_vec_and_domain(w_poly_evals, domain_h)
             .interpolate()
-            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+            + &(&DensePolynomial::from_coefficients_slice(&[f1]) * &v_H);
         let (w_poly, remainder) = w_poly.divide_by_vanishing_poly(domain_x).unwrap();
         assert!(remainder.is_zero());
         end_timer!(w_poly_time);
@@ -357,13 +330,13 @@ impl<F: PrimeField> AHPForR1CS<F> {
         let z_a_poly_time = start_timer!(|| "Computing z_A polynomial");
         let z_a = state.z_a.clone().unwrap();
         let z_a_poly = &EvaluationsOnDomain::from_vec_and_domain(z_a, domain_h).interpolate()
-            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+            + &(&DensePolynomial::from_coefficients_slice(&[f2]) * &v_H);
         end_timer!(z_a_poly_time);
 
         let z_b_poly_time = start_timer!(|| "Computing z_B polynomial");
         let z_b = state.z_b.clone().unwrap();
         let z_b_poly = &EvaluationsOnDomain::from_vec_and_domain(z_b, domain_h).interpolate()
-            + &(&DensePolynomial::from_coefficients_slice(&[F::rand(rng)]) * &v_H);
+            + &(&DensePolynomial::from_coefficients_slice(&[f3]) * &v_H);
         end_timer!(z_b_poly_time);
 
         let mask_poly_time = start_timer!(|| "Computing mask polynomial");
