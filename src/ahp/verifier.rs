@@ -116,7 +116,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         //
         // Note that z is the interpolation of x || w, so it equals x + v_X * w
         // We also use an optimization: instead of explicitly calculating z_c, we
-        // use the "virtual oracle" z_b * z_c
+        // use the "virtual oracle" z_a * z_b
         //
         // LinearCombination::new(
         //      outer_sumcheck
