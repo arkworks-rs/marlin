@@ -176,7 +176,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         //
         // let a_poly_lc *= v_H_at_alpha * v_H_at_beta;
         // let b_lc = denom
-        // let h_lc = LinearCombination::new("b_poly", vec![(v_K_at_gamma, "h_2")]);
+        // let h_lc = LinearCombination::new("h_2", vec![(v_K_at_gamma, "h_2")]);
         //
         // // This LC is the only one that is evaluated:
         // let inner_sumcheck = a_poly_lc - (b_lc * (gamma * &g_2_at_gamma + &(t_at_beta / &k_size))) - h_lc
