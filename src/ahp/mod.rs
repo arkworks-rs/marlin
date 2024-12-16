@@ -44,7 +44,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         "g_2", "h_2",
     ];
 
-    /// THe linear combinations that are statically known to evaluate to zero.
+    /// The linear combinations that are statically known to evaluate to zero.
     pub const LC_WITH_ZERO_EVAL: [&'static str; 2] = ["inner_sumcheck", "outer_sumcheck"];
 
     pub(crate) fn polynomial_labels() -> impl Iterator<Item = String> {
