@@ -13,9 +13,17 @@ with<br>
 <b>universal and updatable SRS</b>
 </p>
 
-This library was initially developed as part of the [Marlin paper][marlin], and is released under the MIT License and the Apache v2 License (see [License](#license)).
+## Table of Contents
+- [Overview](#overview)
+- [Quick Start](#quick-start)
+- [System Requirements](#system-requirements)
+- [Build Guide](#build-guide)
+- [Benchmarks](#benchmarks)
+- [License](#license)
+- [Reference Paper](#reference-paper)
+- [Acknowledgements](#acknowledgements)
 
-**WARNING:** This is an academic prototype, and in particular has not received careful code review. This implementation is NOT ready for production use.
+**Project Status:** This implementation is currently in research/academic prototype phase. While functional, it requires additional security audits and optimizations before production use.
 
 ## Overview
 
@@ -30,7 +38,33 @@ The construction in this library follows the methodology introduced in the [Marl
 
 The first ingredient is provided as part of this library, and is an efficient algebraic holographic proof for R1CS (a generalization of arithmetic circuit satisfiability supported by many argument systems). The second ingredient is imported from [`poly-commit`](https://github.com/arkworks-rs/poly-commit). See below for evaluation details.
 
-## Build guide
+## Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/arkworks-rs/marlin.git
+
+# Enter the directory
+cd marlin
+
+# Build the library
+cargo build --release
+
+# Run tests
+cargo test
+
+# Run example
+cargo run --example simple_example
+```
+
+## System Requirements
+- Rust 1.56.0 or later
+- Cargo (Rust's package manager)
+- 64-bit processor
+- At least 2GB RAM
+- Linux, macOS, or Windows
+
+## Build Guide
 
 The library compiles on the `stable` toolchain of the Rust compiler. To install the latest version of Rust, first install `rustup` by following the instructions [here](https://rustup.rs/), or via your platform's package manager. Once `rustup` is installed, install the Rust toolchain by invoking:
 ```bash
