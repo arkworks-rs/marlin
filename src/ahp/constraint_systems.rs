@@ -340,7 +340,7 @@ mod tests {
             vec![],
             vec![],
         ];
-        let joint_matrix = crate::ahp::indexer::sum_matrices(&a, &b, &c);
+        let joint_matrix = indexer::sum_matrices(&a, &b, &c);
         let num_non_zero = dbg!(num_non_zero(&joint_matrix));
         let interpolation_domain = EvaluationDomain::new(num_non_zero).unwrap();
         let output_domain = EvaluationDomain::new(2 + 6).unwrap();
