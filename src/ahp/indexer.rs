@@ -178,7 +178,7 @@ impl<F: PrimeField> AHPForR1CS<F> {
         );
         let num_variables = num_formatted_input_variables + num_witness_variables;
 
-        if num_constraints != num_formatted_input_variables + num_witness_variables {
+        if num_constraints != num_variables {
             eprintln!(
                 "number of (formatted) input_variables: {}",
                 num_formatted_input_variables
